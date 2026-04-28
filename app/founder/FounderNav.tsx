@@ -8,6 +8,7 @@ export default function FounderNav() {
     { href: "/founder/shifts", label: "Shifts" },
     { href: "/founder/applications", label: "Applications" },
     { href: "/founder/support", label: "Support" },
+    { href: "/founder/waitlist", label: "Waitlist" },
   ];
   return (
     <nav className="mb-4 flex flex-wrap gap-2 border-b border-line pb-3 text-sm">

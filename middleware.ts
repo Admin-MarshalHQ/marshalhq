@@ -18,6 +18,8 @@ export default auth((req) => {
     path === "/rules" ||
     path === "/support" ||
     path === "/support/thanks" ||
+    path === "/early-access" ||
+    path === "/early-access/thanks" ||
     path === "/forgot" ||
     path === "/forgot/sent" ||
     path.startsWith("/reset/") ||
