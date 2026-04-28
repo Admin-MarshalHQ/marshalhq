@@ -144,3 +144,93 @@ export const SupportRequestSchema = z.object({
 export const FounderNoteSchema = z.object({
   note: z.string().trim().max(1000).optional().or(z.literal("")),
 });
+
+// Early access waitlist intake. Public form with no auth — every field is
+// validated server-side here. The contact-leak guard on `note` keeps the
+// usual pre-acceptance hygiene applied to free text.
+export const WaitlistEntrySchema = z
+  .object({
+    name: z.string().trim().min(1, "Enter your name").max(120),
+    email: z.string().trim().toLowerCase().email("Enter a valid email"),
+    role: z.enum(["MANAGER", "MARSHAL"], {
+      errorMap: () => ({ message: "Choose manager or marshal" }),
+    }),
+    location: z
+      .string()
+      .trim()
+      .min(1, "Enter your base area")
+      .max(120),
+    note: noContactLeak(
+      z
+        .string()
+        .trim()
+        .min(10, "Tell us a bit about your interest")
+        .max(1000),
+    ),
+    // HTML checkbox sends "on" when checked, nothing when not. Anything else
+    // is treated as missing consent and rejected.
+    consentToContact: z.literal("on", {
+      errorMap: () => ({
+        message: "Please confirm consent to be contacted",
+      }),
+    }),
+    managerRole: z
+      .union([
+        z.string().trim().max(120),
+        z.literal(""),
+      ])
+      .optional(),
+    expectedNeed: z
+      .union([
+        z.enum(["URGENT", "OCCASIONAL", "REGULAR", "FUTURE_PROJECT"]),
+        z.literal(""),
+      ])
+      .optional(),
+    marshalExperience: z
+      .union([
+        z.enum(["NEW", "SOME", "EXPERIENCED"]),
+        z.literal(""),
+      ])
+      .optional(),
+    availability: z
+      .union([
+        z.enum(["AVAILABLE_NOW", "AVAILABLE_SOON", "FUTURE_INTEREST"]),
+        z.literal(""),
+      ])
+      .optional(),
+  })
+  // Manager-only fields are rejected for marshal submissions and vice versa,
+  // so a tampered payload can't smuggle the wrong role's data into storage.
+  .superRefine((v, ctx) => {
+    if (v.role === "MANAGER") {
+      if (v.marshalExperience) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["marshalExperience"],
+          message: "Not allowed for managers",
+        });
+      }
+      if (v.availability) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["availability"],
+          message: "Not allowed for managers",
+        });
+      }
+    } else {
+      if (v.managerRole) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["managerRole"],
+          message: "Not allowed for marshals",
+        });
+      }
+      if (v.expectedNeed) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["expectedNeed"],
+          message: "Not allowed for marshals",
+        });
+      }
+    }
+  });

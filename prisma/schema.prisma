@@ -149,3 +149,27 @@ model SupportRequest {
   user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
   @@index([createdAt])
 }
+
+// Early access waitlist. Demand capture only — not an account. Submissions
+// never create a User; the founder reviews entries manually and follows up
+// out of band. Status changes are out of scope for v1.
+model WaitlistEntry {
+  id                String   @id @default(cuid())
+  createdAt         DateTime @default(now())
+  name              String
+  email             String
+  role              String   // WaitlistRole: MANAGER | MARSHAL
+  location          String
+  note              String
+  consentToContact  Boolean
+  managerRole       String?  // free text, manager-only
+  expectedNeed      String?  // WaitlistExpectedNeed (manager-only)
+  marshalExperience String?  // WaitlistMarshalExperience (marshal-only)
+  availability      String?  // WaitlistAvailability (marshal-only)
+  source            String?  @default("landing")
+  status            String   @default("NEW") // WaitlistStatus
+  founderNote       String?
+
+  @@index([createdAt])
+  @@index([status])
+}

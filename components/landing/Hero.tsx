@@ -30,6 +30,12 @@ export function Hero() {
               >
                 Sign in
               </Link>
+              <Link
+                href="/early-access"
+                className="inline-flex items-center justify-center rounded-md px-5 py-3 text-sm font-semibold text-brand-navy underline-offset-4 transition hover:underline"
+              >
+                Request early access
+              </Link>
             </div>
             <p className="mt-6 flex items-center gap-2 text-sm text-brand-mute">
               <span
