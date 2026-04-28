@@ -13,6 +13,7 @@ body {
 }
 
 body {
+  overflow-x: hidden;
   font-family:
     ui-sans-serif, system-ui, -apple-system, "Segoe UI", Inter, Arial, sans-serif;
   font-feature-settings: "cv11", "ss01";
