@@ -33,6 +33,13 @@ if (bumpPatch) {
 }
 
 function gitInfo() {
+  // Vercel injects VERCEL_GIT_COMMIT_SHA on every deploy (GitHub-triggered AND
+  // CLI-from-git). The build container has no .git/ so `git rev-parse` fails
+  // there; prefer the env var so deployed VersionBadge reads the right SHA.
+  const vercelSha = process.env.VERCEL_GIT_COMMIT_SHA;
+  if (vercelSha && /^[0-9a-f]{7,40}$/i.test(vercelSha)) {
+    return { commit: vercelSha.slice(0, 7), dirty: false };
+  }
   try {
     const commit = execSync("git rev-parse --short HEAD", {
       cwd: root,
