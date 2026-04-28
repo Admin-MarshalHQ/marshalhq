@@ -20,6 +20,14 @@ const config: Config = {
         ok: "#1a7f5a",
         warn: "#a15c00",
         danger: "#a1302b",
+        brand: {
+          navy: "#06142E",
+          gold: "#F5A400",
+          forest: "#1F7A3A",
+          cream: "#FAFAF7",
+          hairline: "#E6E8EC",
+          mute: "#5F6673",
+        },
       },
       fontFamily: {
         sans: [

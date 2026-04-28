@@ -34,15 +34,11 @@ export default async function RootLayout({
           <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-3">
             <Link
               href="/"
-              className="flex items-center gap-2 text-ink"
+              className="flex items-center gap-2 text-brand-navy"
               aria-label="MarshalHQ home"
             >
-              <span
-                className="inline-block h-5 w-5 rounded-sm bg-accent"
-                aria-hidden
-              />
               <span className="text-[15px] font-semibold tracking-tight">
-                MarshalHQ
+                Marshal<span className="text-brand-gold">HQ</span>
               </span>
             </Link>
             <nav className="flex flex-wrap items-center justify-end gap-x-4 gap-y-1 text-sm">
