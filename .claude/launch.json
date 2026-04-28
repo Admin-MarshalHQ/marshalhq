@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "Next.js dev server",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["next", "dev"],
+      "autoPort": true
+    },
+    {
+      "name": "Prisma Studio",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["prisma", "studio", "--port", "5555"],
+      "port": 5555
+    }
+  ]
+}

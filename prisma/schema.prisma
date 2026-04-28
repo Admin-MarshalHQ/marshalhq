@@ -1,0 +1,151 @@
+// MarshalHQ MVP schema.
+// SQLite doesn't support native enums, so enum fields are String columns
+// constrained by TypeScript unions in lib/types.ts and by Zod at the edge.
+// Unique constraints still enforce the key workflow invariants.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("POSTGRES_URL")
+}
+
+model User {
+  id             String   @id @default(cuid())
+  email          String   @unique
+  passwordHash   String
+  role           String   @default("UNSET") // Role: MANAGER | MARSHAL | UNSET
+  phone          String?
+  createdAt      DateTime @default(now())
+
+  managerProfile ManagerProfile?
+  marshalProfile MarshalProfile?
+  shifts         Shift[]         @relation("ManagerShifts")
+  applications   Application[]
+  notifications  Notification[]
+  passwordResetTokens PasswordResetToken[]
+  supportRequests     SupportRequest[]
+}
+
+model ManagerProfile {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  companyName String
+  displayName String
+  createdAt   DateTime @default(now())
+  founderNote String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model MarshalProfile {
+  id                String   @id @default(cuid())
+  userId            String   @unique
+  fullName          String
+  baseLocation      String
+  travelRadiusMiles Int
+  experienceSummary String
+  availability      String   @default("OPEN_TO_WORK") // Availability
+  hasTransport      Boolean?
+  hasDriversLicence Boolean?
+  training          String?
+  photoUrl          String?
+  completedCount    Int      @default(0)
+  reliableCount     Int      @default(0)
+  paused            Boolean  @default(false)
+  founderNote       String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Shift {
+  id                    String   @id @default(cuid())
+  managerId             String
+  productionName        String
+  location              String
+  date                  DateTime
+  startTime             String
+  endTime               String
+  rate                  Float
+  rateUnit              String   @default("HOUR") // RateUnit: HOUR | DAY
+  duties                String
+  parkingTravel         String?
+  experienceNotes       String?
+  status                String   @default("DRAFT") // ShiftStatus
+  acceptedApplicationId String?  @unique
+  completedAt           DateTime?
+  reliabilityFlag       Boolean?
+  paused                Boolean  @default(false)
+  founderNote           String?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  manager      User          @relation("ManagerShifts", fields: [managerId], references: [id], onDelete: Cascade)
+  applications Application[] @relation("ShiftApplications")
+}
+
+model Application {
+  id         String    @id @default(cuid())
+  shiftId    String
+  marshalId  String
+  coverNote  String?
+  status     String    @default("APPLIED") // ApplicationStatus
+  appliedAt  DateTime  @default(now())
+  decidedAt  DateTime?
+
+  shift   Shift @relation("ShiftApplications", fields: [shiftId], references: [id], onDelete: Cascade)
+  marshal User  @relation(fields: [marshalId], references: [id], onDelete: Cascade)
+
+  @@unique([shiftId, marshalId])
+  @@index([shiftId, status])
+}
+
+model Notification {
+  id        String    @id @default(cuid())
+  userId    String
+  kind      String // NotificationKind
+  subject   String
+  body      String
+  createdAt DateTime  @default(now())
+  readAt    DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId, createdAt])
+}
+
+// Password reset. We store only a SHA-256 hash of the raw token so a DB leak
+// can't be turned into a live reset. Tokens expire (1h) and are single-use.
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  createdAt DateTime  @default(now())
+  expiresAt DateTime
+  usedAt    DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId])
+}
+
+// Support and privacy requests. Captured for any visitor (logged in or not) so
+// the founder has a single place to review access, privacy, deletion, and
+// trust requests. Never used for automated action — all handling is manual.
+model SupportRequest {
+  id          String    @id @default(cuid())
+  userId      String?
+  email       String
+  name        String?
+  category    String    // SupportCategory
+  message     String
+  createdAt   DateTime  @default(now())
+  resolvedAt  DateTime?
+  founderNote String?
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+  @@index([createdAt])
+}

@@ -1,0 +1,52 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+html,
+body {
+  background: #f6f7f9;
+  color: #111418;
+}
+
+body {
+  font-family:
+    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Inter, Arial, sans-serif;
+  font-feature-settings: "cv11", "ss01";
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: inherit;
+}
+
+/* Form defaults */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="number"],
+input[type="date"],
+input[type="time"],
+input[type="url"],
+input[type="tel"],
+input:not([type]),
+select,
+textarea {
+  @apply w-full rounded-md border border-line bg-white px-3 py-2 text-[15px] text-ink placeholder:text-ink-soft focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent;
+}
+
+textarea {
+  min-height: 96px;
+  resize: vertical;
+}
+
+label {
+  @apply text-sm font-medium text-ink-muted;
+}
+
+.prose-plain p {
+  @apply mb-3 leading-relaxed text-ink;
+}
