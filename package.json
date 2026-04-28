@@ -14,7 +14,6 @@
     "qa:scan": "tsx scripts/qa_contamination_scan.ts",
     "qa:scan:fix": "tsx scripts/qa_contamination_scan.ts --fix",
     "version:write": "node scripts/write-version.mjs",
-    "version:bump": "node scripts/write-version.mjs --bump-patch",
     "prebuild": "node scripts/write-version.mjs",
     "predev": "node scripts/write-version.mjs",
     "postinstall": "prisma generate"

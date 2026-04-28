@@ -6,8 +6,11 @@ This project ships with a single source of truth for the running build version. 
 
 **Source of truth**
 
-- `package.json` `version` field — the semantic version.
-- Current git commit short SHA (when the repo is initialised) — combined with the version for the display string.
+- `package.json` `version` field — only the **major.minor** parts are read; the `.patch` value there is ignored.
+- `git rev-list --count HEAD` — produces the **patch** number, so every push automatically bumps the version.
+- Current git commit short SHA (`VERCEL_GIT_COMMIT_SHA` on Vercel, otherwise `git rev-parse --short HEAD`) — appended after `+` as build metadata.
+
+The displayed string therefore looks like `v<major>.<minor>.<commits>+<sha>` — e.g. `v0.1.42+abc1234`. Each git push grows the patch and changes the SHA, so the version is always visibly different per deploy.
 
 **Generated file**
 
@@ -17,17 +20,18 @@ This project ships with a single source of truth for the running build version. 
 
 **Display surface**
 
-- `components/VersionBadge.tsx` is the only component that reads the version. It renders `DISPLAY_VERSION` (e.g. `v0.1.0+abc1234`).
+- `components/VersionBadge.tsx` is the only component that reads the version. It renders `DISPLAY_VERSION` (e.g. `v0.1.42+abc1234`).
 - It is mounted once in `app/layout.tsx`. Every page inherits the badge through the global layout.
 
 **Rules — do not break these**
 
 1. Never hardcode a version string in a page, component, route, API handler, or email template. If a feature needs the version, import it from `@/src/generated/version` (or render `<VersionBadge />`).
 2. Never inline `VersionBadge` into individual pages — it lives in the root layout. Adding it to a page would render it twice and drift over time.
-3. Never bump `package.json` `version` manually as part of a feature edit. The patch is bumped automatically by the PostToolUse hook on application file changes. Manual bumps are reserved for minor/major releases.
-4. Never delete or modify `scripts/write-version.mjs`, `scripts/version-hook.mjs`, or the `PostToolUse` hook in `.claude/settings.json` without an explicit instruction from the user.
-5. Excluded from the auto-bump (to avoid loops): `package.json`, `package-lock.json`, lock files, `src/generated/**`, the version scripts, `node_modules/**`, `.next/**`, `.vercel/**`, `.claude/**`, `.git/**`. Do not narrow this list.
-6. `src/generated/` is `.gitignore`d. The file is rebuilt by `predev` / `prebuild` so production builds always have a fresh version file.
+3. Never write a `.patch` into `package.json` by hand and expect it to show up — the patch is replaced at generate time with the commit count. Bump **major** or **minor** in `package.json` for releases; let the patch grow automatically.
+4. Never reintroduce a `--bump-patch` flag, a "patch bump" hook, or any logic that mutates `package.json` from a script. The version generator must remain a pure read-only function of git state + package.json major/minor.
+5. Never delete or modify `scripts/write-version.mjs`, `scripts/version-hook.mjs`, or the `PostToolUse` hook in `.claude/settings.json` without an explicit instruction from the user.
+6. Excluded from the regenerate hook (to avoid loops): `package.json`, `package-lock.json`, lock files, `src/generated/**`, the version scripts, `node_modules/**`, `.next/**`, `.vercel/**`, `.claude/**`, `.git/**`. Do not narrow this list.
+7. `src/generated/` is `.gitignore`d. The file is rebuilt by `predev` / `prebuild` so production builds always have a fresh version file.
 
 **Where to look**
 

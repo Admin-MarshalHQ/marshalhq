@@ -1,7 +1,9 @@
 #!/usr/bin/env node
-// PostToolUse hook: bump patch + regenerate version file when an
-// application file is edited. Skips package files, generated files,
-// and the version tooling itself to avoid infinite loops.
+// PostToolUse hook: regenerate version file when an application file is
+// edited so the local DISPLAY_VERSION reflects the current SHA / dirty state.
+// Skips package files, generated files, and version tooling to avoid loops.
+// The patch number itself is derived from `git rev-list --count HEAD` inside
+// write-version.mjs — there is no manual bump.
 import { spawnSync } from "node:child_process";
 import { resolve, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -66,7 +68,7 @@ if (!trackedExt.test(rel)) process.exit(0);
 
 const result = spawnSync(
   process.execPath,
-  [resolve(root, "scripts", "write-version.mjs"), "--bump-patch"],
+  [resolve(root, "scripts", "write-version.mjs")],
   { cwd: root, stdio: "inherit" },
 );
 
