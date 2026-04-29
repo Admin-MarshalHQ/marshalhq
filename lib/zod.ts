@@ -62,11 +62,15 @@ export const ShiftDraftSchema = z
   .object({
     productionName: noContactLeak(z.string().trim().min(1, "Required").max(140)),
     location: noContactLeak(z.string().trim().min(1, "Required").max(200)),
-    date: z.string().min(1, "Required"),
-    startTime: z
+    // A shift posts as a single block: startDate..endDate (inclusive), with
+    // the same daily window each day. One-day shifts pass the same value for
+    // both dates.
+    startDate: z.string().min(1, "Required"),
+    endDate: z.string().min(1, "Required"),
+    dailyStartTime: z
       .string()
       .regex(/^\d{2}:\d{2}$/, "Use HH:mm"),
-    endTime: z
+    dailyEndTime: z
       .string()
       .regex(/^\d{2}:\d{2}$/, "Use HH:mm"),
     rate: z.coerce.number().positive("Rate must be positive"),
@@ -77,9 +81,27 @@ export const ShiftDraftSchema = z
     parkingTravel: optionalNoContactLeak(z.string().trim().max(500)),
     experienceNotes: optionalNoContactLeak(z.string().trim().max(500)),
   })
-  .refine((v) => v.endTime > v.startTime, {
-    message: "End time must be after start time",
-    path: ["endTime"],
+  .superRefine((v, ctx) => {
+    const start = new Date(v.startDate);
+    const end = new Date(v.endDate);
+    if (
+      Number.isNaN(start.getTime()) ||
+      Number.isNaN(end.getTime()) ||
+      end.getTime() < start.getTime()
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["endDate"],
+        message: "End date can’t be before start date",
+      });
+    }
+    if (v.dailyEndTime <= v.dailyStartTime) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["dailyEndTime"],
+        message: "End time must be after start time",
+      });
+    }
   });
 
 export const MarshalProfileSchema = z.object({

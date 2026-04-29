@@ -232,14 +232,14 @@ check(
   check(
     classifyWithdraw(
       { status: "APPLIED" },
-      { status: "OPEN", date: futureDate, startTime: "07:00" },
+      { status: "OPEN", startDate: futureDate, dailyStartTime: "07:00" },
     ) === "allowed",
     "D: APPLIED + OPEN shift in the future is allowed to withdraw",
   );
   check(
     classifyWithdraw(
       { status: "ACCEPTED" },
-      { status: "FILLED", date: futureDate, startTime: "07:00" },
+      { status: "FILLED", startDate: futureDate, dailyStartTime: "07:00" },
     ) === "allowed",
     "D: ACCEPTED + FILLED shift before start is allowed to withdraw (reopens shift)",
   );
@@ -248,35 +248,35 @@ check(
   check(
     classifyWithdraw(
       { status: "ACCEPTED" },
-      { status: "FILLED", date: pastDate, startTime: "07:00" },
+      { status: "FILLED", startDate: pastDate, dailyStartTime: "07:00" },
     ) === "committed",
     "D: ACCEPTED + FILLED shift after start is blocked (committed)",
   );
   check(
     classifyWithdraw(
       { status: "ACCEPTED" },
-      { status: "COMPLETED", date: pastDate, startTime: "07:00" },
+      { status: "COMPLETED", startDate: pastDate, dailyStartTime: "07:00" },
     ) === "committed",
     "G: ACCEPTED on a COMPLETED shift cannot reopen via withdrawal",
   );
   check(
     classifyWithdraw(
       { status: "ACCEPTED" },
-      { status: "CLOSED", date: pastDate, startTime: "07:00" },
+      { status: "CLOSED", startDate: pastDate, dailyStartTime: "07:00" },
     ) === "committed",
     "G: ACCEPTED on a CLOSED shift cannot reopen via withdrawal",
   );
   check(
     classifyWithdraw(
       { status: "APPLIED" },
-      { status: "COMPLETED", date: pastDate, startTime: "07:00" },
+      { status: "COMPLETED", startDate: pastDate, dailyStartTime: "07:00" },
     ) === "committed",
     "G: APPLIED on a COMPLETED shift is blocked (committed) so completion history is safe",
   );
   check(
     classifyWithdraw(
       { status: "APPLIED" },
-      { status: "CLOSED", date: pastDate, startTime: "07:00" },
+      { status: "CLOSED", startDate: pastDate, dailyStartTime: "07:00" },
     ) === "committed",
     "G: APPLIED on a CLOSED shift is blocked (committed)",
   );
@@ -285,28 +285,28 @@ check(
   check(
     classifyWithdraw(
       { status: "REJECTED" },
-      { status: "OPEN", date: futureDate, startTime: "07:00" },
+      { status: "OPEN", startDate: futureDate, dailyStartTime: "07:00" },
     ) === "stale",
     "D: REJECTED application cannot be withdrawn",
   );
   check(
     classifyWithdraw(
       { status: "WITHDRAWN" },
-      { status: "OPEN", date: futureDate, startTime: "07:00" },
+      { status: "OPEN", startDate: futureDate, dailyStartTime: "07:00" },
     ) === "stale",
     "D: already-WITHDRAWN application is stale (idempotent)",
   );
   check(
     classifyWithdraw(
       { status: "APPLIED" },
-      { status: "FILLED", date: futureDate, startTime: "07:00" },
+      { status: "FILLED", startDate: futureDate, dailyStartTime: "07:00" },
     ) === "stale",
     "D: APPLIED on a FILLED shift is stale (manager already accepted someone)",
   );
   check(
     classifyWithdraw(
       { status: "ACCEPTED" },
-      { status: "OPEN", date: futureDate, startTime: "07:00" },
+      { status: "OPEN", startDate: futureDate, dailyStartTime: "07:00" },
     ) === "stale",
     "D: ACCEPTED with non-FILLED shift is stale (defensive)",
   );
@@ -322,7 +322,7 @@ check(
   check(
     classifyWithdraw(
       { status: "ACCEPTED" },
-      { status: "FILLED", date: justStartedDate, startTime: `${hh}:${mm}` },
+      { status: "FILLED", startDate: justStartedDate, dailyStartTime: `${hh}:${mm}` },
       now,
     ) === "committed",
     "D: ACCEPTED + FILLED at the exact start moment is committed (no last-second drop)",
@@ -334,19 +334,19 @@ const now = new Date();
 const future = new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000);
 const past = new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000);
 check(
-  isShiftSchedulable({ date: future, startTime: "07:00", endTime: "19:00" }),
+  isShiftSchedulable({ startDate: future, endDate: future, dailyStartTime: "07:00", dailyEndTime: "19:00" }),
   "F: future date with end > start is schedulable",
 );
 check(
-  !isShiftSchedulable({ date: past, startTime: "07:00", endTime: "19:00" }),
+  !isShiftSchedulable({ startDate: past, endDate: past, dailyStartTime: "07:00", dailyEndTime: "19:00" }),
   "F: past date is not schedulable",
 );
 check(
-  !isShiftSchedulable({ date: future, startTime: "20:00", endTime: "08:00" }),
+  !isShiftSchedulable({ startDate: future, endDate: future, dailyStartTime: "20:00", dailyEndTime: "08:00" }),
   "F: end-before-start is not schedulable",
 );
 check(
-  !isShiftSchedulable({ date: future, startTime: "09:00", endTime: "09:00" }),
+  !isShiftSchedulable({ startDate: future, endDate: future, dailyStartTime: "09:00", dailyEndTime: "09:00" }),
   "F: zero-length shift is not schedulable",
 );
 check(

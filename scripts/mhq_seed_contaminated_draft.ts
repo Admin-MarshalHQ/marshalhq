@@ -18,14 +18,16 @@ async function main() {
   }
   // Direct write bypasses Zod, mirroring a legacy row written before the
   // schema refinement was added.
+  const inSevenDays = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
   const created = await prisma.shift.create({
     data: {
       managerId: sam.id,
       productionName: "Contamination test draft",
       location: "Soho W1",
-      date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-      startTime: "07:00",
-      endTime: "19:00",
+      startDate: inSevenDays,
+      endDate: inSevenDays,
+      dailyStartTime: "07:00",
+      dailyEndTime: "19:00",
       rate: 15,
       rateUnit: "HOUR",
       duties:

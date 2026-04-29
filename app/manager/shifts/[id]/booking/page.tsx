@@ -9,7 +9,7 @@ import {
   PageHeader,
   ShiftStatusBadge,
 } from "@/components/ui";
-import { formatDate, formatTimeRange } from "@/lib/format";
+import { formatShiftBlock } from "@/lib/format";
 import { formatPhone } from "@/lib/phone";
 import {
   CONTACT_RELEASED_BODY_MANAGER,
@@ -97,7 +97,12 @@ export default async function BookingPage({
     <div>
       <PageHeader
         title="Booking confirmed"
-        subtitle={`${shift.productionName} \u00b7 ${formatDate(shift.date)} \u00b7 ${formatTimeRange(shift.startTime, shift.endTime)}`}
+        subtitle={`${shift.productionName} \u00b7 ${formatShiftBlock(
+          shift.startDate,
+          shift.endDate,
+          shift.dailyStartTime,
+          shift.dailyEndTime,
+        )}`}
         action={<ShiftStatusBadge status={shift.status} />}
       />
 

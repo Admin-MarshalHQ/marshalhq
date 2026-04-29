@@ -9,7 +9,11 @@ import {
   PageHeader,
   ShiftStatusBadge,
 } from "@/components/ui";
-import { formatDate, formatRate, formatTimeRange } from "@/lib/format";
+import {
+  formatRate,
+  formatShiftBlock,
+  shiftBlockLengthLabel,
+} from "@/lib/format";
 import { setShiftPausedAction } from "@/app/actions/founder";
 import ConfirmButton from "@/components/ConfirmButton";
 import ShiftNoteForm from "./ShiftNoteForm";
@@ -60,12 +64,20 @@ export default async function FounderShiftDetailPage({
     <div>
       <PageHeader
         title={shift.productionName}
-        subtitle={`${shift.location} \u00b7 ${formatDate(shift.date)} \u00b7 ${formatTimeRange(
-          shift.startTime,
-          shift.endTime,
+        subtitle={`${shift.location} \u00b7 ${formatShiftBlock(
+          shift.startDate,
+          shift.endDate,
+          shift.dailyStartTime,
+          shift.dailyEndTime,
         )}`}
         action={<ShiftStatusBadge status={shift.status} />}
       />
+      {(() => {
+        const length = shiftBlockLengthLabel(shift.startDate, shift.endDate);
+        return length ? (
+          <p className="-mt-2 mb-3 text-xs text-ink-soft">{length}</p>
+        ) : null;
+      })()}
       <div className="mb-4">
         <Link
           href="/founder/shifts"

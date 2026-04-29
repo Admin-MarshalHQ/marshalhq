@@ -54,11 +54,12 @@ export function assertApplicationTransition(
 }
 
 // Temporal guard on completion. A FILLED shift can only be marked COMPLETED
-// once its scheduled end time has passed. Kept pure so the UI can disable the
-// "Complete" control ahead of time and tests can assert without touching the DB.
+// once the scheduled end time on the final day of the block has passed. Kept
+// pure so the UI can disable the "Complete" control ahead of time and tests
+// can assert without touching the DB.
 export type CompletableShift = {
-  date: Date;
-  endTime: string; // "HH:MM"
+  endDate: Date;
+  dailyEndTime: string; // "HH:MM"
   status: string;
 };
 
@@ -67,38 +68,44 @@ export function canCompleteShift(
   now: Date = new Date(),
 ): boolean {
   if (shift.status !== "FILLED") return false;
-  const end = new Date(shift.date);
-  const [h, m] = shift.endTime.split(":").map(Number);
+  const end = new Date(shift.endDate);
+  const [h, m] = shift.dailyEndTime.split(":").map(Number);
   end.setHours(h ?? 0, m ?? 0, 0, 0);
   return end.getTime() <= now.getTime();
 }
 
 /**
- * Combine a shift's `date` (date-only) with its `startTime` ("HH:MM") into a
- * real Date. Used by the publish and apply guards: a shift whose start is in
- * the past must not be publishable and must not accept applications, because
- * the trust promise that OPEN means "live, actionable, and safe to apply to"
- * breaks otherwise.
+ * Combine a shift's `startDate` (date-only) with its `dailyStartTime` ("HH:MM")
+ * into a real Date for day 1 of the block. Used by the publish and apply
+ * guards: a shift whose first day's start is in the past must not be
+ * publishable and must not accept applications, because the trust promise
+ * that OPEN means "live, actionable, and safe to apply to" breaks otherwise.
  */
-export function shiftStartDateTime(date: Date, startTime: string): Date {
-  const start = new Date(date);
-  const [h, m] = startTime.split(":").map(Number);
+export function shiftStartDateTime(startDate: Date, dailyStartTime: string): Date {
+  const start = new Date(startDate);
+  const [h, m] = dailyStartTime.split(":").map(Number);
   start.setHours(h ?? 0, m ?? 0, 0, 0);
   return start;
 }
 
 /**
  * True if the shift is safe to publish or apply to on temporal grounds. The
- * start must be strictly in the future, and the end must be after the start
- * (same-day shifts only — overnight is out of scope for the MVP and would
- * need a separate end-date field to represent safely).
+ * block's first day start must be strictly in the future, the daily end time
+ * must be after the daily start time, and the end date must not precede the
+ * start date.
  */
 export function isShiftSchedulable(
-  shift: { date: Date; startTime: string; endTime: string },
+  shift: {
+    startDate: Date;
+    endDate: Date;
+    dailyStartTime: string;
+    dailyEndTime: string;
+  },
   now: Date = new Date(),
 ): boolean {
-  if (shift.endTime <= shift.startTime) return false;
-  const start = shiftStartDateTime(shift.date, shift.startTime);
+  if (shift.endDate.getTime() < shift.startDate.getTime()) return false;
+  if (shift.dailyEndTime <= shift.dailyStartTime) return false;
+  const start = shiftStartDateTime(shift.startDate, shift.dailyStartTime);
   return start.getTime() > now.getTime();
 }
 
@@ -169,8 +176,8 @@ export function classifyWithdraw(
   app: { status: string },
   shift: {
     status: string;
-    date: Date;
-    startTime: string;
+    startDate: Date;
+    dailyStartTime: string;
   },
   now: Date = new Date(),
 ): WithdrawDecision {
@@ -190,9 +197,9 @@ export function classifyWithdraw(
     return shift.status === "OPEN" ? "allowed" : "stale";
   }
   // ACCEPTED branch: the shift must still be FILLED (we are the booked
-  // marshal) and must not have started yet.
+  // marshal) and the first day of the block must not have started yet.
   if (shift.status !== "FILLED") return "stale";
-  const start = shiftStartDateTime(shift.date, shift.startTime);
+  const start = shiftStartDateTime(shift.startDate, shift.dailyStartTime);
   if (start.getTime() <= now.getTime()) return "committed";
   return "allowed";
 }

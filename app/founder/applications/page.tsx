@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { ApplicationStatusBadge, Card, PageHeader } from "@/components/ui";
-import { formatDate } from "@/lib/format";
+import { formatShiftBlock } from "@/lib/format";
 
 export default async function FounderApplicationsPage() {
   const applications = await prisma.application.findMany({
@@ -18,7 +18,10 @@ export default async function FounderApplicationsPage() {
         select: {
           id: true,
           productionName: true,
-          date: true,
+          startDate: true,
+          endDate: true,
+          dailyStartTime: true,
+          dailyEndTime: true,
           status: true,
           paused: true,
         },
@@ -72,7 +75,13 @@ export default async function FounderApplicationsPage() {
                       {a.shift.productionName}
                     </Link>
                     <p className="text-xs text-ink-soft">
-                      {formatDate(a.shift.date)} · shift {a.shift.status}
+                      {formatShiftBlock(
+                        a.shift.startDate,
+                        a.shift.endDate,
+                        a.shift.dailyStartTime,
+                        a.shift.dailyEndTime,
+                      )}{" "}
+                      · shift {a.shift.status}
                       {a.shift.paused ? " · paused" : ""}
                     </p>
                   </td>

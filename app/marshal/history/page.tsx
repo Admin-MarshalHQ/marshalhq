@@ -5,7 +5,7 @@ import {
   EmptyState,
   PageHeader,
 } from "@/components/ui";
-import { formatDate } from "@/lib/format";
+import { formatShiftBlock } from "@/lib/format";
 
 export default async function CompletionHistoryPage() {
   const user = await requireRole("MARSHAL");
@@ -18,7 +18,7 @@ export default async function CompletionHistoryPage() {
       status: "ACCEPTED",
       shift: { status: "COMPLETED" },
     },
-    orderBy: { shift: { date: "desc" } },
+    orderBy: { shift: { startDate: "desc" } },
     include: {
       shift: {
         include: {
@@ -68,7 +68,13 @@ export default async function CompletionHistoryPage() {
                   </p>
                   <p className="mt-1 text-sm text-ink-muted">
                     {a.shift.manager.managerProfile?.companyName ?? "Manager"}{" "}
-                    · {formatDate(a.shift.date)}
+                    ·{" "}
+                    {formatShiftBlock(
+                      a.shift.startDate,
+                      a.shift.endDate,
+                      a.shift.dailyStartTime,
+                      a.shift.dailyEndTime,
+                    )}
                   </p>
                 </div>
                 {a.shift.reliabilityFlag === true && (

@@ -68,9 +68,15 @@ model Shift {
   managerId             String
   productionName        String
   location              String
-  date                  DateTime
-  startTime             String
-  endTime               String
+  // A shift hires one marshal for a single block of consecutive shoot days,
+  // with the same daily window applied each day. One-day shifts use the same
+  // value for startDate and endDate. Per-day pricing, custom hours per day,
+  // and skipped dates within the block are out of scope by design — managers
+  // post separate shifts for anything more complex than one clean block.
+  startDate             DateTime
+  endDate               DateTime
+  dailyStartTime        String
+  dailyEndTime          String
   rate                  Float
   rateUnit              String   @default("HOUR") // RateUnit: HOUR | DAY
   duties                String

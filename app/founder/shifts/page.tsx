@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { Card, PageHeader, ShiftStatusBadge } from "@/components/ui";
-import { formatDate, formatRate, formatTimeRange } from "@/lib/format";
+import { formatRate, formatShiftBlock } from "@/lib/format";
 
 export default async function FounderShiftsPage() {
   const shifts = await prisma.shift.findMany({
@@ -54,10 +54,12 @@ export default async function FounderShiftsPage() {
                     {s.manager.managerProfile?.companyName ?? s.manager.email}
                   </td>
                   <td className="py-2 pr-4 text-ink-muted">
-                    {formatDate(s.date)}{" "}
-                    <span className="text-xs text-ink-soft">
-                      {formatTimeRange(s.startTime, s.endTime)}
-                    </span>
+                    {formatShiftBlock(
+                      s.startDate,
+                      s.endDate,
+                      s.dailyStartTime,
+                      s.dailyEndTime,
+                    )}
                   </td>
                   <td className="py-2 pr-4 text-ink-muted">
                     {formatRate(s.rate, s.rateUnit)}

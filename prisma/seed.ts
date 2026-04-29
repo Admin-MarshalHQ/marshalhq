@@ -206,15 +206,16 @@ async function main() {
   const hoursAgo = (h: number) => new Date(Date.now() - h * 60 * 60 * 1000);
   const daysAgo = (d: number) => hoursAgo(d * 24);
 
-  // ---- S1: DRAFT (no applications) ------------------------------------
+  // ---- S1: DRAFT (no applications, one-day) ----------------------------
   await prisma.shift.create({
     data: {
       managerId: sam.id,
       productionName: "Netflix pilot \u2014 second unit",
       location: "Greenwich, SE10",
-      date: day(14),
-      startTime: "07:00",
-      endTime: "19:30",
+      startDate: day(14),
+      endDate: day(14),
+      dailyStartTime: "07:00",
+      dailyEndTime: "19:30",
       rate: 15,
       rateUnit: "HOUR",
       duties:
@@ -225,15 +226,17 @@ async function main() {
     },
   });
 
-  // ---- S2: OPEN with three pending applicants -------------------------
+  // ---- S2: OPEN, 3-day block, three pending applicants -----------------
+  // Multi-day fixture so QA can verify the block format end-to-end.
   const s2 = await prisma.shift.create({
     data: {
       managerId: sam.id,
       productionName: "Untitled ITV drama \u2014 unit base",
       location: "Kentish Town, NW5",
-      date: day(5),
-      startTime: "06:30",
-      endTime: "19:00",
+      startDate: day(5),
+      endDate: day(7),
+      dailyStartTime: "06:30",
+      dailyEndTime: "19:00",
       rate: 16.5,
       rateUnit: "HOUR",
       duties:
@@ -271,15 +274,17 @@ async function main() {
     ],
   });
 
-  // ---- S3: OPEN with mixed history (two live applicants, one self-withdrawn)
+  // ---- S3: OPEN, 6-day block, mixed history (two live applicants + a
+  //         self-withdrawn one). Second multi-day fixture for QA coverage.
   const s3 = await prisma.shift.create({
     data: {
       managerId: sam.id,
-      productionName: "Sky commercial \u2014 shoot day",
+      productionName: "Sky commercial \u2014 shoot week",
       location: "Shoreditch, E1",
-      date: day(7),
-      startTime: "05:00",
-      endTime: "21:00",
+      startDate: day(7),
+      endDate: day(12),
+      dailyStartTime: "05:00",
+      dailyEndTime: "21:00",
       rate: 220,
       rateUnit: "DAY",
       duties:
@@ -324,9 +329,10 @@ async function main() {
       managerId: sam.id,
       productionName: "BBC drama \u2014 second unit exterior",
       location: "London Fields, E8",
-      date: day(10),
-      startTime: "06:00",
-      endTime: "18:30",
+      startDate: day(10),
+      endDate: day(10),
+      dailyStartTime: "06:00",
+      dailyEndTime: "18:30",
       rate: 17,
       rateUnit: "HOUR",
       duties:
@@ -378,9 +384,10 @@ async function main() {
       managerId: sam.id,
       productionName: "Channel 4 factual \u2014 location piece",
       location: "Whitechapel, E1",
-      date: day(-14),
-      startTime: "07:30",
-      endTime: "17:00",
+      startDate: day(-14),
+      endDate: day(-14),
+      dailyStartTime: "07:30",
+      dailyEndTime: "17:00",
       rate: 200,
       rateUnit: "DAY",
       duties:
@@ -443,9 +450,10 @@ async function main() {
       managerId: rosa.id,
       productionName: "Independent short \u2014 pulled",
       location: "Peckham, SE15",
-      date: day(-6),
-      startTime: "08:00",
-      endTime: "18:00",
+      startDate: day(-6),
+      endDate: day(-6),
+      dailyStartTime: "08:00",
+      dailyEndTime: "18:00",
       rate: 15,
       rateUnit: "HOUR",
       duties:
@@ -489,9 +497,10 @@ async function main() {
       managerId: rosa.id,
       productionName: "Regional drama pickup \u2014 reopened",
       location: "Bow, E3",
-      date: day(6),
-      startTime: "06:30",
-      endTime: "19:00",
+      startDate: day(6),
+      endDate: day(6),
+      dailyStartTime: "06:30",
+      dailyEndTime: "19:00",
       rate: 210,
       rateUnit: "DAY",
       duties:
@@ -527,9 +536,10 @@ async function main() {
       managerId: rosa.id,
       productionName: "Draft: period drama \u2014 location TBC",
       location: "TBC, Central London",
-      date: day(21),
-      startTime: "07:00",
-      endTime: "19:00",
+      startDate: day(21),
+      endDate: day(21),
+      dailyStartTime: "07:00",
+      dailyEndTime: "19:00",
       rate: 18,
       rateUnit: "HOUR",
       duties:

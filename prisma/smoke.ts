@@ -123,14 +123,16 @@ async function main() {
   });
 
   // 1. DRAFT -> OPEN
+  const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000);
   const shift = await prisma.shift.create({
     data: {
       managerId: manager.id,
       productionName: "Smoke Shift",
       location: "Soho",
-      date: new Date(Date.now() - 24 * 60 * 60 * 1000), // yesterday so we can complete later
-      startTime: "07:00",
-      endTime: "19:00",
+      startDate: yesterday, // yesterday so we can complete later
+      endDate: yesterday,
+      dailyStartTime: "07:00",
+      dailyEndTime: "19:00",
       rate: 15,
       rateUnit: "HOUR",
       duties: "Hold traffic",
@@ -228,14 +230,16 @@ async function main() {
   assert(profA!.reliableCount >= 1, "marshal reliableCount incremented");
 
   // 8. Withdraw-reopen path on a separate shift
+  const inSevenDays = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
   const shift2 = await prisma.shift.create({
     data: {
       managerId: manager.id,
       productionName: "Smoke Shift 2",
       location: "Shoreditch",
-      date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-      startTime: "07:00",
-      endTime: "19:00",
+      startDate: inSevenDays,
+      endDate: inSevenDays,
+      dailyStartTime: "07:00",
+      dailyEndTime: "19:00",
       rate: 200,
       rateUnit: "DAY",
       duties: "Traffic",
@@ -274,14 +278,16 @@ async function main() {
   );
 
   // 9. Close without hiring on a new open shift
+  const inTenDays = new Date(Date.now() + 10 * 24 * 60 * 60 * 1000);
   const shift3 = await prisma.shift.create({
     data: {
       managerId: manager.id,
       productionName: "Smoke Shift 3",
       location: "Camden",
-      date: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000),
-      startTime: "07:00",
-      endTime: "19:00",
+      startDate: inTenDays,
+      endDate: inTenDays,
+      dailyStartTime: "07:00",
+      dailyEndTime: "19:00",
       rate: 15,
       rateUnit: "HOUR",
       duties: "Traffic",
@@ -315,14 +321,16 @@ async function main() {
   // 10. Cancel-after-accept: FILLED → CLOSED marks accepted app WITHDRAWN
   //     Mirrors the closeShiftAction branch that handles cancellation after a
   //     booking has already been made.
+  const inFourteenDays = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
   const shift4 = await prisma.shift.create({
     data: {
       managerId: manager.id,
       productionName: "Smoke Shift 4",
       location: "Whitechapel",
-      date: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
-      startTime: "07:00",
-      endTime: "19:00",
+      startDate: inFourteenDays,
+      endDate: inFourteenDays,
+      dailyStartTime: "07:00",
+      dailyEndTime: "19:00",
       rate: 15,
       rateUnit: "HOUR",
       duties: "Traffic",
@@ -398,15 +406,15 @@ async function main() {
   const future = new Date(Date.now() + 24 * 60 * 60 * 1000);
   const past = new Date(Date.now() - 24 * 60 * 60 * 1000);
   assert(
-    !canCompleteShift({ date: future, endTime: "19:00", status: "FILLED" }),
+    !canCompleteShift({ endDate: future, dailyEndTime: "19:00", status: "FILLED" }),
     "cannot complete FILLED shift whose end time is in the future",
   );
   assert(
-    canCompleteShift({ date: past, endTime: "19:00", status: "FILLED" }),
+    canCompleteShift({ endDate: past, dailyEndTime: "19:00", status: "FILLED" }),
     "can complete FILLED shift whose end time has passed",
   );
   assert(
-    !canCompleteShift({ date: past, endTime: "19:00", status: "OPEN" }),
+    !canCompleteShift({ endDate: past, dailyEndTime: "19:00", status: "OPEN" }),
     "cannot complete a non-FILLED shift even after end time",
   );
   // Edge: shift ends later today — not completable until the hour passes
@@ -414,23 +422,35 @@ async function main() {
   todayStart.setHours(0, 0, 0, 0);
   assert(
     !canCompleteShift(
-      { date: todayStart, endTime: "23:59", status: "FILLED" },
+      { endDate: todayStart, dailyEndTime: "23:59", status: "FILLED" },
       new Date(todayStart.getTime() + 12 * 60 * 60 * 1000),
     ),
     "shift ending later today is not completable at noon",
+  );
+  // Multi-day completion guard: a 3-day block whose final day's end time has
+  // not yet passed is not completable, even when the start date is already in
+  // the past. This is the core multi-day invariant.
+  assert(
+    !canCompleteShift(
+      { endDate: future, dailyEndTime: "19:00", status: "FILLED" },
+      new Date(),
+    ),
+    "multi-day shift cannot be completed before the final day's end time",
   );
 
   // 12. Revert-to-draft is blocked while active applicants exist. Mirrors the
   //     server-side guard in unpublishShiftAction: silently rejecting live
   //     applicants on revert is the exact trust damage we're preventing.
+  const inFourteenHours = new Date(Date.now() + 14 * 60 * 60 * 1000);
   const revertShift = await prisma.shift.create({
     data: {
       managerId: manager.id,
       productionName: "Smoke Shift Revert",
       location: "Camden",
-      date: new Date(Date.now() + 14 * 60 * 60 * 1000),
-      startTime: "07:00",
-      endTime: "19:00",
+      startDate: inFourteenHours,
+      endDate: inFourteenHours,
+      dailyStartTime: "07:00",
+      dailyEndTime: "19:00",
       rate: 15,
       rateUnit: "HOUR",
       duties: "Traffic",
@@ -648,14 +668,16 @@ async function main() {
   // 17. Paused marshal profile doesn't show up as a valid active applicant.
   //     The apply/accept guards live in the server actions (bypassed here),
   //     but the filter shape they rely on is asserted at the DB layer.
+  const pauseShiftDate = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
   const pauseShift = await prisma.shift.create({
     data: {
       managerId: manager.id,
       productionName: "Smoke Shift Pause",
       location: "Soho",
-      date: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
-      startTime: "07:00",
-      endTime: "19:00",
+      startDate: pauseShiftDate,
+      endDate: pauseShiftDate,
+      dailyStartTime: "07:00",
+      dailyEndTime: "19:00",
       rate: 15,
       rateUnit: "HOUR",
       duties: "Traffic",
@@ -826,37 +848,60 @@ async function main() {
   // --- F: Publish/apply temporal guards ------------------------------------
   const futureDay = new Date(Date.now() + 24 * 60 * 60 * 1000);
   const pastDay = new Date(Date.now() - 24 * 60 * 60 * 1000);
+  const futureDayPlus3 = new Date(Date.now() + 4 * 24 * 60 * 60 * 1000);
   assert(
     isShiftSchedulable({
-      date: futureDay,
-      startTime: "07:00",
-      endTime: "19:00",
+      startDate: futureDay,
+      endDate: futureDay,
+      dailyStartTime: "07:00",
+      dailyEndTime: "19:00",
     }),
-    "F: future shift with end > start is schedulable",
+    "F: future single-day shift with end > start is schedulable",
+  );
+  assert(
+    isShiftSchedulable({
+      startDate: futureDay,
+      endDate: futureDayPlus3,
+      dailyStartTime: "07:00",
+      dailyEndTime: "19:00",
+    }),
+    "F: future multi-day block (start in future, end after start) is schedulable",
   );
   assert(
     !isShiftSchedulable({
-      date: pastDay,
-      startTime: "07:00",
-      endTime: "19:00",
+      startDate: pastDay,
+      endDate: pastDay,
+      dailyStartTime: "07:00",
+      dailyEndTime: "19:00",
     }),
     "F: past shift is not schedulable (publish/apply refuses)",
   );
   assert(
     !isShiftSchedulable({
-      date: futureDay,
-      startTime: "19:00",
-      endTime: "07:00",
+      startDate: futureDay,
+      endDate: futureDay,
+      dailyStartTime: "19:00",
+      dailyEndTime: "07:00",
     }),
-    "F: end-before-start shift is not schedulable",
+    "F: end-before-start daily window is not schedulable",
   );
   assert(
     !isShiftSchedulable({
-      date: futureDay,
-      startTime: "07:00",
-      endTime: "07:00",
+      startDate: futureDay,
+      endDate: futureDay,
+      dailyStartTime: "07:00",
+      dailyEndTime: "07:00",
     }),
-    "F: zero-length shift is not schedulable",
+    "F: zero-length daily window is not schedulable",
+  );
+  assert(
+    !isShiftSchedulable({
+      startDate: futureDayPlus3,
+      endDate: futureDay,
+      dailyStartTime: "07:00",
+      dailyEndTime: "19:00",
+    }),
+    "F: end-date-before-start-date block is not schedulable",
   );
 
   // --- A: Founder-email signup blockade ------------------------------------
@@ -889,14 +934,16 @@ async function main() {
   // second "accept" on the same application after the first one lands sees
   // count=0 and the transaction aborts. We simulate this by running the
   // guarded update twice: first returns count=1, second returns count=0.
+  const raceShiftDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
   const raceShift = await prisma.shift.create({
     data: {
       managerId: manager.id,
       productionName: "Smoke Shift Race",
       location: "Soho",
-      date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-      startTime: "07:00",
-      endTime: "19:00",
+      startDate: raceShiftDate,
+      endDate: raceShiftDate,
+      dailyStartTime: "07:00",
+      dailyEndTime: "19:00",
       rate: 15,
       rateUnit: "HOUR",
       duties: "Traffic",
@@ -960,13 +1007,14 @@ async function main() {
   // The action itself redirects with a flash; here we check the underlying
   // temporal/state conditions.
   const startedShift = {
-    date: pastDay,
-    startTime: "07:00",
-    endTime: "19:00",
+    startDate: pastDay,
+    endDate: pastDay,
+    dailyStartTime: "07:00",
+    dailyEndTime: "19:00",
     status: "FILLED",
   };
-  const startedShiftStart = new Date(startedShift.date);
-  const [sh, sm] = startedShift.startTime.split(":").map(Number);
+  const startedShiftStart = new Date(startedShift.startDate);
+  const [sh, sm] = startedShift.dailyStartTime.split(":").map(Number);
   startedShiftStart.setHours(sh, sm, 0, 0);
   assert(
     startedShiftStart.getTime() <= Date.now(),
