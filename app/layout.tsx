@@ -44,13 +44,16 @@ export default async function RootLayout({
             <nav className="flex flex-wrap items-center justify-end gap-x-4 gap-y-1 text-sm">
               {!userId && (
                 <>
+                  <Link
+                    href="/early-access"
+                    className="rounded-md border border-ink bg-ink px-3 py-1.5 text-white hover:opacity-90"
+                  >
+                    Join waitlist
+                  </Link>
                   <Link href="/login" className="text-ink-muted hover:text-ink">
                     Log in
                   </Link>
-                  <Link
-                    href="/signup"
-                    className="rounded-md border border-ink bg-ink px-3 py-1.5 text-white hover:opacity-90"
-                  >
+                  <Link href="/signup" className="text-ink-muted hover:text-ink">
                     Sign up
                   </Link>
                 </>

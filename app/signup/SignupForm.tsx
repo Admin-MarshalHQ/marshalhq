@@ -87,6 +87,19 @@ export default function SignupForm() {
         </div>
       )}
 
+      <Field
+        label="Pilot code"
+        hint="Founder-issued code for the private pilot."
+      >
+        <input
+          type="text"
+          name="pilotCode"
+          required
+          autoComplete="off"
+          spellCheck={false}
+        />
+      </Field>
+
       <Field label="Email">
         <input type="email" name="email" required autoComplete="email" />
       </Field>

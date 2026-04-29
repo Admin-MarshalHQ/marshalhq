@@ -45,6 +45,9 @@ export const SignupSchema = z
     // before acceptance, so they get the contact-leak guard too.
     companyName: optionalNoContactLeak(z.string().trim().max(120)),
     displayName: optionalNoContactLeak(z.string().trim().max(120)),
+    // Presence-only validation — the actual env-match comparison happens in
+    // signupAction so we never leak length/shape/role-binding via Zod errors.
+    pilotCode: z.string().trim().min(1, "Pilot code is required"),
   })
   .refine(
     (v) =>

@@ -1,14 +1,22 @@
 import Link from "next/link";
-import { Alert, Button, Card, Field, PageHeader } from "@/components/ui";
+import { Card, PageHeader } from "@/components/ui";
 import SignupForm from "./SignupForm";
 
 export default function SignupPage() {
   return (
     <div className="mx-auto max-w-md">
       <PageHeader
-        title="Create your MarshalHQ account"
-        subtitle="One account. You pick your role next."
+        title="Sign up"
+        subtitle="MarshalHQ is currently running as a controlled private pilot. Account creation requires a valid founder-issued pilot code."
       />
+      <p className="mb-4 text-sm text-ink-muted">
+        Part of the private pilot? Sign up with your founder-issued code below.
+        Not part of the pilot?{" "}
+        <Link href="/early-access" className="text-accent underline">
+          Join the waitlist
+        </Link>
+        .
+      </p>
       <Card>
         <SignupForm />
       </Card>

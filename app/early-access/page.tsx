@@ -6,7 +6,7 @@ export default function EarlyAccessPage() {
   return (
     <div className="mx-auto max-w-2xl">
       <PageHeader
-        title="Request early access"
+        title="Join waitlist"
         subtitle="MarshalHQ is opening carefully during private beta. Access is reviewed manually."
       />
       <Card>
