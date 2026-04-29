@@ -13,6 +13,7 @@ prisma/dev.db-journal
 
 src/generated/
 
+.claude/
 *.tsbuildinfo
 
 .claude/*.local.json
