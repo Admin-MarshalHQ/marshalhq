@@ -37,7 +37,7 @@ function Submit() {
   const { pending } = useFormStatus();
   return (
     <Button type="submit" disabled={pending} className="w-full">
-      {pending ? "Sending…" : "Register interest"}
+      {pending ? "Sending…" : "Join waitlist"}
     </Button>
   );
 }

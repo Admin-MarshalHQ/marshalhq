@@ -15,28 +15,22 @@ export function BottomCTA() {
             </p>
             <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:justify-center">
               <Link
-                href="/signup"
+                href="/early-access"
                 className="inline-flex items-center justify-center rounded-md bg-brand-gold px-5 py-3 text-sm font-semibold text-brand-navy transition hover:opacity-90"
               >
-                Create your profile
-              </Link>
-              <Link
-                href="/signup"
-                className="inline-flex items-center justify-center rounded-md border border-brand-navy bg-white px-5 py-3 text-sm font-semibold text-brand-navy transition hover:bg-white/70"
-              >
-                Post a shift
+                Join waitlist
               </Link>
               <Link
                 href="/login"
-                className="inline-flex items-center justify-center rounded-md px-5 py-3 text-sm font-semibold text-brand-navy underline-offset-4 transition hover:underline"
+                className="inline-flex items-center justify-center rounded-md border border-brand-navy bg-white px-5 py-3 text-sm font-semibold text-brand-navy transition hover:bg-white/70"
               >
-                Sign in
+                Log in
               </Link>
               <Link
-                href="/early-access"
+                href="/signup"
                 className="inline-flex items-center justify-center rounded-md px-5 py-3 text-sm font-semibold text-brand-navy underline-offset-4 transition hover:underline"
               >
-                Request early access
+                Sign up
               </Link>
             </div>
           </div>

@@ -20,13 +20,18 @@ export function MarketingFooter() {
             </p>
             <ul className="mt-4 space-y-2.5 text-sm text-brand-navy">
               <li>
-                <Link href="/signup" className="hover:underline">
-                  Create an account
+                <Link href="/early-access" className="hover:underline">
+                  Join waitlist
                 </Link>
               </li>
               <li>
                 <Link href="/login" className="hover:underline">
-                  Sign in
+                  Log in
+                </Link>
+              </li>
+              <li>
+                <Link href="/signup" className="hover:underline">
+                  Sign up
                 </Link>
               </li>
               <li>

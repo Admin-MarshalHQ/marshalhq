@@ -4,7 +4,7 @@ import { Alert, Card, PageHeader } from "@/components/ui";
 export default function EarlyAccessThanksPage() {
   return (
     <div className="mx-auto max-w-2xl">
-      <PageHeader title="Interest registered" />
+      <PageHeader title="Added to the waitlist" />
       <Card>
         <Alert tone="success">
           Thanks, your interest has been registered. MarshalHQ is opening
