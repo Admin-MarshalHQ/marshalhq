@@ -11,7 +11,11 @@ import {
   PageHeader,
   ShiftStatusBadge,
 } from "@/components/ui";
-import { formatDate, formatRate, formatTimeRange } from "@/lib/format";
+import {
+  formatRate,
+  formatShiftBlock,
+  shiftBlockLengthLabel,
+} from "@/lib/format";
 import { canMarshalApply, isLimitedAvailability } from "@/lib/state";
 import {
   APPLY_BLOCKED_UNAVAILABLE_BODY,
@@ -83,10 +87,12 @@ export default async function MarshalShiftDetailPage({
             items={[
               {
                 label: "When",
-                value: `${formatDate(shift.date)} \u00b7 ${formatTimeRange(
-                  shift.startTime,
-                  shift.endTime,
-                )}`,
+                value: formatShiftBlock(
+                  shift.startDate,
+                  shift.endDate,
+                  shift.dailyStartTime,
+                  shift.dailyEndTime,
+                ),
               },
               { label: "Rate", value: formatRate(shift.rate, shift.rateUnit) },
               { label: "Location", value: shift.location },
@@ -96,6 +102,15 @@ export default async function MarshalShiftDetailPage({
               },
             ]}
           />
+          {(() => {
+            const length = shiftBlockLengthLabel(
+              shift.startDate,
+              shift.endDate,
+            );
+            return length ? (
+              <p className="mt-2 text-xs text-ink-soft">{length}</p>
+            ) : null;
+          })()}
           <div className="mt-4">
             <p className="mb-1 text-xs uppercase tracking-wide text-ink-soft">
               Duties

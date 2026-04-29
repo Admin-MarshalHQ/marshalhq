@@ -29,9 +29,10 @@ export default function ShiftForm({
     Shift,
     | "productionName"
     | "location"
-    | "date"
-    | "startTime"
-    | "endTime"
+    | "startDate"
+    | "endDate"
+    | "dailyStartTime"
+    | "dailyEndTime"
     | "rate"
     | "rateUnit"
     | "duties"
@@ -41,8 +42,11 @@ export default function ShiftForm({
   submitLabel: string;
 }) {
   const [state, a] = useFormState(action, null);
-  const dateValue = shift?.date
-    ? new Date(shift.date).toISOString().slice(0, 10)
+  const startDateValue = shift?.startDate
+    ? new Date(shift.startDate).toISOString().slice(0, 10)
+    : "";
+  const endDateValue = shift?.endDate
+    ? new Date(shift.endDate).toISOString().slice(0, 10)
     : "";
 
   return (
@@ -67,24 +71,49 @@ export default function ShiftForm({
           placeholder="Street, town or postcode"
         />
       </Field>
-      <div className="grid gap-4 sm:grid-cols-3">
-        <Field label="Date" error={state?.fieldErrors?.date}>
-          <input type="date" name="date" required defaultValue={dateValue} />
-        </Field>
-        <Field label="Start" error={state?.fieldErrors?.startTime}>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field label="Start date" error={state?.fieldErrors?.startDate}>
           <input
-            type="time"
-            name="startTime"
+            type="date"
+            name="startDate"
             required
-            defaultValue={shift?.startTime ?? "07:00"}
+            defaultValue={startDateValue}
           />
         </Field>
-        <Field label="End" error={state?.fieldErrors?.endTime}>
+        <Field
+          label="End date"
+          hint="Same as start date for a one-day shift"
+          error={state?.fieldErrors?.endDate}
+        >
+          <input
+            type="date"
+            name="endDate"
+            required
+            defaultValue={endDateValue}
+          />
+        </Field>
+      </div>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field
+          label="Daily start time"
+          error={state?.fieldErrors?.dailyStartTime}
+        >
           <input
             type="time"
-            name="endTime"
+            name="dailyStartTime"
             required
-            defaultValue={shift?.endTime ?? "19:00"}
+            defaultValue={shift?.dailyStartTime ?? "07:00"}
+          />
+        </Field>
+        <Field
+          label="Daily end time"
+          error={state?.fieldErrors?.dailyEndTime}
+        >
+          <input
+            type="time"
+            name="dailyEndTime"
+            required
+            defaultValue={shift?.dailyEndTime ?? "19:00"}
           />
         </Field>
       </div>

@@ -9,7 +9,7 @@ import {
   PageHeader,
   ShiftStatusBadge,
 } from "@/components/ui";
-import { formatDate, formatTimeRange } from "@/lib/format";
+import { formatShiftBlock } from "@/lib/format";
 
 export default async function ApplicantReviewPage({
   params,
@@ -46,7 +46,12 @@ export default async function ApplicantReviewPage({
     <div>
       <PageHeader
         title="Applicants"
-        subtitle={`${shift.productionName} \u00b7 ${formatDate(shift.date)} \u00b7 ${formatTimeRange(shift.startTime, shift.endTime)}`}
+        subtitle={`${shift.productionName} \u00b7 ${formatShiftBlock(
+          shift.startDate,
+          shift.endDate,
+          shift.dailyStartTime,
+          shift.dailyEndTime,
+        )}`}
         action={<ShiftStatusBadge status={shift.status} />}
       />
 

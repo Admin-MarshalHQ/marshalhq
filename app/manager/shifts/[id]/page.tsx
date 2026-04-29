@@ -18,7 +18,12 @@ import {
   reopenAfterDropoutAction,
   unpublishShiftAction,
 } from "@/app/actions/shifts";
-import { formatDate, formatRate, formatTimeRange } from "@/lib/format";
+import {
+  formatDate,
+  formatRate,
+  formatShiftBlock,
+  shiftBlockLengthLabel,
+} from "@/lib/format";
 import { SHIFT_STATUS_LABEL } from "@/lib/state";
 import type { ShiftStatus } from "@/lib/types";
 import {
@@ -80,8 +85,8 @@ export default async function ManagerShiftDetailPage({
   const acceptedApp = shift.applications.find((a) => a.status === "ACCEPTED");
   const hasActiveApplicants = pending.length > 0;
 
-  const endDateTime = new Date(shift.date);
-  const [h, m] = shift.endTime.split(":").map(Number);
+  const endDateTime = new Date(shift.endDate);
+  const [h, m] = shift.dailyEndTime.split(":").map(Number);
   endDateTime.setHours(h ?? 0, m ?? 0, 0, 0);
   const canComplete =
     shift.status === "FILLED" && endDateTime.getTime() <= Date.now();
@@ -117,7 +122,7 @@ export default async function ManagerShiftDetailPage({
     <div>
       <PageHeader
         title={shift.productionName}
-        subtitle={`${shift.location} \u00b7 ${formatDate(shift.date)}`}
+        subtitle={`${shift.location} \u00b7 ${formatDate(shift.startDate)}`}
         action={<ShiftStatusBadge status={shift.status} />}
       />
 
@@ -134,8 +139,9 @@ export default async function ManagerShiftDetailPage({
         <div className="mb-4">
           <Alert tone="warn">
             <strong className="mr-1">Can&rsquo;t publish this shift.</strong>
-            The shift&rsquo;s start time must be in the future and the end
-            time must be after the start time. Edit the draft and try again.
+            The first day&rsquo;s start time must be in the future, the end
+            date can&rsquo;t be before the start date, and the daily end time
+            must be after the daily start time. Edit the draft and try again.
           </Alert>
         </div>
       )}
@@ -171,10 +177,12 @@ export default async function ManagerShiftDetailPage({
             items={[
               {
                 label: "When",
-                value: `${formatDate(shift.date)} \u00b7 ${formatTimeRange(
-                  shift.startTime,
-                  shift.endTime,
-                )}`,
+                value: formatShiftBlock(
+                  shift.startDate,
+                  shift.endDate,
+                  shift.dailyStartTime,
+                  shift.dailyEndTime,
+                ),
               },
               { label: "Rate", value: formatRate(shift.rate, shift.rateUnit) },
               { label: "Location", value: shift.location },
@@ -184,6 +192,15 @@ export default async function ManagerShiftDetailPage({
               },
             ]}
           />
+          {(() => {
+            const length = shiftBlockLengthLabel(
+              shift.startDate,
+              shift.endDate,
+            );
+            return length ? (
+              <p className="mt-2 text-xs text-ink-soft">{length}</p>
+            ) : null;
+          })()}
           <div className="mt-4">
             <p className="mb-1 text-xs uppercase tracking-wide text-ink-soft">
               Duties

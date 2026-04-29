@@ -11,7 +11,11 @@ import {
   ShiftStatusBadge,
 } from "@/components/ui";
 import ConfirmButton from "@/components/ConfirmButton";
-import { formatDate, formatRate, formatTimeRange } from "@/lib/format";
+import {
+  formatRate,
+  formatShiftBlock,
+  shiftBlockLengthLabel,
+} from "@/lib/format";
 import { formatPhone } from "@/lib/phone";
 import { withdrawApplicationAction } from "@/app/actions/hiring";
 import {
@@ -100,8 +104,8 @@ export default async function MyApplicationDetail({
   // the copy calm and operational: after operational commitment has passed,
   // users route through support rather than self-service.
   const shiftStart = (() => {
-    const d = new Date(shift.date);
-    const [h, m] = shift.startTime.split(":").map(Number);
+    const d = new Date(shift.startDate);
+    const [h, m] = shift.dailyStartTime.split(":").map(Number);
     d.setHours(h ?? 0, m ?? 0, 0, 0);
     return d;
   })();
@@ -117,7 +121,12 @@ export default async function MyApplicationDetail({
     <div>
       <PageHeader
         title={shift.productionName}
-        subtitle={`${shift.location} \u00b7 ${formatDate(shift.date)} \u00b7 ${formatTimeRange(shift.startTime, shift.endTime)}`}
+        subtitle={`${shift.location} \u00b7 ${formatShiftBlock(
+          shift.startDate,
+          shift.endDate,
+          shift.dailyStartTime,
+          shift.dailyEndTime,
+        )}`}
         action={
           <div className="flex gap-2">
             <ApplicationStatusBadge status={app.status} />
@@ -125,6 +134,12 @@ export default async function MyApplicationDetail({
           </div>
         }
       />
+      {(() => {
+        const length = shiftBlockLengthLabel(shift.startDate, shift.endDate);
+        return length ? (
+          <p className="-mt-2 mb-3 text-xs text-ink-soft">{length}</p>
+        ) : null;
+      })()}
 
       <div className="mb-4">
         <Link

@@ -94,11 +94,18 @@ export async function applyToShiftAction(
           status: "APPLIED",
         },
       });
+      const startStr = new Date(shift.startDate).toLocaleDateString("en-GB");
+      const isBlock =
+        new Date(shift.endDate).toDateString() !==
+        new Date(shift.startDate).toDateString();
+      const whenStr = isBlock
+        ? `from ${startStr} to ${new Date(shift.endDate).toLocaleDateString("en-GB")}`
+        : `on ${startStr}`;
       const applicantNote: NotifyParams = {
         userId: user.id,
         kind: "APPLICATION_SUBMITTED",
         subject: `Application submitted: ${shift.productionName}`,
-        body: `You applied to ${shift.productionName} on ${new Date(shift.date).toLocaleDateString("en-GB")}. You\u2019ll be notified when the manager decides.`,
+        body: `You applied to ${shift.productionName} ${whenStr}. You\u2019ll be notified when the manager decides.`,
       };
       const managerNote: NotifyParams = {
         userId: shift.managerId,

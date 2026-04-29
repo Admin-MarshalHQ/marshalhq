@@ -6,7 +6,7 @@ import {
   EmptyState,
   PageHeader,
 } from "@/components/ui";
-import { formatDate, formatRate, formatTimeRange } from "@/lib/format";
+import { formatRate, formatShiftBlock } from "@/lib/format";
 import { APPLICATION_STATUS_LABEL } from "@/lib/state";
 import type { ApplicationStatus } from "@/lib/types";
 
@@ -24,9 +24,12 @@ export default async function BrowseShiftsPage() {
     where: {
       status: "OPEN",
       paused: false,
-      date: { gte: new Date(new Date().toDateString()) },
+      // Filter on startDate so a multi-day block whose first day is still in
+      // the future appears, while one whose start has already passed drops
+      // off the browse list.
+      startDate: { gte: new Date(new Date().toDateString()) },
     },
-    orderBy: [{ date: "asc" }],
+    orderBy: [{ startDate: "asc" }],
     include: {
       manager: {
         select: {
@@ -74,8 +77,13 @@ export default async function BrowseShiftsPage() {
                       {s.productionName}
                     </p>
                     <p className="mt-1 text-sm text-ink-muted">
-                      {s.location} · {formatDate(s.date)} ·{" "}
-                      {formatTimeRange(s.startTime, s.endTime)}
+                      {s.location} ·{" "}
+                      {formatShiftBlock(
+                        s.startDate,
+                        s.endDate,
+                        s.dailyStartTime,
+                        s.dailyEndTime,
+                      )}
                     </p>
                     <p className="mt-0.5 text-sm text-ink-muted">
                       {formatRate(s.rate, s.rateUnit)}

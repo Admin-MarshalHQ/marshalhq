@@ -8,7 +8,7 @@ import {
   PageHeader,
   ShiftStatusBadge,
 } from "@/components/ui";
-import { formatDate, formatRate, formatTimeRange } from "@/lib/format";
+import { formatRate, formatShiftBlock } from "@/lib/format";
 
 export default async function ManagerDashboard() {
   const user = await requireRole("MANAGER");
@@ -17,7 +17,7 @@ export default async function ManagerDashboard() {
   });
   const shifts = await prisma.shift.findMany({
     where: { managerId: user.id },
-    orderBy: [{ date: "asc" }, { createdAt: "desc" }],
+    orderBy: [{ startDate: "asc" }, { createdAt: "desc" }],
     include: {
       applications: { select: { id: true, status: true } },
     },
@@ -107,8 +107,13 @@ function ShiftListSection({
                       </p>
                     </div>
                     <p className="mt-1 text-sm text-ink-muted">
-                      {s.location} · {formatDate(s.date)} ·{" "}
-                      {formatTimeRange(s.startTime, s.endTime)}
+                      {s.location} ·{" "}
+                      {formatShiftBlock(
+                        s.startDate,
+                        s.endDate,
+                        s.dailyStartTime,
+                        s.dailyEndTime,
+                      )}
                     </p>
                     <p className="mt-0.5 text-sm text-ink-muted">
                       {formatRate(s.rate, s.rateUnit)}

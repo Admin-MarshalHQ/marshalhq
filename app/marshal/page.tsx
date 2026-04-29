@@ -10,7 +10,7 @@ import {
   PageHeader,
   ShiftStatusBadge,
 } from "@/components/ui";
-import { formatDate, formatTimeRange } from "@/lib/format";
+import { formatShiftBlock } from "@/lib/format";
 
 export default async function MarshalHome() {
   const user = await requireRole("MARSHAL");
@@ -103,8 +103,13 @@ export default async function MarshalHome() {
                     </p>
                   </div>
                   <p className="mt-1 text-sm text-ink-muted">
-                    {a.shift.location} · {formatDate(a.shift.date)}{" "}
-                    · {formatTimeRange(a.shift.startTime, a.shift.endTime)}
+                    {a.shift.location} ·{" "}
+                    {formatShiftBlock(
+                      a.shift.startDate,
+                      a.shift.endDate,
+                      a.shift.dailyStartTime,
+                      a.shift.dailyEndTime,
+                    )}
                   </p>
                 </div>
               </div>
