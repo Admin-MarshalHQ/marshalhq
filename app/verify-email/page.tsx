@@ -1,4 +1,4 @@
-import { auth } from "@/lib/auth";
+import { auth, signOut } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { redirect } from "next/navigation";
 import { Alert, Button, Card, PageHeader } from "@/components/ui";
@@ -17,7 +17,29 @@ export default async function VerifyEmailPage({
   });
   if (!user) redirect("/login");
   if (user.emailVerifiedAt) {
-    redirect(user.role === "MANAGER" ? "/manager" : "/marshal/profile/edit");
+    return (
+      <div className="mx-auto max-w-xl">
+        <PageHeader
+          title="Email verified"
+          subtitle="Your email is verified. Refresh your session to continue."
+        />
+        <Card>
+          <Alert tone="success">
+            This account is verified. Continue to log in again so this device
+            picks up the updated account state.
+          </Alert>
+          <form
+            action={async () => {
+              "use server";
+              await signOut({ redirectTo: "/login?verified=1" });
+            }}
+            className="mt-4"
+          >
+            <Button type="submit">Continue to login</Button>
+          </form>
+        </Card>
+      </div>
+    );
   }
 
   return (
