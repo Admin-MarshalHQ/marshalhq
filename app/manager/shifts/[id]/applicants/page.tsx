@@ -10,6 +10,7 @@ import {
   ShiftStatusBadge,
 } from "@/components/ui";
 import { formatShiftBlock } from "@/lib/format";
+import { capacityLabel } from "@/lib/capacity";
 
 export default async function ApplicantReviewPage({
   params,
@@ -41,6 +42,9 @@ export default async function ApplicantReviewPage({
   const decided = shift.applications.filter(
     (a) => a.status !== "APPLIED" || a.marshal.marshalProfile?.paused,
   );
+  const acceptedCount = shift.applications.filter(
+    (a) => a.status === "ACCEPTED",
+  ).length;
 
   return (
     <div>
@@ -51,7 +55,7 @@ export default async function ApplicantReviewPage({
           shift.endDate,
           shift.dailyStartTime,
           shift.dailyEndTime,
-        )}`}
+        )} - ${capacityLabel(acceptedCount, shift.marshalsNeeded)}`}
         action={<ShiftStatusBadge status={shift.status} />}
       />
 

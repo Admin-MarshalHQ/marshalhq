@@ -233,6 +233,7 @@ async function main() {
       managerId: sam.id,
       productionName: "Untitled ITV drama \u2014 unit base",
       location: "Kentish Town, NW5",
+      marshalsNeeded: 3,
       startDate: day(5),
       endDate: day(7),
       dailyStartTime: "06:30",
@@ -281,6 +282,7 @@ async function main() {
       managerId: sam.id,
       productionName: "Sky commercial \u2014 shoot week",
       location: "Shoreditch, E1",
+      marshalsNeeded: 2,
       startDate: day(7),
       endDate: day(12),
       dailyStartTime: "05:00",
@@ -375,7 +377,7 @@ async function main() {
   });
   await prisma.shift.update({
     where: { id: s4.id },
-    data: { status: "FILLED", acceptedApplicationId: s4Accepted.id },
+    data: { status: "FILLED" },
   });
 
   // ---- S5: COMPLETED (past shift, marshal gets reliability increment) -
@@ -431,7 +433,6 @@ async function main() {
     where: { id: s5.id },
     data: {
       status: "COMPLETED",
-      acceptedApplicationId: s5Accepted.id,
       completedAt: daysAgo(13),
       reliabilityFlag: true,
     },
@@ -490,7 +491,7 @@ async function main() {
 
   // ---- S7: OPEN, reopened after accepted marshal withdrew (Manager 2)
   // Mirrors the live withdraw-from-ACCEPTED flow: the previous acceptee is
-  // WITHDRAWN, the shift is back to OPEN with no acceptedApplicationId, and a
+  // WITHDRAWN, the shift is back to OPEN, and a
   // fresh applicant has come in after the reopen.
   const s7 = await prisma.shift.create({
     data: {

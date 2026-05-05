@@ -196,9 +196,10 @@ export function classifyWithdraw(
     // catching the update — surface as stale and let the page refresh.
     return shift.status === "OPEN" ? "allowed" : "stale";
   }
-  // ACCEPTED branch: the shift must still be FILLED (we are the booked
-  // marshal) and the first day of the block must not have started yet.
-  if (shift.status !== "FILLED") return "stale";
+  // ACCEPTED branch: the shift must still be in an active booking state. On a
+  // multi-marshal shift that can be OPEN (part-filled) or FILLED (at quota).
+  // The first day of the block must not have started yet.
+  if (shift.status !== "FILLED" && shift.status !== "OPEN") return "stale";
   const start = shiftStartDateTime(shift.startDate, shift.dailyStartTime);
   if (start.getTime() <= now.getTime()) return "committed";
   return "allowed";

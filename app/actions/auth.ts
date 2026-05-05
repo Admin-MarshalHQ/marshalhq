@@ -9,6 +9,7 @@ import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth";
 import { isReservedSignupEmail } from "@/lib/access";
 import { safeNextPath } from "@/lib/redirect";
+import { issueEmailVerification } from "@/lib/email-verification";
 
 export type ActionState = { error?: string } | null;
 
@@ -19,7 +20,6 @@ export async function signupAction(
   const parsed = SignupSchema.safeParse({
     email: formData.get("email"),
     password: formData.get("password"),
-    phone: formData.get("phone"),
     role: formData.get("role"),
     companyName: formData.get("companyName") ?? "",
     displayName: formData.get("displayName") ?? "",
@@ -28,7 +28,7 @@ export async function signupAction(
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
   }
-  const { email, password, phone, role, companyName, displayName, pilotCode } =
+  const { email, password, role, companyName, displayName, pilotCode } =
     parsed.data;
   // MarshalHQ runs as a controlled private pilot. Account creation requires a
   // valid founder-issued code matching the role. We compare against env vars
@@ -65,11 +65,11 @@ export async function signupAction(
   if (existing) return { error: "An account with that email already exists." };
   const passwordHash = await bcrypt.hash(password, 10);
 
-  await prisma.user.create({
+  const created = await prisma.user.create({
     data: {
       email,
       passwordHash,
-      phone,
+      emailVerifiedAt: null,
       role,
       managerProfile:
         role === "MANAGER"
@@ -82,6 +82,7 @@ export async function signupAction(
           : undefined,
     },
   });
+  await issueEmailVerification(created.id, created.email);
 
   try {
     await signIn("credentials", {
@@ -92,8 +93,7 @@ export async function signupAction(
   } catch {
     // Fall through: user can log in manually.
   }
-  if (role === "MANAGER") redirect("/manager");
-  redirect("/marshal/profile/edit");
+  redirect("/verify-email");
 }
 
 export async function loginAction(
@@ -114,7 +114,7 @@ export async function loginAction(
   }
   const user = await prisma.user.findUnique({
     where: { email },
-    select: { role: true },
+    select: { role: true, emailVerifiedAt: true },
   });
   if (!user) return { error: "Invalid email or password." };
   // `next` can be user-controlled (the login page forwards it from the URL).
@@ -122,7 +122,11 @@ export async function loginAction(
   // be used to launder a link to an attacker-controlled host.
   const roleFallback =
     user.role === "MANAGER" ? "/manager" : user.role === "MARSHAL" ? "/marshal" : "/";
-  redirect(safeNextPath(rawNext, roleFallback));
+  redirect(
+    user.emailVerifiedAt
+      ? safeNextPath(rawNext, roleFallback)
+      : "/verify-email",
+  );
 }
 
 export async function markNotificationRead(id: string) {

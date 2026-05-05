@@ -40,6 +40,7 @@ function parseShiftInput(fd: FormData) {
     endDate: fd.get("endDate"),
     dailyStartTime: fd.get("dailyStartTime"),
     dailyEndTime: fd.get("dailyEndTime"),
+    marshalsNeeded: fd.get("marshalsNeeded"),
     rate: fd.get("rate"),
     rateUnit: fd.get("rateUnit"),
     duties: fd.get("duties"),
@@ -77,6 +78,7 @@ export async function saveDraftShiftAction(
       endDate: new Date(data.endDate),
       dailyStartTime: data.dailyStartTime,
       dailyEndTime: data.dailyEndTime,
+      marshalsNeeded: data.marshalsNeeded,
       rate: data.rate,
       rateUnit: data.rateUnit,
       duties: data.duties,
@@ -122,6 +124,7 @@ export async function updateDraftShiftAction(
       endDate: new Date(d.endDate),
       dailyStartTime: d.dailyStartTime,
       dailyEndTime: d.dailyEndTime,
+      marshalsNeeded: d.marshalsNeeded,
       rate: d.rate,
       rateUnit: d.rateUnit,
       duties: d.duties,
@@ -206,13 +209,8 @@ export async function closeShiftAction(id: string) {
   }
   assertShiftTransition(shift.status, "CLOSED");
 
-  const wasFilled = shift.status === "FILLED" && !!shift.acceptedApplicationId;
-
   const emailQueue: NotifyParams[] = [];
-  // Holds the accepted marshal's user id so we can create + email a clear
-  // "shift cancelled" notification outside the transaction. Set only on the
-  // cancel-after-accept path.
-  let cancelledAcceptedMarshalId: string | null = null;
+  const cancelledAcceptedMarshalIds: string[] = [];
 
   await prisma.$transaction(async (tx) => {
     // Auto-reject all APPLIED applications
@@ -226,25 +224,16 @@ export async function closeShiftAction(id: string) {
         data: { status: "REJECTED", decidedAt: new Date() },
       });
     }
-    // If there was an accepted application, mark it WITHDRAWN (the booking
-    // is cancelled) but keep the shift's acceptedApplicationId pointer so
-    // the trust history survives: founder review and future references can
-    // still see who had been booked. Contact release is gated on
-    // (acceptedApplication.status === ACCEPTED) AND shift.status in
-    // {FILLED, COMPLETED}, so a CLOSED shift won't surface contact even
-    // with the pointer preserved.
-    if (shift.acceptedApplicationId) {
-      const accepted = await tx.application.findUnique({
-        where: { id: shift.acceptedApplicationId },
-        select: { marshalId: true, status: true },
+    const accepted = await tx.application.findMany({
+      where: { shiftId: id, status: "ACCEPTED" },
+      select: { marshalId: true },
+    });
+    if (accepted.length) {
+      await tx.application.updateMany({
+        where: { shiftId: id, status: "ACCEPTED" },
+        data: { status: "WITHDRAWN", decidedAt: new Date() },
       });
-      if (accepted && accepted.status === "ACCEPTED") {
-        await tx.application.update({
-          where: { id: shift.acceptedApplicationId },
-          data: { status: "WITHDRAWN", decidedAt: new Date() },
-        });
-        cancelledAcceptedMarshalId = accepted.marshalId;
-      }
+      cancelledAcceptedMarshalIds.push(...accepted.map((a) => a.marshalId));
     }
     await tx.shift.update({
       where: { id },
@@ -265,9 +254,9 @@ export async function closeShiftAction(id: string) {
     // is the audit-blocking notification: when a FILLED shift is cancelled
     // the accepted marshal must receive a clear outcome so they don't show
     // up to a cancelled job or wonder why the shift vanished.
-    if (cancelledAcceptedMarshalId) {
+    for (const marshalId of cancelledAcceptedMarshalIds) {
       const cancelNote: NotifyParams = {
-        userId: cancelledAcceptedMarshalId,
+        userId: marshalId,
         kind: "SHIFT_STATUS_CHANGED",
         subject: `Shift cancelled: ${shift.productionName}`,
         body:
@@ -282,7 +271,7 @@ export async function closeShiftAction(id: string) {
   // Revalidate both the shift detail and the accepted marshal's application
   // history so the status change is visible on refresh.
   revalidatePath(`/manager/shifts/${id}`);
-  if (wasFilled) {
+  if (cancelledAcceptedMarshalIds.length > 0) {
     revalidatePath("/marshal/applications");
   }
   redirect(`/manager/shifts/${id}`);
@@ -305,13 +294,13 @@ export async function completeShiftAction(
 
   const emailQueue: NotifyParams[] = [];
   await prisma.$transaction(async (tx) => {
-    if (!shift.acceptedApplicationId) {
+    const accepted = await tx.application.findMany({
+      where: { shiftId: id, status: "ACCEPTED" },
+      select: { marshalId: true },
+    });
+    if (accepted.length !== shift.marshalsNeeded) {
       throw new Error("No accepted applicant on shift.");
     }
-    const accepted = await tx.application.findUnique({
-      where: { id: shift.acceptedApplicationId },
-    });
-    if (!accepted) throw new Error("Accepted application missing.");
 
     await tx.shift.update({
       where: { id },
@@ -322,25 +311,26 @@ export async function completeShiftAction(
       },
     });
 
-    // Update marshal profile counts
-    await tx.marshalProfile.update({
-      where: { userId: accepted.marshalId },
-      data: {
-        completedCount: { increment: 1 },
-        reliableCount: { increment: reliabilityFlag ? 1 : 0 },
-      },
-    });
+    for (const app of accepted) {
+      await tx.marshalProfile.update({
+        where: { userId: app.marshalId },
+        data: {
+          completedCount: { increment: 1 },
+          reliableCount: { increment: reliabilityFlag ? 1 : 0 },
+        },
+      });
 
-    const completedNote: NotifyParams = {
-      userId: accepted.marshalId,
-      kind: "SHIFT_STATUS_CHANGED",
-      subject: `Shift completed: ${shift.productionName}`,
-      body: reliabilityFlag
-        ? `The manager marked your shift as completed and reliable. It is now on your completion history.`
-        : `The manager marked the shift as completed but flagged a reliability issue.`,
-    };
-    await tx.notification.create({ data: completedNote });
-    emailQueue.push(completedNote);
+      const completedNote: NotifyParams = {
+        userId: app.marshalId,
+        kind: "SHIFT_STATUS_CHANGED",
+        subject: `Shift completed: ${shift.productionName}`,
+        body: reliabilityFlag
+          ? `The manager marked your shift as completed and reliable. It is now on your completion history.`
+          : `The manager marked the shift as completed but flagged a reliability issue.`,
+      };
+      await tx.notification.create({ data: completedNote });
+      emailQueue.push(completedNote);
+    }
   });
   await flushNotificationEmails(emailQueue);
   revalidatePath(`/manager/shifts/${id}`);
@@ -350,17 +340,23 @@ export async function completeShiftAction(
 export async function reopenAfterDropoutAction(id: string) {
   const managerId = await requireManagerId();
   const shift = await getOwnedShift(id, managerId);
-  if (shift.status !== "FILLED" || !shift.acceptedApplicationId) return;
+  if (shift.status !== "FILLED") return;
   assertShiftTransition(shift.status, "OPEN");
 
   await prisma.$transaction(async (tx) => {
+    const accepted = await tx.application.findFirst({
+      where: { shiftId: id, status: "ACCEPTED" },
+      orderBy: { decidedAt: "desc" },
+      select: { id: true },
+    });
+    if (!accepted) return;
     await tx.application.update({
-      where: { id: shift.acceptedApplicationId! },
+      where: { id: accepted.id },
       data: { status: "WITHDRAWN", decidedAt: new Date() },
     });
     await tx.shift.update({
       where: { id },
-      data: { status: "OPEN", acceptedApplicationId: null },
+      data: { status: "OPEN" },
     });
   });
   revalidatePath(`/manager/shifts/${id}`);

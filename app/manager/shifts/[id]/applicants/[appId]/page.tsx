@@ -37,6 +37,10 @@ export default async function ApplicantDetailPage({
   const user = await requireRole("MANAGER");
   const shift = await prisma.shift.findUnique({ where: { id: params.id } });
   if (!shift || shift.managerId !== user.id) notFound();
+  const acceptedCount = await prisma.application.count({
+    where: { shiftId: shift.id, status: "ACCEPTED" },
+  });
+  const hasOpenSlot = acceptedCount < shift.marshalsNeeded;
 
   const app = await prisma.application.findUnique({
     where: { id: params.appId },
@@ -157,9 +161,9 @@ export default async function ApplicantDetailPage({
               <Alert tone="info">
                 This application is {APPLICATION_STATUS_LABEL[app.status as ApplicationStatus].toLowerCase()}.
               </Alert>
-            ) : shift.status !== "OPEN" ? (
+            ) : shift.status !== "OPEN" || !hasOpenSlot ? (
               <Alert tone="warn">
-                You can only accept applicants while the shift is open.
+                You can only accept applicants while the shift is open and has an unfilled slot.
               </Alert>
             ) : p.paused ? (
               <Alert tone="warn">
@@ -186,7 +190,7 @@ export default async function ApplicantDetailPage({
                 />
                 <p className="text-xs text-ink-soft">
                   Accepting releases phone and email to you and to this
-                  marshal only. Other pending applicants will be auto-rejected.
+                  marshal only. Other applicants remain available for review.
                 </p>
               </div>
             )}

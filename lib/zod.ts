@@ -39,7 +39,6 @@ export const SignupSchema = z
   .object({
     email: z.string().trim().toLowerCase().email(),
     password: z.string().min(8, "Use at least 8 characters"),
-    phone: phoneField,
     role: z.enum(["MANAGER", "MARSHAL"]),
     // Company and display name appear on every shift card a marshal sees
     // before acceptance, so they get the contact-leak guard too.
@@ -73,6 +72,10 @@ export const ShiftDraftSchema = z
     dailyEndTime: z
       .string()
       .regex(/^\d{2}:\d{2}$/, "Use HH:mm"),
+    marshalsNeeded: z.coerce
+      .number()
+      .int("Enter a whole number")
+      .min(1, "At least one marshal is required"),
     rate: z.coerce.number().positive("Rate must be positive"),
     rateUnit: z.enum(["HOUR", "DAY"]),
     duties: noContactLeak(
@@ -105,6 +108,9 @@ export const ShiftDraftSchema = z
   });
 
 export const MarshalProfileSchema = z.object({
+  phone: z
+    .union([phoneField, z.literal("")])
+    .transform((v) => (v === "" ? null : v)),
   fullName: noContactLeak(z.string().trim().min(1, "Required").max(120)),
   baseLocation: noContactLeak(z.string().trim().min(1, "Required").max(120)),
   travelRadiusMiles: z.coerce.number().int().min(0).max(500),
@@ -129,6 +135,20 @@ export const MarshalProfileSchema = z.object({
     .url("Must be a URL")
     .optional()
     .or(z.literal("")),
+});
+
+export const PhoneSchema = z.object({
+  phone: z
+    .union([phoneField, z.literal("")])
+    .transform((v) => (v === "" ? null : v)),
+});
+
+export const ManagerProfileSchema = z.object({
+  companyName: noContactLeak(z.string().trim().min(1, "Required").max(120)),
+  displayName: noContactLeak(z.string().trim().min(1, "Required").max(120)),
+  phone: z
+    .union([phoneField, z.literal("")])
+    .transform((v) => (v === "" ? null : v)),
 });
 
 export const ApplySchema = z.object({

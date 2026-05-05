@@ -82,6 +82,12 @@ export async function applyToShiftAction(
       error: "This shift has already started. Applications are closed.",
     };
   }
+  const acceptedOnShift = await prisma.application.count({
+    where: { shiftId, status: "ACCEPTED" },
+  });
+  if (acceptedOnShift >= shift.marshalsNeeded) {
+    return { error: "This shift is already filled." };
+  }
 
   const emailQueue: NotifyParams[] = [];
   try {
@@ -173,13 +179,17 @@ export async function withdrawApplicationAction(applicationId: string) {
       // Reopen the shift only if it is still FILLED and still pinned to this
       // application. Either guard failing means another action already moved
       // the shift — don't overwrite it.
+      const acceptedCount = await tx.application.count({
+        where: { shiftId: app.shiftId, status: "ACCEPTED" },
+      });
       const reopen = await tx.shift.updateMany({
         where: {
           id: app.shiftId,
-          status: "FILLED",
-          acceptedApplicationId: app.id,
+          status: { in: ["OPEN", "FILLED"] },
         },
-        data: { status: "OPEN", acceptedApplicationId: null },
+        data: {
+          status: acceptedCount < shift.marshalsNeeded ? "OPEN" : shift.status,
+        },
       });
       if (reopen.count !== 1) throw new Error("WITHDRAW_STALE");
       transitionedAccepted = true;
@@ -196,10 +206,25 @@ export async function withdrawApplicationAction(applicationId: string) {
       userId: shift.managerId,
       kind: "SHIFT_STATUS_CHANGED",
       subject: `Accepted marshal withdrew: ${shift.productionName}`,
-      body: `The accepted marshal dropped out. The shift has been reopened for applications.`,
+      body: `An accepted marshal dropped out. One slot has reopened on this shift.`,
     };
     await prisma.notification.create({ data: managerNote });
     emailQueue.push(managerNote);
+    const priorApplicants = await prisma.application.findMany({
+      where: { shiftId: shift.id, status: "APPLIED" },
+      select: { marshalId: true },
+    });
+    for (const prior of priorApplicants) {
+      const note: NotifyParams = {
+        userId: prior.marshalId,
+        kind: "SHIFT_STATUS_CHANGED",
+        subject: `Still under consideration: ${shift.productionName}`,
+        body:
+          "A slot is open again on this shift. Your application is still visible to the manager; no action is needed unless you want to withdraw.",
+      };
+      await prisma.notification.create({ data: note });
+      emailQueue.push(note);
+    }
   }
   await flushNotificationEmails(emailQueue);
   revalidatePath("/marshal/applications");
@@ -242,12 +267,15 @@ export async function acceptApplicationAction(applicationId: string) {
       // Re-read both sides inside the transaction so the checks are made
       // against the current DB snapshot, not the stale read above.
       const freshShift = await tx.shift.findUnique({ where: { id: shiftId } });
+      const acceptedBefore = await tx.application.count({
+        where: { shiftId, status: "ACCEPTED" },
+      });
       if (
         !freshShift ||
         freshShift.managerId !== managerId ||
         freshShift.status !== "OPEN" ||
         freshShift.paused ||
-        freshShift.acceptedApplicationId !== null
+        acceptedBefore >= freshShift.marshalsNeeded
       ) {
         throw new StaleAcceptStateError();
       }
@@ -263,7 +291,6 @@ export async function acceptApplicationAction(applicationId: string) {
       if (freshProfile?.paused) throw new StaleAcceptStateError();
 
       assertApplicationTransition(freshApp.status, "ACCEPTED");
-      assertShiftTransition(freshShift.status, "FILLED");
 
       // Atomic acceptance of the chosen application. updateMany with the
       // APPLIED guard means a racing accept on the same application returns
@@ -274,43 +301,26 @@ export async function acceptApplicationAction(applicationId: string) {
       });
       if (acceptResult.count !== 1) throw new StaleAcceptStateError();
 
-      // Fill the shift and pin the accepted application. The updateMany guard
-      // (status=OPEN, not paused, acceptedApplicationId null) means a racing
-      // accept for a different applicant on the same shift returns count=0.
+      const acceptedAfter = acceptedBefore + 1;
+      const nextStatus =
+        acceptedAfter >= freshShift.marshalsNeeded ? "FILLED" : "OPEN";
+      if (nextStatus === "FILLED") {
+        assertShiftTransition(freshShift.status, "FILLED");
+      }
+
+      // Fill the shift only when quota is reached. Otherwise it stays OPEN so
+      // managers can keep accepting more applicants for the same hiring object.
       const fillResult = await tx.shift.updateMany({
         where: {
           id: shiftId,
           status: "OPEN",
           paused: false,
-          acceptedApplicationId: null,
         },
         data: {
-          status: "FILLED",
-          acceptedApplicationId: app.id,
+          status: nextStatus,
         },
       });
       if (fillResult.count !== 1) throw new StaleAcceptStateError();
-
-      // Auto-reject every other APPLIED application on this shift. Re-queried
-      // from inside the transaction so notifications line up with the real set.
-      const others = await tx.application.findMany({
-        where: {
-          shiftId,
-          status: "APPLIED",
-          id: { not: app.id },
-        },
-        select: { id: true, marshalId: true },
-      });
-      if (others.length) {
-        await tx.application.updateMany({
-          where: {
-            shiftId,
-            status: "APPLIED",
-            id: { not: app.id },
-          },
-          data: { status: "REJECTED", decidedAt: new Date() },
-        });
-      }
 
       // Notifications
       const acceptedNote: NotifyParams = {
@@ -321,16 +331,6 @@ export async function acceptApplicationAction(applicationId: string) {
       };
       await tx.notification.create({ data: acceptedNote });
       emailQueue.push(acceptedNote);
-      for (const o of others) {
-        const rejectedNote: NotifyParams = {
-          userId: o.marshalId,
-          kind: "APPLICATION_REJECTED",
-          subject: `Not this time: ${freshShift.productionName}`,
-          body: `The shift has been filled. Your application wasn\u2019t selected for this one.`,
-        };
-        await tx.notification.create({ data: rejectedNote });
-        emailQueue.push(rejectedNote);
-      }
     });
   } catch (err) {
     if (err instanceof StaleAcceptStateError) {

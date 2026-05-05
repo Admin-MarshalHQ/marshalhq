@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { Card, DL, PageHeader } from "@/components/ui";
 import { formatPhone } from "@/lib/phone";
+import PhoneForm from "./PhoneForm";
 
 export default async function SettingsPage() {
   const session = await auth();
@@ -47,6 +48,10 @@ export default async function SettingsPage() {
             },
           ]}
         />
+      </Card>
+      <Card className="mt-4">
+        <p className="mb-3 text-sm font-semibold">Contact phone</p>
+        <PhoneForm phone={user.phone} />
       </Card>
       <Card className="mt-4">
         <p className="text-sm font-semibold">Help, privacy, and deletion</p>

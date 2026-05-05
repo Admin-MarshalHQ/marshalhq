@@ -22,14 +22,25 @@ function boolDefault(v: boolean | null | undefined) {
 
 export default function MarshalProfileForm({
   profile,
+  phone,
 }: {
   profile: MarshalProfile | null;
+  phone: string | null;
 }) {
   const [state, action] = useFormState(saveMarshalProfileAction, null);
   return (
     <form action={action} className="space-y-5">
       {state?.error && <Alert tone="danger">{state.error}</Alert>}
 
+      <Field label="Phone" hint="Released only after a booking is confirmed">
+        <input
+          type="tel"
+          name="phone"
+          defaultValue={phone ?? ""}
+          autoComplete="tel"
+          placeholder="07911 123456"
+        />
+      </Field>
       <Field label="Full name" error={state?.fieldErrors?.fullName}>
         <input
           name="fullName"

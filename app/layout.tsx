@@ -69,6 +69,12 @@ export default async function RootLayout({
                   >
                     Post shift
                   </Link>
+                  <Link
+                    href="/manager/market"
+                    className="text-ink-muted hover:text-ink"
+                  >
+                    Browse market
+                  </Link>
                 </>
               )}
               {userId && role === "MARSHAL" && (

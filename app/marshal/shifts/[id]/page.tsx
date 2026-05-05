@@ -17,6 +17,7 @@ import {
   shiftBlockLengthLabel,
 } from "@/lib/format";
 import { canMarshalApply, isLimitedAvailability } from "@/lib/state";
+import { capacityLabel } from "@/lib/capacity";
 import {
   APPLY_BLOCKED_UNAVAILABLE_BODY,
   APPLY_BLOCKED_UNAVAILABLE_TITLE,
@@ -43,6 +44,9 @@ export default async function MarshalShiftDetailPage({
         where: { marshalId: user.id },
         select: { id: true, status: true },
       },
+      _count: {
+        select: { applications: { where: { status: "ACCEPTED" } } },
+      },
     },
   });
   // Draft and paused shifts are hidden from marshals. If the marshal reached
@@ -51,6 +55,7 @@ export default async function MarshalShiftDetailPage({
   if (!shift || shift.status === "DRAFT" || shift.paused) notFound();
 
   const yourApp = shift.applications[0];
+  const acceptedCount = shift._count.applications;
   const profile = await prisma.marshalProfile.findUnique({
     where: { userId: user.id },
     select: { id: true, availability: true, paused: true },
@@ -95,6 +100,10 @@ export default async function MarshalShiftDetailPage({
                 ),
               },
               { label: "Rate", value: formatRate(shift.rate, shift.rateUnit) },
+              {
+                label: "Capacity",
+                value: capacityLabel(acceptedCount, shift.marshalsNeeded),
+              },
               { label: "Location", value: shift.location },
               {
                 label: "Parking / travel",

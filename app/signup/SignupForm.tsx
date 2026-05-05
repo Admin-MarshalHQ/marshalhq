@@ -103,18 +103,6 @@ export default function SignupForm() {
       <Field label="Email">
         <input type="email" name="email" required autoComplete="email" />
       </Field>
-      <Field
-        label="Phone"
-        hint="UK number, e.g. 07911 123456. Released only after a booking is confirmed."
-      >
-        <input
-          type="tel"
-          name="phone"
-          required
-          autoComplete="tel"
-          placeholder="07911 123456"
-        />
-      </Field>
       <Field label="Password" hint="At least 8 characters">
         <input
           type="password"

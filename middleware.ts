@@ -7,12 +7,15 @@ export default auth((req) => {
   const isAuthed = !!req.auth?.user;
   const role = req.auth?.user?.role;
   const email = req.auth?.user?.email;
+  const emailVerifiedAt = req.auth?.user?.emailVerifiedAt;
   const path = nextUrl.pathname;
 
   const isPublic =
     path === "/" ||
     path === "/login" ||
     path === "/signup" ||
+    path === "/verify-email" ||
+    path.startsWith("/verify-email/") ||
     path === "/terms" ||
     path === "/privacy" ||
     path === "/rules" ||
@@ -33,6 +36,18 @@ export default auth((req) => {
     const url = new URL("/login", nextUrl);
     url.searchParams.set("next", path);
     return NextResponse.redirect(url);
+  }
+
+  if (!emailVerifiedAt) {
+    const allowedWhileUnverified =
+      path === "/settings" ||
+      path === "/support" ||
+      path === "/support/thanks" ||
+      path === "/notifications" ||
+      path.startsWith("/api/auth");
+    if (!allowedWhileUnverified) {
+      return NextResponse.redirect(new URL("/verify-email", nextUrl));
+    }
   }
 
   // Founder panel is gated by FOUNDER_EMAILS (not a role). Non-founders are

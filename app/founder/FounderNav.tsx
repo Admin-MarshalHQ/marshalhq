@@ -4,6 +4,7 @@ export default function FounderNav() {
   const items = [
     { href: "/founder", label: "Overview" },
     { href: "/founder/users", label: "Users" },
+    { href: "/founder/managers", label: "Managers" },
     { href: "/founder/profiles", label: "Marshal profiles" },
     { href: "/founder/shifts", label: "Shifts" },
     { href: "/founder/applications", label: "Applications" },

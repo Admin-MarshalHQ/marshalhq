@@ -17,9 +17,11 @@ function Submit() {
 export default function LoginForm({
   next,
   resetSuccess,
+  verifiedSuccess,
 }: {
   next: string;
   resetSuccess?: boolean;
+  verifiedSuccess?: boolean;
 }) {
   const [state, action] = useFormState(loginAction, null);
   return (
@@ -27,6 +29,11 @@ export default function LoginForm({
       {resetSuccess && (
         <Alert tone="success">
           Your password has been updated. Log in with the new password.
+        </Alert>
+      )}
+      {verifiedSuccess && (
+        <Alert tone="success">
+          Your email has been verified. Log in to continue.
         </Alert>
       )}
       {state?.error && <Alert tone="danger">{state.error}</Alert>}

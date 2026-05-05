@@ -68,8 +68,9 @@ export default async function MyApplicationDetail({
   const shift = app.shift;
   const isAcceptedPair =
     app.status === "ACCEPTED" &&
-    shift.acceptedApplicationId === app.id &&
-    (shift.status === "FILLED" || shift.status === "COMPLETED") &&
+    (shift.status === "OPEN" ||
+      shift.status === "FILLED" ||
+      shift.status === "COMPLETED") &&
     !app.marshal.marshalProfile?.paused;
 
   const contactManager = isAcceptedPair
@@ -114,7 +115,7 @@ export default async function MyApplicationDetail({
     app.status === "APPLIED" && shift.status === "OPEN";
   const canWithdrawAccepted =
     app.status === "ACCEPTED" &&
-    shift.status === "FILLED" &&
+    (shift.status === "OPEN" || shift.status === "FILLED") &&
     !shiftStarted;
 
   return (

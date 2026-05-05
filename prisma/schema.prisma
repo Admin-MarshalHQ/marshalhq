@@ -19,6 +19,7 @@ model User {
   passwordHash   String
   role           String   @default("UNSET") // Role: MANAGER | MARSHAL | UNSET
   phone          String?
+  emailVerifiedAt DateTime? @default(now())
   createdAt      DateTime @default(now())
 
   managerProfile ManagerProfile?
@@ -27,6 +28,7 @@ model User {
   applications   Application[]
   notifications  Notification[]
   passwordResetTokens PasswordResetToken[]
+  emailVerificationTokens EmailVerificationToken[]
   supportRequests     SupportRequest[]
 }
 
@@ -68,6 +70,7 @@ model Shift {
   managerId             String
   productionName        String
   location              String
+  marshalsNeeded        Int      @default(1)
   // A shift hires one marshal for a single block of consecutive shoot days,
   // with the same daily window applied each day. One-day shifts use the same
   // value for startDate and endDate. Per-day pricing, custom hours per day,
@@ -83,7 +86,6 @@ model Shift {
   parkingTravel         String?
   experienceNotes       String?
   status                String   @default("DRAFT") // ShiftStatus
-  acceptedApplicationId String?  @unique
   completedAt           DateTime?
   reliabilityFlag       Boolean?
   paused                Boolean  @default(false)
@@ -127,6 +129,21 @@ model Notification {
 // Password reset. We store only a SHA-256 hash of the raw token so a DB leak
 // can't be turned into a live reset. Tokens expire (1h) and are single-use.
 model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  createdAt DateTime  @default(now())
+  expiresAt DateTime
+  usedAt    DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId])
+}
+
+// Email verification. We store only a SHA-256 hash of the raw token so a DB
+// leak cannot be turned into a live verification link. Tokens expire and are
+// single-use.
+model EmailVerificationToken {
   id        String    @id @default(cuid())
   userId    String
   tokenHash String    @unique

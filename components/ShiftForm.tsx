@@ -33,6 +33,7 @@ export default function ShiftForm({
     | "endDate"
     | "dailyStartTime"
     | "dailyEndTime"
+    | "marshalsNeeded"
     | "rate"
     | "rateUnit"
     | "duties"
@@ -118,6 +119,19 @@ export default function ShiftForm({
         </Field>
       </div>
       <div className="grid gap-4 sm:grid-cols-3">
+        <Field
+          label="Marshals needed"
+          error={state?.fieldErrors?.marshalsNeeded}
+        >
+          <input
+            type="number"
+            name="marshalsNeeded"
+            min={1}
+            step={1}
+            required
+            defaultValue={shift?.marshalsNeeded ?? 1}
+          />
+        </Field>
         <Field label="Rate" error={state?.fieldErrors?.rate}>
           <input
             type="number"

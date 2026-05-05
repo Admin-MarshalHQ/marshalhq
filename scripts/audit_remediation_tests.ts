@@ -307,8 +307,8 @@ check(
     classifyWithdraw(
       { status: "ACCEPTED" },
       { status: "OPEN", startDate: futureDate, dailyStartTime: "07:00" },
-    ) === "stale",
-    "D: ACCEPTED with non-FILLED shift is stale (defensive)",
+    ) === "allowed",
+    "D: ACCEPTED on a part-filled OPEN shift can withdraw before start",
   );
 
   // Edge: shift starts exactly at "now" — the temporal guard treats it as

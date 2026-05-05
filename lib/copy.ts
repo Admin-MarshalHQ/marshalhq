@@ -31,7 +31,7 @@ export const FLASH_APPLICATION_NO_LONGER_ACTIONABLE =
 // detail both surface Accept, for example).
 export const CONFIRM_ACCEPT_TITLE = "Accept and book this marshal?";
 export const CONFIRM_ACCEPT_BODY =
-  "This applicant will be accepted and the shift will become Filled. Any other active applicants will be rejected. Contact details will be released to you and this marshal only.";
+  "This applicant will be accepted for one slot. The shift becomes Filled only when all required marshal slots are booked. Contact details will be released to you and this marshal only.";
 export const CONFIRM_ACCEPT_ACTION = "Accept and book";
 
 export const CONFIRM_REJECT_TITLE = "Reject this applicant?";
@@ -71,7 +71,7 @@ export const CONFIRM_REVERT_ACTION = "Revert to draft";
 
 export const CONFIRM_REOPEN_TITLE = "Reopen this shift?";
 export const CONFIRM_REOPEN_BODY =
-  "The booked marshal\u2019s booking will be withdrawn and the shift will return to Open for new applications. Use this when the marshal has dropped out.";
+  "One booked marshal will be withdrawn and the shift will return to Open for the missing slot. Use this when a marshal has dropped out.";
 export const CONFIRM_REOPEN_ACTION = "Reopen shift";
 
 export const CONFIRM_PUBLISH_TITLE = "Publish this shift?";

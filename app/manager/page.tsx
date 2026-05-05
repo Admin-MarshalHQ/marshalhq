@@ -9,6 +9,7 @@ import {
   ShiftStatusBadge,
 } from "@/components/ui";
 import { formatRate, formatShiftBlock } from "@/lib/format";
+import { capacityLabel } from "@/lib/capacity";
 
 export default async function ManagerDashboard() {
   const user = await requireRole("MANAGER");
@@ -41,7 +42,17 @@ export default async function ManagerDashboard() {
             ? `Signed in as ${profile.displayName}`
             : "Manage your shifts"
         }
-        action={<ButtonLink href="/manager/shifts/new">Post shift</ButtonLink>}
+        action={
+          <div className="flex flex-wrap gap-2">
+            <ButtonLink href="/manager/market" variant="secondary">
+              Browse market
+            </ButtonLink>
+            <ButtonLink href="/manager/profile/edit" variant="secondary">
+              Edit profile
+            </ButtonLink>
+            <ButtonLink href="/manager/shifts/new">Post shift</ButtonLink>
+          </div>
+        }
       />
 
       {shifts.length === 0 ? (
@@ -92,6 +103,9 @@ function ShiftListSection({
             const active = s.applications.filter(
               (a) => a.status === "APPLIED",
             ).length;
+            const accepted = s.applications.filter(
+              (a) => a.status === "ACCEPTED",
+            ).length;
             return (
               <Link
                 key={s.id}
@@ -117,6 +131,9 @@ function ShiftListSection({
                     </p>
                     <p className="mt-0.5 text-sm text-ink-muted">
                       {formatRate(s.rate, s.rateUnit)}
+                    </p>
+                    <p className="mt-0.5 text-xs text-ink-soft">
+                      {capacityLabel(accepted, s.marshalsNeeded)}
                     </p>
                   </div>
                   <div className="text-right text-sm">

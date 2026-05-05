@@ -25,6 +25,7 @@ import {
   shiftBlockLengthLabel,
 } from "@/lib/format";
 import { SHIFT_STATUS_LABEL } from "@/lib/state";
+import { capacityLabel } from "@/lib/capacity";
 import type { ShiftStatus } from "@/lib/types";
 import {
   CONFIRM_CANCEL_FILLED_ACTION,
@@ -82,7 +83,9 @@ export default async function ManagerShiftDetailPage({
   const pending = shift.applications.filter(
     (a) => a.status === "APPLIED" && !a.marshal.marshalProfile?.paused,
   );
-  const acceptedApp = shift.applications.find((a) => a.status === "ACCEPTED");
+  const acceptedApps = shift.applications.filter((a) => a.status === "ACCEPTED");
+  const bookedCount = acceptedApps.length;
+  const acceptedApp = acceptedApps[0];
   const hasActiveApplicants = pending.length > 0;
 
   const endDateTime = new Date(shift.endDate);
@@ -184,6 +187,10 @@ export default async function ManagerShiftDetailPage({
                   shift.dailyEndTime,
                 ),
               },
+              {
+                label: "Capacity",
+                value: capacityLabel(bookedCount, shift.marshalsNeeded),
+              },
               { label: "Rate", value: formatRate(shift.rate, shift.rateUnit) },
               { label: "Location", value: shift.location },
               {
@@ -258,6 +265,14 @@ export default async function ManagerShiftDetailPage({
                   >
                     Review applicants ({pending.length})
                   </ButtonLink>
+                  {acceptedApps.length > 0 && (
+                    <ButtonLink
+                      href={`/manager/shifts/${shift.id}/booking`}
+                      variant="secondary"
+                    >
+                      View booked marshals
+                    </ButtonLink>
+                  )}
                   {hasActiveApplicants ? (
                     <Alert tone="warn">
                       <p className="font-semibold text-ink">
