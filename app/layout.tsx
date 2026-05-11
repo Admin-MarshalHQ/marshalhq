@@ -30,7 +30,7 @@ export default async function RootLayout({
   return (
     <html lang="en-GB">
       <body className="min-h-screen">
-        <header className="border-b border-line bg-white">
+        <header className="mhq-app-header border-b border-line bg-white">
           <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-3">
             <Link
               href="/"
@@ -45,16 +45,13 @@ export default async function RootLayout({
               {!userId && (
                 <>
                   <Link
-                    href="/early-access"
+                    href="/#waitlist"
                     className="rounded-md border border-ink bg-ink px-3 py-1.5 text-white hover:opacity-90"
                   >
                     Join waitlist
                   </Link>
                   <Link href="/login" className="text-ink-muted hover:text-ink">
                     Log in
-                  </Link>
-                  <Link href="/signup" className="text-ink-muted hover:text-ink">
-                    Sign up
                   </Link>
                 </>
               )}
@@ -136,13 +133,13 @@ export default async function RootLayout({
           </div>
         </header>
         <main className="mx-auto max-w-5xl px-4 py-6">{children}</main>
-        <footer className="mx-auto mt-8 max-w-5xl px-4 py-6 text-xs text-ink-soft">
+        <footer className="mhq-app-footer mx-auto mt-8 max-w-5xl px-4 py-6 text-xs text-ink-soft">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div className="flex flex-wrap gap-4">
               <Link href="/terms">Terms</Link>
               <Link href="/privacy">Privacy</Link>
               <Link href="/rules">Platform rules</Link>
-              <Link href="/support">Support</Link>
+              <Link href="/support">Contact</Link>
             </div>
             <VersionBadge />
           </div>

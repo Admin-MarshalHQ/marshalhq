@@ -21,9 +21,9 @@ export default function LoginPage({
         />
       </Card>
       <p className="mt-4 text-center text-sm text-ink-muted">
-        New here?{" "}
-        <Link href="/signup" className="text-accent underline">
-          Sign up
+        Looking for access?{" "}
+        <Link href="/#waitlist" className="text-accent underline">
+          Join the waitlist
         </Link>
       </p>
     </div>

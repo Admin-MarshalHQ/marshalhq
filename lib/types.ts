@@ -54,7 +54,7 @@ export const SUPPORT_CATEGORY_LABEL: Record<SupportCategory, string> = {
 // Early access waitlist — demand capture only. These intentionally do NOT
 // reuse the Role / Availability unions above: the waitlist captures interest
 // before any account exists, so it has its own narrow vocabulary.
-export type WaitlistRole = "MANAGER" | "MARSHAL";
+export type WaitlistRole = "MANAGER" | "MARSHAL" | "OTHER";
 export type WaitlistStatus = "NEW" | "REVIEWED" | "CONTACTED" | "ARCHIVED";
 export type WaitlistExpectedNeed =
   | "URGENT"
@@ -68,8 +68,9 @@ export type WaitlistAvailability =
   | "FUTURE_INTEREST";
 
 export const WAITLIST_ROLE_LABEL: Record<WaitlistRole, string> = {
-  MANAGER: "Location manager",
-  MARSHAL: "Location marshal",
+  MANAGER: "Manager",
+  MARSHAL: "Marshal",
+  OTHER: "Other",
 };
 
 export const WAITLIST_EXPECTED_NEED_LABEL: Record<

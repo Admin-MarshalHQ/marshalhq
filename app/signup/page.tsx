@@ -12,7 +12,7 @@ export default function SignupPage() {
       <p className="mb-4 text-sm text-ink-muted">
         Part of the private pilot? Sign up with your founder-issued code below.
         Not part of the pilot?{" "}
-        <Link href="/early-access" className="text-accent underline">
+        <Link href="/#waitlist" className="text-accent underline">
           Join the waitlist
         </Link>
         .

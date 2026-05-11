@@ -190,35 +190,25 @@ export const FounderNoteSchema = z.object({
   note: z.string().trim().max(1000).optional().or(z.literal("")),
 });
 
-// Early access waitlist intake. Public form with no auth — every field is
-// validated server-side here. The contact-leak guard on `note` keeps the
-// usual pre-acceptance hygiene applied to free text.
+// Early access waitlist intake. Public form with no auth; every field is
+// validated server-side here and submissions never create accounts.
 export const WaitlistEntrySchema = z
   .object({
     name: z.string().trim().min(1, "Enter your name").max(120),
     email: z.string().trim().toLowerCase().email("Enter a valid email"),
-    role: z.enum(["MANAGER", "MARSHAL"], {
-      errorMap: () => ({ message: "Choose manager or marshal" }),
+    role: z.enum(["MANAGER", "MARSHAL", "OTHER"], {
+      errorMap: () => ({ message: "Choose manager, marshal, or other" }),
     }),
+    roleOther: z.string().trim().max(120).optional().or(z.literal("")),
+    company: z.string().trim().max(120).optional().or(z.literal("")),
     location: z
       .string()
       .trim()
-      .min(1, "Enter your base area")
-      .max(120),
-    note: noContactLeak(
-      z
-        .string()
-        .trim()
-        .min(10, "Tell us a bit about your interest")
-        .max(1000),
-    ),
-    // HTML checkbox sends "on" when checked, nothing when not. Anything else
-    // is treated as missing consent and rejected.
-    consentToContact: z.literal("on", {
-      errorMap: () => ({
-        message: "Please confirm consent to be contacted",
-      }),
-    }),
+      .max(120)
+      .optional()
+      .or(z.literal("")),
+    note: z.string().trim().max(1000).optional().or(z.literal("")),
+    consentToContact: z.literal("on").optional(),
     managerRole: z
       .union([
         z.string().trim().max(120),
@@ -248,6 +238,13 @@ export const WaitlistEntrySchema = z
   // so a tampered payload can't smuggle the wrong role's data into storage.
   .superRefine((v, ctx) => {
     if (v.role === "MANAGER") {
+      if (v.roleOther) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["roleOther"],
+          message: "Only complete this when you choose Other",
+        });
+      }
       if (v.marshalExperience) {
         ctx.addIssue({
           code: "custom",
@@ -262,7 +259,14 @@ export const WaitlistEntrySchema = z
           message: "Not allowed for managers",
         });
       }
-    } else {
+    } else if (v.role === "MARSHAL") {
+      if (v.roleOther) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["roleOther"],
+          message: "Only complete this when you choose Other",
+        });
+      }
       if (v.managerRole) {
         ctx.addIssue({
           code: "custom",
@@ -275,6 +279,26 @@ export const WaitlistEntrySchema = z
           code: "custom",
           path: ["expectedNeed"],
           message: "Not allowed for marshals",
+        });
+      }
+    } else {
+      if (
+        v.managerRole ||
+        v.expectedNeed ||
+        v.marshalExperience ||
+        v.availability
+      ) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["role"],
+          message: "Role-specific fields are not allowed for other roles",
+        });
+      }
+      if (!v.roleOther) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["roleOther"],
+          message: "Tell us how you are connected to location work",
         });
       }
     }

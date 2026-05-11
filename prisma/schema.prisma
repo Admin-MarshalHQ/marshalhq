@@ -181,11 +181,11 @@ model WaitlistEntry {
   createdAt         DateTime @default(now())
   name              String
   email             String
-  role              String   // WaitlistRole: MANAGER | MARSHAL
-  location          String
-  note              String
+  role              String   // WaitlistRole: MANAGER | MARSHAL | OTHER
+  location          String   // Optional region/base in the public form; empty string when not provided.
+  note              String   // Optional public waitlist note; empty string when not provided.
   consentToContact  Boolean
-  managerRole       String?  // free text, manager-only
+  managerRole       String?  // Legacy free-text column; stores company/production for public waitlist.
   expectedNeed      String?  // WaitlistExpectedNeed (manager-only)
   marshalExperience String?  // WaitlistMarshalExperience (marshal-only)
   availability      String?  // WaitlistAvailability (marshal-only)

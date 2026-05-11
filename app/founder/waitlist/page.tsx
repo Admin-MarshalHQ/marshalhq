@@ -25,7 +25,7 @@ export default async function FounderWaitlistPage() {
     <div>
       <PageHeader
         title="Early access waitlist"
-        subtitle={`${newCount} new · ${entries.length} total. Demand capture only — no automated approval.`}
+        subtitle={`${newCount} new / ${entries.length} total. Demand capture only - no automated approval.`}
       />
       <Card>
         <div className="overflow-x-auto">
@@ -45,9 +45,12 @@ export default async function FounderWaitlistPage() {
             <tbody>
               {entries.map((e) => {
                 const isManager = e.role === "MANAGER";
+                const isMarshal = e.role === "MARSHAL";
                 const detail: string[] = [];
+                if (e.managerRole) {
+                  detail.push(`Company/production: ${e.managerRole}`);
+                }
                 if (isManager) {
-                  if (e.managerRole) detail.push(e.managerRole);
                   if (e.expectedNeed) {
                     detail.push(
                       WAITLIST_EXPECTED_NEED_LABEL[
@@ -55,7 +58,8 @@ export default async function FounderWaitlistPage() {
                       ] ?? e.expectedNeed,
                     );
                   }
-                } else {
+                }
+                if (isMarshal) {
                   if (e.marshalExperience) {
                     detail.push(
                       WAITLIST_MARSHAL_EXPERIENCE_LABEL[
@@ -83,13 +87,15 @@ export default async function FounderWaitlistPage() {
                     <td className="py-2 pr-4 text-ink-muted">
                       {WAITLIST_ROLE_LABEL[e.role as WaitlistRole] ?? e.role}
                     </td>
-                    <td className="py-2 pr-4 text-ink-muted">{e.location}</td>
                     <td className="py-2 pr-4 text-ink-muted">
-                      {detail.length ? detail.join(" · ") : "—"}
+                      {e.location || "Not provided"}
+                    </td>
+                    <td className="py-2 pr-4 text-ink-muted">
+                      {detail.length ? detail.join(" / ") : "Not provided"}
                     </td>
                     <td className="py-2 pr-4 text-ink">
                       <span className="block max-w-md whitespace-pre-wrap">
-                        {e.note}
+                        {e.note || "No note supplied."}
                       </span>
                     </td>
                     <td className="py-2">
