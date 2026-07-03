@@ -107,6 +107,13 @@ body:has(.mhq-public-home) main {
   max-width: 100%;
 }
 
+.mhq-public-home img.brand-logo {
+  display: block;
+  height: auto;
+  max-width: 100%;
+  object-fit: contain;
+}
+
 .mhq-public-home a {
   color: inherit;
 }
@@ -169,8 +176,8 @@ body:has(.mhq-public-home) main {
   letter-spacing: 0;
 }
 
-.mhq-public-home .brand__name {
-  font-size: 17px;
+.mhq-public-home .brand__logo {
+  width: clamp(132px, 13vw, 172px);
 }
 
 .mhq-public-home .topbar__meta {
@@ -1097,6 +1104,10 @@ body:has(.mhq-public-home) main {
   font-weight: 600;
 }
 
+.mhq-public-home .footer__logo {
+  width: 148px;
+}
+
 .mhq-public-home .footer__nav {
   display: flex;
   gap: 22px;
@@ -1194,7 +1205,13 @@ body:has(.mhq-public-home) main {
 @media (max-width: 720px) {
   .mhq-public-home .topbar__row {
     grid-template-columns: auto auto;
+    justify-content: space-between;
+    gap: 12px;
     height: 56px;
+  }
+
+  .mhq-public-home .brand__logo {
+    width: 132px;
   }
 
   .mhq-public-home .topbar__meta {
@@ -1203,7 +1220,7 @@ body:has(.mhq-public-home) main {
 
   .mhq-public-home .topbar__cta {
     font-size: 13px;
-    padding: 7px 12px;
+    padding: 7px 10px;
   }
 
   .mhq-public-home .hero {

@@ -26,6 +26,7 @@ async function main() {
       email: "admin@marshalhq.com",
       passwordHash: pw,
       role: "MANAGER",
+      emailVerifiedAt: new Date(),
       phone: "+442070000000",
       managerProfile: {
         create: {
@@ -44,6 +45,7 @@ async function main() {
       email: "manager@example.com",
       passwordHash: pw,
       role: "MANAGER",
+      emailVerifiedAt: new Date(),
       phone: "+442079460000",
       managerProfile: {
         create: {
@@ -61,6 +63,7 @@ async function main() {
       email: "rosa@example.com",
       passwordHash: pw,
       role: "MANAGER",
+      emailVerifiedAt: new Date(),
       phone: "+442079460100",
       managerProfile: {
         create: {
@@ -150,6 +153,7 @@ async function main() {
           email: m.email,
           passwordHash: pw,
           role: "MARSHAL",
+          emailVerifiedAt: new Date(),
           phone: m.phone,
           marshalProfile: {
             create: {

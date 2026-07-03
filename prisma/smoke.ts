@@ -51,6 +51,7 @@ async function main() {
       email: "smoke.manager@example.com",
       passwordHash: pw,
       role: "MANAGER",
+      emailVerifiedAt: new Date(),
       phone: "+442000000001",
       managerProfile: {
         create: { companyName: "Smoke Productions", displayName: "Smoky" },
@@ -64,6 +65,7 @@ async function main() {
           email: `smoke.marshal.${letter}@example.com`,
           passwordHash: pw,
           role: "MARSHAL",
+          emailVerifiedAt: new Date(),
           phone: `+44770000000${index + 1}`,
           marshalProfile: {
             create: {

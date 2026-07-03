@@ -1,5 +1,4 @@
 import Link from "next/link";
-import Image from "next/image";
 import { requireRole } from "@/lib/access";
 import { prisma } from "@/lib/db";
 import {
@@ -9,6 +8,8 @@ import {
   EmptyState,
   PageHeader,
 } from "@/components/ui";
+import { StarRatingDisplay } from "@/components/StarRating";
+import { ratingSummary } from "@/lib/reviews";
 
 function availabilityLabel(a: string) {
   if (a === "ACTIVELY_LOOKING") return "Actively looking";
@@ -21,6 +22,14 @@ export default async function MarshalProfilePage() {
   const p = await prisma.marshalProfile.findUnique({
     where: { userId: user.id },
   });
+  const reviews = await prisma.review.findMany({
+    where: { subjectId: user.id, direction: "MANAGER_ON_MARSHAL" },
+    orderBy: { createdAt: "desc" },
+    include: {
+      shift: { select: { productionName: true } },
+    },
+  });
+  const summary = ratingSummary(reviews);
 
   if (!p) {
     return (
@@ -54,7 +63,11 @@ export default async function MarshalProfilePage() {
       <Card>
         <div className="flex items-start gap-4">
           {p.photoUrl && (
-            <Image
+            // Plain <img> on purpose: photo URLs are user-supplied, and
+            // routing them through next/image would let the optimizer fetch
+            // arbitrary third-party hosts.
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
               src={p.photoUrl}
               alt={p.fullName}
               width={80}
@@ -103,6 +116,10 @@ export default async function MarshalProfilePage() {
                       ? `${p.reliableCount}/${p.completedCount} reliable`
                       : "No completed shifts yet",
                 },
+                {
+                  label: "Manager rating",
+                  value: <StarRatingDisplay summary={summary} />,
+                },
               ]}
             />
           </div>
@@ -116,6 +133,38 @@ export default async function MarshalProfilePage() {
           </p>
         </div>
       </Card>
+
+      {summary.count > 0 && (
+        <Card className="mt-4">
+          <p className="mb-3 text-xs uppercase tracking-wide text-ink-soft">
+            Reviews from managers
+          </p>
+          <div className="space-y-3">
+            {reviews
+              .filter((r) => r.comment)
+              .map((r) => (
+                <div key={r.id} className="border-b border-line pb-3 last:border-0 last:pb-0">
+                  <StarRatingDisplay
+                    summary={{ average: r.rating, count: 1 }}
+                    emptyLabel=""
+                  />
+                  <p className="mt-1 whitespace-pre-wrap text-sm text-ink">
+                    {r.comment}
+                  </p>
+                  <p className="mt-1 text-xs text-ink-soft">
+                    {r.shift.productionName}
+                  </p>
+                </div>
+              ))}
+            {reviews.every((r) => !r.comment) && (
+              <p className="text-sm text-ink-muted">
+                No written comments yet, but your rating reflects {summary.count}{" "}
+                completed {summary.count === 1 ? "review" : "reviews"}.
+              </p>
+            )}
+          </div>
+        </Card>
+      )}
     </div>
   );
 }

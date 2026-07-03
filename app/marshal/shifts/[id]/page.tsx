@@ -18,6 +18,8 @@ import {
 } from "@/lib/format";
 import { canMarshalApply, isLimitedAvailability } from "@/lib/state";
 import { capacityLabel } from "@/lib/capacity";
+import { StarRatingDisplay } from "@/components/StarRating";
+import { ratingSummary } from "@/lib/reviews";
 import {
   APPLY_BLOCKED_UNAVAILABLE_BODY,
   APPLY_BLOCKED_UNAVAILABLE_TITLE,
@@ -60,6 +62,11 @@ export default async function MarshalShiftDetailPage({
     where: { userId: user.id },
     select: { id: true, availability: true, paused: true },
   });
+  const managerReviews = await prisma.review.findMany({
+    where: { subjectId: shift.managerId, direction: "MARSHAL_ON_MANAGER" },
+    select: { rating: true },
+  });
+  const managerRating = ratingSummary(managerReviews);
 
   return (
     <div>
@@ -108,6 +115,10 @@ export default async function MarshalShiftDetailPage({
               {
                 label: "Parking / travel",
                 value: shift.parkingTravel ?? "\u2014",
+              },
+              {
+                label: "Manager rating",
+                value: <StarRatingDisplay summary={managerRating} />,
               },
             ]}
           />

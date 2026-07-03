@@ -6,6 +6,7 @@ import type { Availability } from "@/lib/types";
 
 export default async function FounderMarshalProfilesPage() {
   const profiles = await prisma.marshalProfile.findMany({
+    take: 200,
     orderBy: [{ paused: "desc" }, { createdAt: "desc" }],
     include: {
       user: { select: { email: true } },

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
+import { BrandLogo } from "@/components/BrandLogo";
 import EarlyAccessForm from "./early-access/EarlyAccessForm";
 
 export const metadata: Metadata = {
@@ -95,35 +96,12 @@ export default async function Landing({
   );
 }
 
-function MarshalMark({
-  size = 28,
-  color = "currentColor",
-}: {
-  size?: number;
-  color?: string;
-}) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 32 32" aria-hidden="true">
-      <rect x="0" y="0" width="32" height="32" rx="6" fill={color} />
-      <path
-        d="M8 12 L16 18 L24 12"
-        stroke="#faf7f1"
-        strokeWidth="2"
-        fill="none"
-        strokeLinecap="square"
-      />
-      <rect x="8" y="22" width="16" height="2" fill="#faf7f1" />
-    </svg>
-  );
-}
-
 function TopBar() {
   return (
     <header className="topbar">
       <div className="container topbar__row">
         <a className="brand" href="#top" aria-label="MarshalHQ">
-          <MarshalMark />
-          <span className="brand__name">MarshalHQ</span>
+          <BrandLogo className="brand__logo" priority alt="" />
         </a>
         <div className="topbar__meta">
           <span className="mono tag">
@@ -427,8 +405,7 @@ function Footer() {
     <footer className="footer">
       <div className="container footer__row">
         <div className="footer__brand">
-          <MarshalMark size={22} />
-          <span>MarshalHQ</span>
+          <BrandLogo className="footer__logo" alt="MarshalHQ" />
         </div>
         <nav className="footer__nav">
           <a href="#who">Who it&apos;s for</a>

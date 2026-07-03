@@ -15,11 +15,16 @@ import {
   CONTACT_RELEASED_BODY_MANAGER,
   CONTACT_RELEASED_HEADING,
 } from "@/lib/copy";
+import ReviewForm from "@/components/ReviewForm";
+import { StarRatingDisplay } from "@/components/StarRating";
+import { ratingSummary } from "@/lib/reviews";
 
 export default async function BookingPage({
   params,
+  searchParams,
 }: {
   params: { id: string };
+  searchParams: { reviewed?: string };
 }) {
   const user = await requireRole("MANAGER");
   const shift = await prisma.shift.findUnique({
@@ -67,6 +72,22 @@ export default async function BookingPage({
     },
   });
   if (accepted.length === 0) notFound();
+
+  // Two-way reviews: once the shift is COMPLETED the manager can leave one
+  // review of the booked marshal. (Multi-marshal reviews are future work; the
+  // single review targets the booked marshal for the common one-marshal shift.)
+  const isCompleted = shift.status === "COMPLETED";
+  const existingReview = isCompleted
+    ? await prisma.review.findFirst({
+        where: {
+          shiftId: shift.id,
+          authorId: user.id,
+          direction: "MANAGER_ON_MARSHAL",
+        },
+      })
+    : null;
+  const firstMarshalName =
+    accepted[0]?.marshal.marshalProfile?.fullName ?? "the marshal";
 
   return (
     <div>
@@ -122,6 +143,42 @@ export default async function BookingPage({
           );
         })}
       </div>
+
+      {isCompleted && (
+        <div className="mt-6 max-w-xl">
+          <Card>
+            <p className="text-sm font-semibold">Review the marshal</p>
+            {searchParams?.reviewed === "1" && !existingReview && (
+              <div className="mt-2">
+                <Alert tone="success">Thanks — your review has been saved.</Alert>
+              </div>
+            )}
+            {existingReview ? (
+              <div className="mt-2 space-y-2">
+                <StarRatingDisplay
+                  summary={ratingSummary([{ rating: existingReview.rating }])}
+                />
+                {existingReview.comment && (
+                  <p className="whitespace-pre-wrap text-sm text-ink">
+                    {existingReview.comment}
+                  </p>
+                )}
+                <p className="text-xs text-ink-soft">
+                  You’ve reviewed this booking.
+                </p>
+              </div>
+            ) : (
+              <>
+                <p className="mt-1 text-xs text-ink-soft">
+                  Your rating builds {firstMarshalName}’s reliability record on
+                  MarshalHQ.
+                </p>
+                <ReviewForm shiftId={shift.id} subjectLabel={firstMarshalName} />
+              </>
+            )}
+          </Card>
+        </div>
+      )}
     </div>
   );
 }

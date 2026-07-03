@@ -28,13 +28,16 @@ import {
   CONTACT_RELEASED_BODY_MARSHAL,
   CONTACT_RELEASED_HEADING,
 } from "@/lib/copy";
+import ReviewForm from "@/components/ReviewForm";
+import { StarRatingDisplay } from "@/components/StarRating";
+import { ratingSummary } from "@/lib/reviews";
 
 export default async function MyApplicationDetail({
   params,
   searchParams,
 }: {
   params: { id: string };
-  searchParams: { withdraw?: string };
+  searchParams: { withdraw?: string; reviewed?: string };
 }) {
   const user = await requireRole("MARSHAL");
   const app = await prisma.application.findUnique({
@@ -117,6 +120,21 @@ export default async function MyApplicationDetail({
     app.status === "ACCEPTED" &&
     (shift.status === "OPEN" || shift.status === "FILLED") &&
     !shiftStarted;
+
+  // Two-way reviews: an accepted marshal can review the manager once the shift
+  // is COMPLETED.
+  const canReviewManager =
+    app.status === "ACCEPTED" && shift.status === "COMPLETED";
+  const existingReview = canReviewManager
+    ? await prisma.review.findFirst({
+        where: {
+          shiftId: shift.id,
+          authorId: user.id,
+          direction: "MARSHAL_ON_MANAGER",
+        },
+      })
+    : null;
+  const managerName = managerDisplay?.companyName ?? "the manager";
 
   return (
     <div>
@@ -282,7 +300,7 @@ export default async function MyApplicationDetail({
               </div>
             </Card>
           )}
-          {app.status === "ACCEPTED" && !canWithdrawAccepted && (
+          {app.status === "ACCEPTED" && !canWithdrawAccepted && !canReviewManager && (
             <Card>
               <p className="text-sm font-semibold">Need to change this?</p>
               <p className="mt-1 text-xs text-ink-soft">
@@ -293,6 +311,42 @@ export default async function MyApplicationDetail({
                 </Link>{" "}
                 so we can handle it properly.
               </p>
+            </Card>
+          )}
+
+          {canReviewManager && (
+            <Card>
+              <p className="text-sm font-semibold">Review {managerName}</p>
+              {searchParams?.reviewed === "1" && !existingReview && (
+                <div className="mt-2">
+                  <Alert tone="success">
+                    Thanks — your review has been saved.
+                  </Alert>
+                </div>
+              )}
+              {existingReview ? (
+                <div className="mt-2 space-y-2">
+                  <StarRatingDisplay
+                    summary={ratingSummary([{ rating: existingReview.rating }])}
+                  />
+                  {existingReview.comment && (
+                    <p className="whitespace-pre-wrap text-sm text-ink">
+                      {existingReview.comment}
+                    </p>
+                  )}
+                  <p className="text-xs text-ink-soft">
+                    You’ve reviewed this booking.
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <p className="mt-1 text-xs text-ink-soft">
+                    How was working with this manager? Your rating helps other
+                    marshals.
+                  </p>
+                  <ReviewForm shiftId={shift.id} subjectLabel={managerName} />
+                </>
+              )}
             </Card>
           )}
         </div>

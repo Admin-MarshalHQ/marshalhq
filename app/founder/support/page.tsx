@@ -5,6 +5,7 @@ import { SUPPORT_CATEGORY_LABEL, type SupportCategory } from "@/lib/types";
 
 export default async function FounderSupportListPage() {
   const requests = await prisma.supportRequest.findMany({
+    take: 200,
     orderBy: [{ resolvedAt: "asc" }, { createdAt: "desc" }],
     include: {
       user: { select: { email: true, role: true } },

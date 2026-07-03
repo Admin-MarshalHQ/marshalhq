@@ -133,6 +133,7 @@ export const MarshalProfileSchema = z.object({
     .string()
     .trim()
     .url("Must be a URL")
+    .startsWith("https://", "Must be an https:// URL")
     .optional()
     .or(z.literal("")),
 });
@@ -154,6 +155,55 @@ export const ManagerProfileSchema = z.object({
 export const ApplySchema = z.object({
   shiftId: z.string().min(1),
   coverNote: optionalNoContactLeak(z.string().trim().max(1000)),
+});
+
+// Two-way reviews. Rating is 1-5; the comment is optional public free-text so it
+// gets the same contact-leak guard as cover notes and shift descriptions.
+export const ReviewSchema = z.object({
+  shiftId: z.string().min(1),
+  rating: z.coerce
+    .number()
+    .int("Choose a star rating")
+    .min(1, "Choose a star rating")
+    .max(5, "Rating is out of 5"),
+  comment: optionalNoContactLeak(z.string().trim().max(1000)),
+});
+
+// Marshal availability block: an inclusive date range the marshal is
+// unavailable. Reuses the same start/end ordering check as ShiftDraftSchema.
+export const AvailabilityBlockSchema = z
+  .object({
+    startDate: z.string().min(1, "Required"),
+    endDate: z.string().min(1, "Required"),
+    note: optionalNoContactLeak(z.string().trim().max(200)),
+  })
+  .superRefine((v, ctx) => {
+    const start = new Date(v.startDate);
+    const end = new Date(v.endDate);
+    if (
+      Number.isNaN(start.getTime()) ||
+      Number.isNaN(end.getTime()) ||
+      end.getTime() < start.getTime()
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["endDate"],
+        message: "End date can’t be before start date",
+      });
+    }
+  });
+
+// Saved shift alert. Every criterion is optional; an empty alert matches every
+// newly published shift. Keyword/location are matched case-insensitively in
+// lib/alerts.ts. minRate is compared against the shift's rate regardless of
+// rate unit, so it's a coarse floor rather than a normalised hourly figure.
+export const ShiftAlertSchema = z.object({
+  keyword: z.string().trim().max(120).optional().or(z.literal("")),
+  location: z.string().trim().max(120).optional().or(z.literal("")),
+  minRate: z.preprocess(
+    (v) => (v === "" || v === null || v === undefined ? undefined : v),
+    z.coerce.number().nonnegative("Rate can’t be negative").optional(),
+  ),
 });
 
 export const ForgotPasswordSchema = z.object({

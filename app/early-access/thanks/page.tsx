@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { BrandLogo } from "@/components/BrandLogo";
 
 export const metadata: Metadata = {
   title: "Waitlist request received - MarshalHQ",
@@ -12,8 +13,7 @@ export default function EarlyAccessThanksPage() {
       <header className="topbar">
         <div className="container topbar__row">
           <Link className="brand" href="/" aria-label="MarshalHQ home">
-            <MarshalMark />
-            <span className="brand__name">MarshalHQ</span>
+            <BrandLogo className="brand__logo" priority alt="" />
           </Link>
           <div className="topbar__meta">
             <span className="mono tag">
@@ -77,8 +77,7 @@ export default function EarlyAccessThanksPage() {
       <footer className="footer">
         <div className="container footer__row">
           <div className="footer__brand">
-            <MarshalMark size={22} />
-            <span>MarshalHQ</span>
+            <BrandLogo className="footer__logo" alt="MarshalHQ" />
           </div>
           <nav className="footer__nav">
             <Link href="/#who">Who it&apos;s for</Link>
@@ -98,27 +97,5 @@ export default function EarlyAccessThanksPage() {
         </div>
       </footer>
     </div>
-  );
-}
-
-function MarshalMark({
-  size = 28,
-  color = "currentColor",
-}: {
-  size?: number;
-  color?: string;
-}) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 32 32" aria-hidden="true">
-      <rect x="0" y="0" width="32" height="32" rx="6" fill={color} />
-      <path
-        d="M8 12 L16 18 L24 12"
-        stroke="#faf7f1"
-        strokeWidth="2"
-        fill="none"
-        strokeLinecap="square"
-      />
-      <rect x="8" y="22" width="16" height="2" fill="#faf7f1" />
-    </svg>
   );
 }

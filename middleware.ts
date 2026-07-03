@@ -28,7 +28,8 @@ export default auth((req) => {
     path.startsWith("/reset/") ||
     path.startsWith("/api/auth") ||
     path.startsWith("/_next") ||
-    path === "/icon.svg" ||
+    path.startsWith("/brand/") ||
+    path === "/icon.png" ||
     path.startsWith("/icon") ||
     path === "/favicon.ico";
 

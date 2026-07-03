@@ -8,6 +8,7 @@ import { capacityLabel } from "@/lib/capacity";
 export default async function ManagerMarketPage() {
   await requireRole("MANAGER");
   const shifts = await prisma.shift.findMany({
+    take: 100,
     where: {
       status: "OPEN",
       paused: false,

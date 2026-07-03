@@ -23,9 +23,21 @@ export type NotificationKind =
   | "APPLICATION_ACCEPTED"
   | "APPLICATION_REJECTED"
   | "SHIFT_STATUS_CHANGED"
+  | "SHIFT_MATCH_ALERT"
+  | "REVIEW_RECEIVED"
   | "EMAIL_VERIFICATION"
   | "PASSWORD_RESET"
   | "SUPPORT_CONFIRMATION";
+
+// Two-way reviews. A review is written either by the manager about the booked
+// marshal, or by the marshal about the manager/production. Direction is stored
+// on the row so a single Review table serves both sides.
+export type ReviewDirection = "MANAGER_ON_MARSHAL" | "MARSHAL_ON_MANAGER";
+
+export const REVIEW_DIRECTION_LABEL: Record<ReviewDirection, string> = {
+  MANAGER_ON_MARSHAL: "Manager review of marshal",
+  MARSHAL_ON_MANAGER: "Marshal review of manager",
+};
 
 // Support and privacy intake categories. Founder handles each manually. The
 // PRIVACY_DELETION option routes to the manual deletion review path and must

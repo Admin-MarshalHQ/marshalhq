@@ -4,6 +4,7 @@ import { Card, PageHeader } from "@/components/ui";
 
 export default async function FounderManagersPage() {
   const managers = await prisma.user.findMany({
+    take: 200,
     where: { role: "MANAGER" },
     orderBy: { createdAt: "desc" },
     include: {

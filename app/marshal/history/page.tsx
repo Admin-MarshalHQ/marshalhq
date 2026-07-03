@@ -6,12 +6,19 @@ import {
   PageHeader,
 } from "@/components/ui";
 import { formatShiftBlock } from "@/lib/format";
+import { StarRatingDisplay } from "@/components/StarRating";
+import { ratingSummary } from "@/lib/reviews";
 
 export default async function CompletionHistoryPage() {
   const user = await requireRole("MARSHAL");
   const profile = await prisma.marshalProfile.findUnique({
     where: { userId: user.id },
   });
+  const reviews = await prisma.review.findMany({
+    where: { subjectId: user.id, direction: "MANAGER_ON_MARSHAL" },
+    select: { rating: true },
+  });
+  const ratingSummaryValue = ratingSummary(reviews);
   const completed = await prisma.application.findMany({
     where: {
       marshalId: user.id,
@@ -47,6 +54,10 @@ export default async function CompletionHistoryPage() {
           Reliability signal
         </p>
         <p className="mt-1 text-lg font-semibold text-ink">{reliability}</p>
+        <div className="mt-2 flex items-center gap-2">
+          <span className="text-xs text-ink-muted">Manager rating:</span>
+          <StarRatingDisplay summary={ratingSummaryValue} />
+        </div>
         <p className="mt-1 text-xs text-ink-muted">
           Managers see this alongside your applications.
         </p>

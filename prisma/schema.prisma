@@ -19,7 +19,7 @@ model User {
   passwordHash   String
   role           String   @default("UNSET") // Role: MANAGER | MARSHAL | UNSET
   phone          String?
-  emailVerifiedAt DateTime? @default(now())
+  emailVerifiedAt DateTime?
   createdAt      DateTime @default(now())
 
   managerProfile ManagerProfile?
@@ -30,6 +30,10 @@ model User {
   passwordResetTokens PasswordResetToken[]
   emailVerificationTokens EmailVerificationToken[]
   supportRequests     SupportRequest[]
+  reviewsAuthored     Review[]            @relation("ReviewAuthor")
+  reviewsReceived     Review[]            @relation("ReviewSubject")
+  availabilityBlocks  AvailabilityBlock[]
+  shiftAlerts         ShiftAlert[]
 }
 
 model ManagerProfile {
@@ -95,6 +99,7 @@ model Shift {
 
   manager      User          @relation("ManagerShifts", fields: [managerId], references: [id], onDelete: Cascade)
   applications Application[] @relation("ShiftApplications")
+  reviews      Review[]
 }
 
 model Application {
@@ -195,4 +200,63 @@ model WaitlistEntry {
 
   @@index([createdAt])
   @@index([status])
+}
+
+// Two-way reviews. After a shift reaches COMPLETED, the manager and the booked
+// marshal can each leave one rating (1-5) plus an optional comment. `direction`
+// records which side wrote it. The unique constraint enforces one review per
+// side per shift; aggregate averages are computed on read for now (small data),
+// with denormalised counts left as a later perf step. Comments are run through
+// the contact-leak guard at the edge like every other public free-text field.
+model Review {
+  id        String   @id @default(cuid())
+  shiftId   String
+  authorId  String
+  subjectId String
+  direction String   // ReviewDirection: MANAGER_ON_MARSHAL | MARSHAL_ON_MANAGER
+  rating    Int
+  comment   String?
+  createdAt DateTime @default(now())
+
+  shift   Shift @relation(fields: [shiftId], references: [id], onDelete: Cascade)
+  author  User  @relation("ReviewAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  subject User  @relation("ReviewSubject", fields: [subjectId], references: [id], onDelete: Cascade)
+
+  @@unique([shiftId, authorId, direction])
+  @@index([subjectId])
+}
+
+// Marshal availability calendar. A block is an inclusive date range the marshal
+// has marked themselves unavailable for. Marshals are open by default and
+// ACCEPTED shifts count as busy automatically, so only manual unavailability is
+// stored here — no duplicate of the booking data.
+model AvailabilityBlock {
+  id        String   @id @default(cuid())
+  marshalId String
+  startDate DateTime
+  endDate   DateTime
+  note      String?
+  createdAt DateTime @default(now())
+
+  marshal User @relation(fields: [marshalId], references: [id], onDelete: Cascade)
+
+  @@index([marshalId, startDate])
+}
+
+// Saved shift alerts. When a shift is published (transitions to OPEN), active
+// alerts are matched against it and the marshal is notified — unless they have
+// an availability conflict on the shift dates. All criteria are optional; an
+// alert with no criteria matches every new shift.
+model ShiftAlert {
+  id        String   @id @default(cuid())
+  marshalId String
+  keyword   String?
+  location  String?
+  minRate   Float?
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  marshal User @relation(fields: [marshalId], references: [id], onDelete: Cascade)
+
+  @@index([marshalId])
 }

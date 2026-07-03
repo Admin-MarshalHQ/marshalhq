@@ -16,6 +16,8 @@ import {
   rejectApplicationAction,
 } from "@/app/actions/hiring";
 import { APPLICATION_STATUS_LABEL, AVAILABILITY_LABEL } from "@/lib/state";
+import { StarRatingDisplay } from "@/components/StarRating";
+import { ratingSummary } from "@/lib/reviews";
 import {
   CONFIRM_ACCEPT_ACTION,
   CONFIRM_ACCEPT_BODY,
@@ -56,6 +58,12 @@ export default async function ApplicantDetailPage({
     p.completedCount > 0
       ? `${p.reliableCount} of ${p.completedCount} shifts rated reliable`
       : "No completed shifts on MarshalHQ yet";
+
+  const marshalReviews = await prisma.review.findMany({
+    where: { subjectId: app.marshalId, direction: "MANAGER_ON_MARSHAL" },
+    select: { rating: true },
+  });
+  const marshalRating = ratingSummary(marshalReviews);
 
   const availabilityLabel =
     AVAILABILITY_LABEL[p.availability as Availability] ?? "Not currently available";
@@ -151,6 +159,10 @@ export default async function ApplicantDetailPage({
               <strong className="text-ink">Trust signal:</strong>{" "}
               {reliabilityLabel}.
             </p>
+            <div className="mt-2 flex items-center gap-2">
+              <span className="text-sm text-ink-muted">Manager rating:</span>
+              <StarRatingDisplay summary={marshalRating} />
+            </div>
           </Card>
         </div>
 
