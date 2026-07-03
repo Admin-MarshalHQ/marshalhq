@@ -1,0 +1,14 @@
+# Normalise all text files to LF in the repository and on checkout, so edits
+# from Windows and macOS worktrees stop producing whole-file line-ending
+# diffs. Binary detection still applies via text=auto.
+* text=auto eol=lf
+
+# Explicit binaries — never subject to eol conversion.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.pdf binary
