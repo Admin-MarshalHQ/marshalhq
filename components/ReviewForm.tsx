@@ -47,16 +47,44 @@ function StarInput() {
 export default function ReviewForm({
   shiftId,
   subjectLabel,
+  marshalId,
+  subjects,
 }: {
   shiftId: string;
   subjectLabel: string;
+  /** Manager reviews name their subject explicitly; omitted for marshal-side
+   *  reviews (the subject is always the shift's manager). */
+  marshalId?: string;
+  /** Multi-marshal shifts: the manager picks who the single review is about. */
+  subjects?: { id: string; label: string }[];
 }) {
   const [state, action] = useFormState(submitReviewAction, null);
+  const hasChoice = subjects && subjects.length > 1;
   return (
     <form action={action} className="mt-2 space-y-3">
       {state?.error && <Alert tone="danger">{state.error}</Alert>}
       <input type="hidden" name="shiftId" value={shiftId} />
-      <Field label={`Your rating of ${subjectLabel}`}>
+      {marshalId && !hasChoice && (
+        <input type="hidden" name="marshalId" value={marshalId} />
+      )}
+      {hasChoice && (
+        <Field
+          label="Which marshal is this review about?"
+          hint="One review per shift for now"
+        >
+          <select name="marshalId" required defaultValue="">
+            <option value="" disabled>
+              Choose a booked marshal
+            </option>
+            {subjects.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.label}
+              </option>
+            ))}
+          </select>
+        </Field>
+      )}
+      <Field label={hasChoice ? "Your rating" : `Your rating of ${subjectLabel}`}>
         <StarInput />
       </Field>
       <Field label="Comment (optional)" hint="Shared on their profile">

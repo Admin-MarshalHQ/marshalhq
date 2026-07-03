@@ -44,10 +44,36 @@ export default async function ApplicantDetailPage({
   });
   const hasOpenSlot = acceptedCount < shift.marshalsNeeded;
 
+  // Contact-release invariant, enforced structurally: pre-acceptance review
+  // must never show the applicant's email or phone, so the query never
+  // selects them. Contact renders only on the booking page after acceptance.
   const app = await prisma.application.findUnique({
     where: { id: params.appId },
-    include: {
-      marshal: { include: { marshalProfile: true } },
+    select: {
+      id: true,
+      shiftId: true,
+      marshalId: true,
+      status: true,
+      coverNote: true,
+      marshal: {
+        select: {
+          marshalProfile: {
+            select: {
+              fullName: true,
+              baseLocation: true,
+              travelRadiusMiles: true,
+              availability: true,
+              hasTransport: true,
+              hasDriversLicence: true,
+              training: true,
+              experienceSummary: true,
+              completedCount: true,
+              reliableCount: true,
+              paused: true,
+            },
+          },
+        },
+      },
     },
   });
   if (!app || app.shiftId !== shift.id) notFound();

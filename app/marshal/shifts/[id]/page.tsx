@@ -17,10 +17,13 @@ import {
   shiftBlockLengthLabel,
 } from "@/lib/format";
 import { canMarshalApply, isLimitedAvailability } from "@/lib/state";
+import { shiftConflicts, type ConflictReason } from "@/lib/availability";
 import { capacityLabel } from "@/lib/capacity";
 import { StarRatingDisplay } from "@/components/StarRating";
 import { ratingSummary } from "@/lib/reviews";
 import {
+  APPLY_BLOCKED_BOOKED_BODY,
+  APPLY_BLOCKED_BOOKED_TITLE,
   APPLY_BLOCKED_UNAVAILABLE_BODY,
   APPLY_BLOCKED_UNAVAILABLE_TITLE,
 } from "@/lib/copy";
@@ -67,6 +70,39 @@ export default async function MarshalShiftDetailPage({
     select: { rating: true },
   });
   const managerRating = ratingSummary(managerReviews);
+
+  // Booking-conflict check, run only when the apply form could render. A
+  // "booked" overlap (accepted on another shift over these dates) blocks the
+  // form — the server action refuses it too. A "marked-unavailable" overlap is
+  // a soft reminder passed into the form.
+  let conflict: ConflictReason = null;
+  if (
+    !yourApp &&
+    shift.status === "OPEN" &&
+    profile &&
+    !profile.paused &&
+    canMarshalApply(profile.availability)
+  ) {
+    const [acceptedElsewhere, blocks] = await Promise.all([
+      prisma.application.findMany({
+        where: {
+          marshalId: user.id,
+          status: "ACCEPTED",
+          shift: { status: { in: ["OPEN", "FILLED"] } },
+        },
+        select: { shift: { select: { startDate: true, endDate: true } } },
+      }),
+      prisma.availabilityBlock.findMany({
+        where: { marshalId: user.id },
+        select: { startDate: true, endDate: true },
+      }),
+    ]);
+    conflict = shiftConflicts(
+      shift,
+      acceptedElsewhere.map((a) => a.shift),
+      blocks,
+    );
+  }
 
   return (
     <div>
@@ -204,10 +240,29 @@ export default async function MarshalShiftDetailPage({
                   Update availability
                 </ButtonLink>
               </div>
+            ) : conflict === "booked" ? (
+              <div className="mt-2 space-y-2">
+                <Alert tone="warn">
+                  <p className="font-semibold text-ink">
+                    {APPLY_BLOCKED_BOOKED_TITLE}
+                  </p>
+                  <p className="mt-1 text-ink-muted">
+                    {APPLY_BLOCKED_BOOKED_BODY}
+                  </p>
+                </Alert>
+                <ButtonLink
+                  href="/marshal/applications"
+                  variant="secondary"
+                  className="w-full"
+                >
+                  View your bookings
+                </ButtonLink>
+              </div>
             ) : (
               <ApplyForm
                 shiftId={shift.id}
                 limitedAvailability={isLimitedAvailability(profile.availability)}
+                unavailableDatesConflict={conflict === "marked-unavailable"}
               />
             )}
           </Card>

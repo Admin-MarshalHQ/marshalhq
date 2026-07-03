@@ -18,13 +18,32 @@ export default async function ApplicantReviewPage({
   params: { id: string };
 }) {
   const user = await requireRole("MANAGER");
+  // Contact-release invariant, enforced structurally: this page must never
+  // show an applicant's email or phone, so the query never selects them. The
+  // profile is narrowed to the fields the cards render (no founderNote).
   const shift = await prisma.shift.findUnique({
     where: { id: params.id },
     include: {
       applications: {
         orderBy: { appliedAt: "asc" },
-        include: {
-          marshal: { include: { marshalProfile: true } },
+        select: {
+          id: true,
+          status: true,
+          marshal: {
+            select: {
+              marshalProfile: {
+                select: {
+                  fullName: true,
+                  baseLocation: true,
+                  travelRadiusMiles: true,
+                  experienceSummary: true,
+                  completedCount: true,
+                  reliableCount: true,
+                  paused: true,
+                },
+              },
+            },
+          },
         },
       },
     },

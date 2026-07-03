@@ -3,7 +3,10 @@
 import { useFormState, useFormStatus } from "react-dom";
 import { Alert, Button, Field } from "@/components/ui";
 import { applyToShiftAction } from "@/app/actions/hiring";
-import { APPLY_LIMITED_REMINDER } from "@/lib/copy";
+import {
+  APPLY_LIMITED_REMINDER,
+  APPLY_UNAVAILABLE_DATES_REMINDER,
+} from "@/lib/copy";
 
 function Submit() {
   const { pending } = useFormStatus();
@@ -17,9 +20,11 @@ function Submit() {
 export default function ApplyForm({
   shiftId,
   limitedAvailability,
+  unavailableDatesConflict,
 }: {
   shiftId: string;
   limitedAvailability?: boolean;
+  unavailableDatesConflict?: boolean;
 }) {
   const [state, action] = useFormState(applyToShiftAction, null);
   return (
@@ -27,6 +32,9 @@ export default function ApplyForm({
       {state?.error && <Alert tone="danger">{state.error}</Alert>}
       {limitedAvailability && (
         <Alert tone="warn">{APPLY_LIMITED_REMINDER}</Alert>
+      )}
+      {unavailableDatesConflict && (
+        <Alert tone="warn">{APPLY_UNAVAILABLE_DATES_REMINDER}</Alert>
       )}
       <input type="hidden" name="shiftId" value={shiftId} />
       <Field

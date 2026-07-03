@@ -108,3 +108,16 @@ export const APPLY_BLOCKED_UNAVAILABLE_BODY =
 
 export const APPLY_LIMITED_REMINDER =
   "Your availability is set to Open to work. Please only apply if you can commit to this shift — the manager is relying on you to show up.";
+
+// --- Booking-conflict gating -------------------------------------------------
+// A shift that overlaps a booking the marshal is already ACCEPTED on is a hard
+// block: accepting both would guarantee a no-show for one manager. A shift
+// that overlaps dates the marshal marked unavailable is a soft reminder only —
+// their calendar is self-reported and they may know better.
+export const APPLY_BLOCKED_BOOKED_TITLE =
+  "You’re already booked on these dates";
+export const APPLY_BLOCKED_BOOKED_BODY =
+  "This shift overlaps a booking you’ve already been accepted on. A manager is relying on you for those dates. If your plans have changed, withdraw from the other booking first.";
+
+export const APPLY_UNAVAILABLE_DATES_REMINDER =
+  "You’ve marked yourself unavailable during these dates. You can still apply, but only do so if you’re genuinely free — the manager is relying on you to show up.";

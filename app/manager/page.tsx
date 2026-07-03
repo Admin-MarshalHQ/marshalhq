@@ -2,6 +2,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { requireRole } from "@/lib/access";
 import {
+  Alert,
   ButtonLink,
   Card,
   EmptyState,
@@ -10,6 +11,34 @@ import {
 } from "@/components/ui";
 import { formatRate, formatShiftBlock } from "@/lib/format";
 import { capacityLabel } from "@/lib/capacity";
+import { canCompleteShift, shiftStartDateTime } from "@/lib/state";
+
+// Per-shift attention cues. The loop stalls on exactly two manager actions —
+// reviewing applicants and settling a shift's outcome — so the dashboard must
+// say where those are needed instead of leaving the manager to open every
+// shift. "stale-open" = an OPEN shift whose first day started with no one
+// booked: it will never fill and should be closed (or reposted with new
+// dates). "awaiting-completion" = a FILLED shift past its scheduled end,
+// ready to be marked complete so the marshal's trust record accrues.
+type ShiftAttention = "stale-open" | "awaiting-completion" | null;
+
+function shiftAttention(shift: {
+  status: string;
+  startDate: Date;
+  endDate: Date;
+  dailyStartTime: string;
+  dailyEndTime: string;
+}): ShiftAttention {
+  if (
+    shift.status === "OPEN" &&
+    shiftStartDateTime(shift.startDate, shift.dailyStartTime).getTime() <=
+      Date.now()
+  ) {
+    return "stale-open";
+  }
+  if (canCompleteShift(shift)) return "awaiting-completion";
+  return null;
+}
 
 export default async function ManagerDashboard() {
   const user = await requireRole("MANAGER");
@@ -33,6 +62,39 @@ export default async function ManagerDashboard() {
     ),
   };
 
+  // Attention roll-up: pending applicants across all open shifts plus the
+  // per-shift outcome cues, so the manager sees in one line where action is
+  // needed rather than opening each shift to find out.
+  const totalPending = shifts
+    .filter((s) => s.status === "OPEN")
+    .reduce(
+      (sum, s) =>
+        sum + s.applications.filter((a) => a.status === "APPLIED").length,
+      0,
+    );
+  const staleOpenCount = shifts.filter(
+    (s) => shiftAttention(s) === "stale-open",
+  ).length;
+  const awaitingCompletionCount = shifts.filter(
+    (s) => shiftAttention(s) === "awaiting-completion",
+  ).length;
+  const attentionParts: string[] = [];
+  if (totalPending > 0) {
+    attentionParts.push(
+      `${totalPending} applicant${totalPending === 1 ? "" : "s"} waiting for review`,
+    );
+  }
+  if (staleOpenCount > 0) {
+    attentionParts.push(
+      `${staleOpenCount} open shift${staleOpenCount === 1 ? " has" : "s have"} passed the start date and can no longer fill — close or repost`,
+    );
+  }
+  if (awaitingCompletionCount > 0) {
+    attentionParts.push(
+      `${awaitingCompletionCount} booked shift${awaitingCompletionCount === 1 ? " is" : "s are"} ready to mark complete`,
+    );
+  }
+
   return (
     <div>
       <PageHeader
@@ -54,6 +116,15 @@ export default async function ManagerDashboard() {
           </div>
         }
       />
+
+      {attentionParts.length > 0 && (
+        <div className="mb-4">
+          <Alert tone="info">
+            <span className="font-semibold">Needs your attention:</span>{" "}
+            {attentionParts.join(" · ")}
+          </Alert>
+        </div>
+      )}
 
       {shifts.length === 0 ? (
         <EmptyState
@@ -106,6 +177,7 @@ function ShiftListSection({
             const accepted = s.applications.filter(
               (a) => a.status === "ACCEPTED",
             ).length;
+            const attention = shiftAttention(s);
             return (
               <Link
                 key={s.id}
@@ -136,11 +208,21 @@ function ShiftListSection({
                       {capacityLabel(accepted, s.marshalsNeeded)}
                     </p>
                   </div>
-                  <div className="text-right text-sm">
+                  <div className="space-y-1 text-right text-sm">
                     {s.status === "OPEN" && (
-                      <span className="text-ink-muted">
+                      <p className="text-ink-muted">
                         {active} pending applicant{active === 1 ? "" : "s"}
-                      </span>
+                      </p>
+                    )}
+                    {attention === "stale-open" && (
+                      <p className="font-medium text-warn">
+                        Start date passed — close or repost
+                      </p>
+                    )}
+                    {attention === "awaiting-completion" && (
+                      <p className="font-medium text-warn">
+                        Ready to mark complete
+                      </p>
                     )}
                   </div>
                 </div>

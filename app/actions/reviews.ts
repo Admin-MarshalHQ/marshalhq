@@ -44,10 +44,35 @@ export async function submitReviewAction(
     | null = null;
   let subjectId: string;
   if (role === "MANAGER") {
-    application = await prisma.application.findFirst({
+    // The subject must be identified explicitly, never inferred: on a
+    // multi-marshal shift a findFirst would attach the rating to an arbitrary
+    // booked marshal — a corrupted reliability record is worse than none. The
+    // form sends marshalId; with several booked marshals and no explicit
+    // choice we refuse rather than guess.
+    const acceptedApps = await prisma.application.findMany({
       where: { shiftId, status: "ACCEPTED" },
       select: { id: true, status: true, marshalId: true },
+      orderBy: { decidedAt: "asc" },
     });
+    const marshalIdRaw = formData.get("marshalId");
+    const chosenMarshalId =
+      typeof marshalIdRaw === "string" && marshalIdRaw.length > 0
+        ? marshalIdRaw
+        : null;
+    if (chosenMarshalId) {
+      application =
+        acceptedApps.find((a) => a.marshalId === chosenMarshalId) ?? null;
+      if (!application) {
+        return { error: "That marshal isn’t booked on this shift." };
+      }
+    } else if (acceptedApps.length === 1) {
+      application = acceptedApps[0];
+    } else if (acceptedApps.length > 1) {
+      return {
+        error:
+          "This shift booked more than one marshal — choose who your review is about.",
+      };
+    }
     subjectId = application?.marshalId ?? "";
   } else {
     application = await prisma.application.findUnique({

@@ -13,6 +13,8 @@ import {
 } from "@/lib/state";
 import { ApplySchema } from "@/lib/zod";
 import { flushNotificationEmails, type NotifyParams } from "@/lib/notify";
+import { datesOverlap } from "@/lib/availability";
+import { formatShiftBlock } from "@/lib/format";
 
 async function requireUser() {
   const session = await auth();
@@ -89,6 +91,40 @@ export async function applyToShiftAction(
     return { error: "This shift is already filled." };
   }
 
+  // Booking-conflict guard. An overlap with a shift this marshal is already
+  // ACCEPTED on is a hard block: accepting both would guarantee a no-show for
+  // one manager, which is the worst trust failure the loop can produce. The
+  // shift detail page surfaces the same conflict before the form, but a
+  // client-bypassed POST must be refused here too. Self-marked unavailable
+  // dates are a soft reminder only (rendered by the page, not blocked here) —
+  // the calendar is self-reported and the marshal may know better.
+  const acceptedElsewhere = await prisma.application.findMany({
+    where: {
+      marshalId: user.id,
+      status: "ACCEPTED",
+      shiftId: { not: shiftId },
+      shift: { status: { in: ["OPEN", "FILLED"] } },
+    },
+    select: {
+      shift: {
+        select: { startDate: true, endDate: true, productionName: true },
+      },
+    },
+  });
+  const clashingBooking = acceptedElsewhere.find((a) =>
+    datesOverlap(
+      shift.startDate,
+      shift.endDate,
+      a.shift.startDate,
+      a.shift.endDate,
+    ),
+  );
+  if (clashingBooking) {
+    return {
+      error: `These dates overlap ${clashingBooking.shift.productionName}, which you’re already booked on. Withdraw from that booking before applying here.`,
+    };
+  }
+
   const emailQueue: NotifyParams[] = [];
   try {
     await prisma.$transaction(async (tx) => {
@@ -100,24 +136,26 @@ export async function applyToShiftAction(
           status: "APPLIED",
         },
       });
-      const startStr = new Date(shift.startDate).toLocaleDateString("en-GB");
-      const isBlock =
-        new Date(shift.endDate).toDateString() !==
-        new Date(shift.startDate).toDateString();
-      const whenStr = isBlock
-        ? `from ${startStr} to ${new Date(shift.endDate).toLocaleDateString("en-GB")}`
-        : `on ${startStr}`;
+      const whenStr = formatShiftBlock(
+        shift.startDate,
+        shift.endDate,
+        shift.dailyStartTime,
+        shift.dailyEndTime,
+      );
+      const pendingCount = await tx.application.count({
+        where: { shiftId, status: "APPLIED" },
+      });
       const applicantNote: NotifyParams = {
         userId: user.id,
         kind: "APPLICATION_SUBMITTED",
         subject: `Application submitted: ${shift.productionName}`,
-        body: `You applied to ${shift.productionName} ${whenStr}. You\u2019ll be notified when the manager decides.`,
+        body: `You applied to ${shift.productionName} (${whenStr}, ${shift.location}). You\u2019ll be notified when the manager decides.`,
       };
       const managerNote: NotifyParams = {
         userId: shift.managerId,
         kind: "APPLICATION_SUBMITTED",
         subject: `New applicant: ${shift.productionName}`,
-        body: `${profile.fullName} applied to your shift. Review the applicant in the dashboard.`,
+        body: `${profile.fullName} applied to ${shift.productionName} (${whenStr}). You now have ${pendingCount} pending applicant${pendingCount === 1 ? "" : "s"} to review on this shift.`,
       };
       await tx.notification.create({ data: applicantNote });
       await tx.notification.create({ data: managerNote });
@@ -322,12 +360,28 @@ export async function acceptApplicationAction(applicationId: string) {
       });
       if (fillResult.count !== 1) throw new StaleAcceptStateError();
 
-      // Notifications
+      // Notifications. The body carries the shift facts (dates, times,
+      // location) the marshal needs to put the booking in their diary without
+      // opening the app \u2014 but never the manager's contact details; those are
+      // released only on the application page behind the accepted-pair guard.
+      const whenStr = formatShiftBlock(
+        freshShift.startDate,
+        freshShift.endDate,
+        freshShift.dailyStartTime,
+        freshShift.dailyEndTime,
+      );
+      const marshalUser = await tx.user.findUnique({
+        where: { id: freshApp.marshalId },
+        select: { phone: true },
+      });
+      const phoneNudge = marshalUser?.phone
+        ? ""
+        : " Tip: your profile has no phone number \u2014 add one, as managers expect to be able to call their booked marshal.";
       const acceptedNote: NotifyParams = {
         userId: freshApp.marshalId,
         kind: "APPLICATION_ACCEPTED",
         subject: `You\u2019re booked: ${freshShift.productionName}`,
-        body: `The manager has accepted your application. Contact details are now visible on your application page.`,
+        body: `The manager has accepted you for ${freshShift.productionName} (${whenStr}) at ${freshShift.location}. Contact details are now visible on your application page.${phoneNudge}`,
       };
       await tx.notification.create({ data: acceptedNote });
       emailQueue.push(acceptedNote);
@@ -372,7 +426,12 @@ export async function rejectApplicationAction(applicationId: string) {
       userId: app.marshalId,
       kind: "APPLICATION_REJECTED",
       subject: `Not selected: ${app.shift.productionName}`,
-      body: `The manager did not select your application for this shift.`,
+      body: `The manager did not select your application for ${app.shift.productionName} (${formatShiftBlock(
+        app.shift.startDate,
+        app.shift.endDate,
+        app.shift.dailyStartTime,
+        app.shift.dailyEndTime,
+      )}). Your profile stays visible for other open shifts.`,
     };
     await tx.notification.create({ data: rejectedNote });
     emailQueue.push(rejectedNote);

@@ -26,6 +26,7 @@ import {
   generateRawResetToken,
   hashResetToken,
 } from "../lib/reset";
+import { datesOverlap, shiftConflicts } from "../lib/availability";
 
 type Result = { pass: boolean; label: string };
 const results: Result[] = [];
@@ -427,6 +428,52 @@ check(
   safeNextPath("ftp://elsewhere", "/fallback") === "/fallback",
   "J: ftp: scheme is rejected",
 );
+
+// ---- K: Apply booking-conflict classification ------------------------------
+// The apply action hard-blocks a shift that overlaps an ACCEPTED booking and
+// the shift page soft-warns on self-marked unavailable dates. Both outcomes
+// classify through shiftConflicts; the overlap rule itself is datesOverlap.
+{
+  const d = (s: string) => new Date(`${s}T00:00:00.000Z`);
+  const block = (a: string, b: string) => ({ startDate: d(a), endDate: d(b) });
+
+  check(
+    datesOverlap(d("2026-08-01"), d("2026-08-03"), d("2026-08-03"), d("2026-08-05")),
+    "K: shared boundary day counts as an overlap (inclusive ranges)",
+  );
+  check(
+    !datesOverlap(d("2026-08-01"), d("2026-08-02"), d("2026-08-03"), d("2026-08-04")),
+    "K: adjacent but disjoint ranges do not overlap",
+  );
+  check(
+    datesOverlap(d("2026-08-05"), d("2026-08-05"), d("2026-08-01"), d("2026-08-10")),
+    "K: single-day shift inside a longer range overlaps",
+  );
+  check(
+    shiftConflicts(block("2026-08-02", "2026-08-04"), [block("2026-08-04", "2026-08-06")], []) ===
+      "booked",
+    "K: overlap with an accepted booking classifies as booked (hard block)",
+  );
+  check(
+    shiftConflicts(block("2026-08-02", "2026-08-04"), [], [block("2026-08-03", "2026-08-03")]) ===
+      "marked-unavailable",
+    "K: overlap with a self-marked block classifies as marked-unavailable (soft warn)",
+  );
+  check(
+    shiftConflicts(
+      block("2026-08-02", "2026-08-04"),
+      [block("2026-08-03", "2026-08-05")],
+      [block("2026-08-02", "2026-08-04")],
+    ) === "booked",
+    "K: booked takes precedence when both conflict kinds apply",
+  );
+  check(
+    shiftConflicts(block("2026-08-02", "2026-08-04"), [block("2026-08-10", "2026-08-12")], [
+      block("2026-07-01", "2026-07-31"),
+    ]) === null,
+    "K: no overlap on either side classifies as no conflict",
+  );
+}
 
 // ---- Summary --------------------------------------------------------------
 const passed = results.filter((r) => r.pass).length;

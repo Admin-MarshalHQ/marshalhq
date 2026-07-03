@@ -74,8 +74,9 @@ export default async function BookingPage({
   if (accepted.length === 0) notFound();
 
   // Two-way reviews: once the shift is COMPLETED the manager can leave one
-  // review of the booked marshal. (Multi-marshal reviews are future work; the
-  // single review targets the booked marshal for the common one-marshal shift.)
+  // review of a booked marshal. The subject is always named explicitly — on a
+  // multi-marshal shift the manager chooses who the review is about (one
+  // review per shift until the schema allows one per marshal).
   const isCompleted = shift.status === "COMPLETED";
   const existingReview = isCompleted
     ? await prisma.review.findFirst({
@@ -86,8 +87,15 @@ export default async function BookingPage({
         },
       })
     : null;
-  const firstMarshalName =
-    accepted[0]?.marshal.marshalProfile?.fullName ?? "the marshal";
+  const reviewSubjects = accepted.map((a) => ({
+    id: a.marshalId,
+    label: a.marshal.marshalProfile?.fullName ?? "Marshal",
+  }));
+  const firstMarshalName = reviewSubjects[0]?.label ?? "the marshal";
+  const existingReviewSubjectName = existingReview
+    ? reviewSubjects.find((s) => s.id === existingReview.subjectId)?.label ??
+      "a booked marshal"
+    : null;
 
   return (
     <div>
@@ -164,16 +172,22 @@ export default async function BookingPage({
                   </p>
                 )}
                 <p className="text-xs text-ink-soft">
-                  You’ve reviewed this booking.
+                  You’ve reviewed {existingReviewSubjectName} for this booking.
                 </p>
               </div>
             ) : (
               <>
                 <p className="mt-1 text-xs text-ink-soft">
-                  Your rating builds {firstMarshalName}’s reliability record on
-                  MarshalHQ.
+                  {reviewSubjects.length > 1
+                    ? "Your rating builds the chosen marshal’s reliability record on MarshalHQ."
+                    : `Your rating builds ${firstMarshalName}’s reliability record on MarshalHQ.`}
                 </p>
-                <ReviewForm shiftId={shift.id} subjectLabel={firstMarshalName} />
+                <ReviewForm
+                  shiftId={shift.id}
+                  subjectLabel={firstMarshalName}
+                  marshalId={reviewSubjects[0]?.id}
+                  subjects={reviewSubjects}
+                />
               </>
             )}
           </Card>
