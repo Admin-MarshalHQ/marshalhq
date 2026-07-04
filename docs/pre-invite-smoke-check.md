@@ -77,9 +77,11 @@ The DB-layer invariants are already covered by `npm run db:smoke`. This check is
 - [ ] Shift status flips to `FILLED`.
 - [ ] Manager now sees the marshal's phone number on the booking page.
 
-## Step 11 — Sibling rejection
+## Step 11 — Sibling applicants stay benched, reject works
 
-- [ ] If there's a second applicant on the same shift (use a third browser/incognito session if needed), confirm they auto-flip to `REJECTED` on accept.
+- [ ] If there's a second applicant on the same shift (use a third browser/incognito session if needed), confirm they **stay `APPLIED`** after the accept — accepting does not auto-reject the bench; other applicants remain available in case a slot reopens after a dropout.
+- [ ] Confirm the benched applicant's view does **not** show contact for the manager.
+- [ ] Manager rejects the second applicant from the applicant detail page. Confirm they flip to `REJECTED` and receive the "Not selected" notification.
 - [ ] Confirm the rejected applicant's view does **not** show contact for the manager.
 
 ## Step 12 — Contact gate verification
