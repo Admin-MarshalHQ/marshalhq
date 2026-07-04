@@ -10,6 +10,7 @@ The DB-layer invariants are already covered by `npm run db:smoke`. This check is
 2. Two real test emails the founder controls (e.g. one inbox + one alias). Do **not** use Accenture work email.
 3. Two browser profiles (or one normal + one incognito) so the manager and marshal sessions stay separate.
 4. The contamination scan has been run with `--fix`: `npm run qa:scan -- --fix` against the production database, and the report shows zero remaining hits.
+5. The schema drift check passes: `npm run db:drift` reports PASS against the production database. A FAIL here means shipped code queries tables the database doesn't have — stop and see [schema-drift-check.md](schema-drift-check.md) before continuing.
 
 ## Step 1 — Signup
 

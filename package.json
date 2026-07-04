@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start -p 3000",
     "db:push": "prisma db push",
+    "db:drift": "node scripts/db-drift.mjs",
     "db:seed": "tsx prisma/seed.ts",
     "db:smoke": "tsx prisma/smoke.ts",
     "db:reset": "prisma db push --force-reset && npm run db:seed",
