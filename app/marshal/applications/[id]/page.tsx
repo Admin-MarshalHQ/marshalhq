@@ -6,7 +6,9 @@ import {
   Alert,
   ApplicationStatusBadge,
   Card,
+  ContactCard,
   DL,
+  Kicker,
   PageHeader,
   ShiftStatusBadge,
 } from "@/components/ui";
@@ -139,6 +141,11 @@ export default async function MyApplicationDetail({
   return (
     <div>
       <PageHeader
+        kicker="Your application"
+        back={{
+          href: "/marshal/applications",
+          label: "Back to my applications",
+        }}
         title={shift.productionName}
         subtitle={`${shift.location} \u00b7 ${formatShiftBlock(
           shift.startDate,
@@ -147,7 +154,7 @@ export default async function MyApplicationDetail({
           shift.dailyEndTime,
         )}`}
         action={
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <ApplicationStatusBadge status={app.status} />
             <ShiftStatusBadge status={shift.status} />
           </div>
@@ -156,18 +163,9 @@ export default async function MyApplicationDetail({
       {(() => {
         const length = shiftBlockLengthLabel(shift.startDate, shift.endDate);
         return length ? (
-          <p className="-mt-2 mb-3 text-xs text-ink-soft">{length}</p>
+          <p className="-mt-3 mb-3 text-xs text-ink-soft">{length}</p>
         ) : null;
       })()}
-
-      <div className="mb-4">
-        <Link
-          href="/marshal/applications"
-          className="text-sm text-accent underline-offset-2 hover:underline"
-        >
-          ← Back to my applications
-        </Link>
-      </div>
 
       {withdrawFlash === "committed" && (
         <div className="mb-4">
@@ -208,19 +206,15 @@ export default async function MyApplicationDetail({
               },
             ]}
           />
-          <div className="mt-4">
-            <p className="mb-1 text-xs uppercase tracking-wide text-ink-soft">
-              Duties
-            </p>
+          <div className="mt-4 border-t border-line pt-3">
+            <Kicker className="mb-1">Duties</Kicker>
             <p className="whitespace-pre-wrap text-sm text-ink">
               {shift.duties}
             </p>
           </div>
           {app.coverNote && (
-            <div className="mt-4">
-              <p className="mb-1 text-xs uppercase tracking-wide text-ink-soft">
-                Your cover note
-              </p>
+            <div className="mt-4 border-t border-line pt-3">
+              <Kicker className="mb-1">Your cover note</Kicker>
               <p className="whitespace-pre-wrap text-sm text-ink">
                 {app.coverNote}
               </p>
@@ -230,46 +224,41 @@ export default async function MyApplicationDetail({
 
         <div className="space-y-3">
           {showContact && contactManager ? (
-            <Card>
-              <p className="mb-2 text-xs uppercase tracking-wide text-ink-soft">
-                {CONTACT_RELEASED_HEADING}
-              </p>
-              <DL
-                items={[
-                  {
-                    label: "Name",
-                    value:
-                      contactManager.managerProfile?.displayName ?? "Manager",
-                  },
-                  {
-                    label: "Company",
-                    value:
-                      contactManager.managerProfile?.companyName ?? "\u2014",
-                  },
-                  { label: "Email", value: contactManager.email },
-                  { label: "Phone", value: formatPhone(contactManager.phone) },
-                ]}
-              />
-              <Alert tone="info">{CONTACT_RELEASED_BODY_MARSHAL}</Alert>
-            </Card>
+            <ContactCard
+              released
+              title={CONTACT_RELEASED_HEADING}
+              body={CONTACT_RELEASED_BODY_MARSHAL}
+              items={[
+                {
+                  label: "Name",
+                  value:
+                    contactManager.managerProfile?.displayName ?? "Manager",
+                },
+                {
+                  label: "Company",
+                  value:
+                    contactManager.managerProfile?.companyName ?? "\u2014",
+                },
+                { label: "Email", value: contactManager.email },
+                { label: "Phone", value: formatPhone(contactManager.phone) },
+              ]}
+            />
           ) : (
-            <Card>
-              <p className="text-sm font-semibold">Contact</p>
-              <p className="mt-1 text-sm text-ink-muted">
-                Contact details will be released here if the manager accepts
-                your application.
-              </p>
-            </Card>
+            <ContactCard
+              released={false}
+              title="Contact"
+              body="Contact details will be released here if the manager accepts your application."
+            />
           )}
 
           {(canWithdrawApplied || canWithdrawAccepted) && (
-            <Card>
-              <p className="text-sm font-semibold">
+            <Card variant="sunken">
+              <Kicker className="mb-1">
                 {app.status === "APPLIED"
                   ? "Withdraw application"
                   : "Drop out"}
-              </p>
-              <p className="mt-1 text-xs text-ink-soft">
+              </Kicker>
+              <p className="text-xs text-ink-soft">
                 {app.status === "APPLIED"
                   ? "Pull your application if you can no longer do this shift."
                   : "If your plans change, tell the manager early. The shift will reopen."}
@@ -301,9 +290,9 @@ export default async function MyApplicationDetail({
             </Card>
           )}
           {app.status === "ACCEPTED" && !canWithdrawAccepted && !canReviewManager && (
-            <Card>
-              <p className="text-sm font-semibold">Need to change this?</p>
-              <p className="mt-1 text-xs text-ink-soft">
+            <Card variant="sunken">
+              <Kicker className="mb-1">Need to change this?</Kicker>
+              <p className="text-xs text-ink-soft">
                 This shift has already reached a committed stage. Please
                 contact{" "}
                 <Link href="/support" className="underline">
@@ -316,7 +305,7 @@ export default async function MyApplicationDetail({
 
           {canReviewManager && (
             <Card>
-              <p className="text-sm font-semibold">Review {managerName}</p>
+              <Kicker className="mb-1">Review {managerName}</Kicker>
               {searchParams?.reviewed === "1" && !existingReview && (
                 <div className="mt-2">
                   <Alert tone="success">

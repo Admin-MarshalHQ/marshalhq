@@ -18,10 +18,10 @@ type Variant = "primary" | "secondary" | "danger";
 
 function triggerClasses(variant: Variant): string {
   if (variant === "danger") {
-    return "border border-danger bg-white text-danger hover:bg-[#fbecec]";
+    return "border border-danger bg-white text-danger hover:bg-danger-soft";
   }
   if (variant === "secondary") {
-    return "border border-line bg-white text-ink hover:bg-surface-subtle";
+    return "border border-line-strong bg-white text-ink hover:bg-surface-subtle";
   }
   return "bg-ink text-white hover:opacity-90";
 }
@@ -80,7 +80,7 @@ export default function ConfirmButton({
         disabled={disabled}
         onClick={() => setOpen(true)}
         className={clsx(
-          "inline-flex w-full items-center justify-center rounded-md px-3 py-2 text-sm font-medium transition disabled:opacity-50",
+          "inline-flex min-h-[40px] w-full items-center justify-center rounded-md px-3.5 py-2 text-sm font-medium transition disabled:opacity-50",
           triggerClasses(variant),
           className,
         )}
@@ -97,7 +97,7 @@ export default function ConfirmButton({
             if (e.target === e.currentTarget && !isPending) setOpen(false);
           }}
         >
-          <div className="w-full max-w-md rounded-md border border-line bg-white p-5 shadow-lg">
+          <div className="w-full max-w-md rounded-md border border-line bg-white p-5 shadow-xl">
             <p
               id="confirm-title"
               className="text-base font-semibold text-ink"

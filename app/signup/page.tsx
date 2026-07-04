@@ -6,17 +6,10 @@ export default function SignupPage() {
   return (
     <div className="mx-auto max-w-md">
       <PageHeader
+        kicker="MarshalHQ · private pilot"
         title="Sign up"
-        subtitle="MarshalHQ is currently running as a controlled private pilot. Account creation requires a valid founder-issued pilot code."
+        subtitle="Account creation needs a founder-issued pilot code. Not part of the pilot yet? Join the waitlist below."
       />
-      <p className="mb-4 text-sm text-ink-muted">
-        Part of the private pilot? Sign up with your founder-issued code below.
-        Not part of the pilot?{" "}
-        <Link href="/#waitlist" className="text-accent underline">
-          Join the waitlist
-        </Link>
-        .
-      </p>
       <Card>
         <SignupForm />
       </Card>
@@ -24,6 +17,11 @@ export default function SignupPage() {
         Already have an account?{" "}
         <Link href="/login" className="text-accent underline">
           Log in
+        </Link>
+        {" · "}
+        Not in the pilot?{" "}
+        <Link href="/#waitlist" className="text-accent underline">
+          Join the waitlist
         </Link>
       </p>
     </div>

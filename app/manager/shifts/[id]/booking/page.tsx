@@ -1,11 +1,11 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireRole } from "@/lib/access";
 import { prisma } from "@/lib/db";
 import {
   Alert,
   Card,
-  DL,
+  ContactCard,
+  Kicker,
   PageHeader,
   ShiftStatusBadge,
 } from "@/components/ui";
@@ -41,8 +41,9 @@ export default async function BookingPage({
     return (
       <div>
         <PageHeader
-          title="Booking"
-          subtitle={shift.productionName}
+          kicker="Booking"
+          back={{ href: `/manager/shifts/${shift.id}`, label: "Back to shift" }}
+          title={shift.productionName}
           action={<ShiftStatusBadge status={shift.status} />}
         />
         <Alert tone="warn">
@@ -50,14 +51,6 @@ export default async function BookingPage({
             ? "This shift has been cancelled. Contact details are no longer shown here."
             : "Contact details are visible once the shift reaches its marshal quota."}
         </Alert>
-        <div className="mt-3">
-          <Link
-            href={`/manager/shifts/${shift.id}`}
-            className="text-sm text-accent underline-offset-2 hover:underline"
-          >
-            Back to shift
-          </Link>
-        </div>
       </div>
     );
   }
@@ -100,54 +93,44 @@ export default async function BookingPage({
   return (
     <div>
       <PageHeader
-        title="Booking confirmed"
-        subtitle={`${shift.productionName} - ${formatShiftBlock(
+        kicker="Booking confirmed"
+        back={{ href: `/manager/shifts/${shift.id}`, label: "Back to shift" }}
+        title={shift.productionName}
+        subtitle={formatShiftBlock(
           shift.startDate,
           shift.endDate,
           shift.dailyStartTime,
           shift.dailyEndTime,
-        )}`}
+        )}
         action={<ShiftStatusBadge status={shift.status} />}
       />
-
-      <div className="mb-4">
-        <Link
-          href={`/manager/shifts/${shift.id}`}
-          className="text-sm text-accent underline-offset-2 hover:underline"
-        >
-          Back to shift
-        </Link>
-      </div>
-
-      <div className="mb-4">
-        <Alert tone="info">{CONTACT_RELEASED_BODY_MANAGER}</Alert>
-      </div>
 
       <div className="grid gap-4 md:grid-cols-2">
         {accepted.map((app) => {
           const p = app.marshal.marshalProfile;
           return (
-            <Card key={app.id}>
-              <p className="mb-2 text-xs uppercase tracking-wide text-ink-soft">
-                Booked marshal
-              </p>
-              <p className="text-lg font-semibold">{p?.fullName ?? "Marshal"}</p>
-              <p className="mt-1 text-sm text-ink-muted">
-                {p?.baseLocation} - within {p?.travelRadiusMiles ?? 0} mi
-              </p>
-              {p?.training && <p className="mt-2 text-sm text-ink">{p.training}</p>}
-              <div className="mt-4">
-                <p className="mb-2 text-xs uppercase tracking-wide text-ink-soft">
-                  {CONTACT_RELEASED_HEADING}
-                </p>
-                <DL
-                  items={[
-                    { label: "Email", value: app.marshal.email },
-                    { label: "Phone", value: formatPhone(app.marshal.phone) },
-                  ]}
-                />
-              </div>
-            </Card>
+            <ContactCard
+              key={app.id}
+              released
+              title={CONTACT_RELEASED_HEADING}
+              body={CONTACT_RELEASED_BODY_MANAGER}
+              items={[
+                { label: "Booked marshal", value: p?.fullName ?? "Marshal" },
+                {
+                  label: "Based",
+                  value: `${p?.baseLocation ?? "—"} · travels up to ${p?.travelRadiusMiles ?? 0} miles`,
+                },
+                { label: "Email", value: app.marshal.email },
+                { label: "Phone", value: formatPhone(app.marshal.phone) },
+              ]}
+            >
+              {p?.training && (
+                <div className="mt-3">
+                  <Kicker className="mb-0.5">Training / credentials</Kicker>
+                  <p className="text-sm text-ink">{p.training}</p>
+                </div>
+              )}
+            </ContactCard>
           );
         })}
       </div>
@@ -155,7 +138,7 @@ export default async function BookingPage({
       {isCompleted && (
         <div className="mt-6 max-w-xl">
           <Card>
-            <p className="text-sm font-semibold">Review the marshal</p>
+            <Kicker className="mb-1">Review the marshal</Kicker>
             {searchParams?.reviewed === "1" && !existingReview && (
               <div className="mt-2">
                 <Alert tone="success">Thanks — your review has been saved.</Alert>

@@ -50,11 +50,11 @@ export default async function FounderSupportListPage() {
                   </td>
                   <td className="py-2 pr-4">
                     {r.resolvedAt ? (
-                      <span className="rounded-full bg-[#e7f1ea] px-2 py-0.5 text-xs text-ok">
+                      <span className="rounded-full bg-ok-soft px-2 py-0.5 text-xs text-ok">
                         Handled
                       </span>
                     ) : (
-                      <span className="rounded-full bg-[#fbf1e3] px-2 py-0.5 text-xs text-warn">
+                      <span className="rounded-full bg-warn-soft px-2 py-0.5 text-xs text-warn">
                         Open
                       </span>
                     )}

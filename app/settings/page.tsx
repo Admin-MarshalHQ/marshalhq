@@ -2,7 +2,7 @@ import Link from "next/link";
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
-import { Card, DL, PageHeader } from "@/components/ui";
+import { Card, DL, Kicker, PageHeader } from "@/components/ui";
 import { formatPhone } from "@/lib/phone";
 import PhoneForm from "./PhoneForm";
 
@@ -22,7 +22,11 @@ export default async function SettingsPage() {
 
   return (
     <div className="mx-auto max-w-2xl">
-      <PageHeader title="Account" subtitle="Minimal settings for the MVP." />
+      <PageHeader
+        kicker="Account"
+        title="Your account"
+        subtitle="Your login details and contact phone. Contact details release only after a booking is confirmed."
+      />
       <Card>
         <DL
           items={[
@@ -50,12 +54,12 @@ export default async function SettingsPage() {
         />
       </Card>
       <Card className="mt-4">
-        <p className="mb-3 text-sm font-semibold">Contact phone</p>
+        <Kicker className="mb-3">Contact phone</Kicker>
         <PhoneForm phone={user.phone} />
       </Card>
-      <Card className="mt-4">
-        <p className="text-sm font-semibold">Help, privacy, and deletion</p>
-        <p className="mt-1 text-sm text-ink-muted">
+      <Card className="mt-4" variant="sunken">
+        <Kicker className="mb-1">Help, privacy, and deletion</Kicker>
+        <p className="text-sm text-ink-muted">
           To reset your password, change contact details, or request account
           deletion, use{" "}
           <Link href="/support" className="text-accent underline">

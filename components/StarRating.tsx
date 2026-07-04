@@ -25,7 +25,7 @@ export function StarRatingDisplay({
         summary.count === 1 ? "rating" : "ratings"
       }`}
     >
-      <span className="text-[#b8860b]" aria-hidden>
+      <span className="text-gold" aria-hidden>
         {"★".repeat(filled)}
         <span className="text-line">{"★".repeat(5 - filled)}</span>
       </span>

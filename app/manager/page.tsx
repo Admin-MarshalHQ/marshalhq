@@ -2,15 +2,17 @@ import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { requireRole } from "@/lib/access";
 import {
-  Alert,
+  AttentionItem,
+  AttentionList,
   ButtonLink,
-  Card,
+  CapacityMeter,
+  DateBlock,
   EmptyState,
+  Kicker,
   PageHeader,
   ShiftStatusBadge,
 } from "@/components/ui";
 import { formatRate, formatShiftBlock } from "@/lib/format";
-import { capacityLabel } from "@/lib/capacity";
 import { canCompleteShift, shiftStartDateTime } from "@/lib/state";
 
 // Per-shift attention cues. The loop stalls on exactly two manager actions —
@@ -62,53 +64,51 @@ export default async function ManagerDashboard() {
     ),
   };
 
-  // Attention roll-up: pending applicants across all open shifts plus the
-  // per-shift outcome cues, so the manager sees in one line where action is
-  // needed rather than opening each shift to find out.
-  const totalPending = shifts
-    .filter((s) => s.status === "OPEN")
-    .reduce(
-      (sum, s) =>
-        sum + s.applications.filter((a) => a.status === "APPLIED").length,
-      0,
-    );
-  const staleOpenCount = shifts.filter(
-    (s) => shiftAttention(s) === "stale-open",
-  ).length;
-  const awaitingCompletionCount = shifts.filter(
-    (s) => shiftAttention(s) === "awaiting-completion",
-  ).length;
-  const attentionParts: string[] = [];
-  if (totalPending > 0) {
-    attentionParts.push(
-      `${totalPending} applicant${totalPending === 1 ? "" : "s"} waiting for review`,
-    );
-  }
-  if (staleOpenCount > 0) {
-    attentionParts.push(
-      `${staleOpenCount} open shift${staleOpenCount === 1 ? " has" : "s have"} passed the start date and can no longer fill — close or repost`,
-    );
-  }
-  if (awaitingCompletionCount > 0) {
-    attentionParts.push(
-      `${awaitingCompletionCount} booked shift${awaitingCompletionCount === 1 ? " is" : "s are"} ready to mark complete`,
-    );
+  // Attention queue: one linked row per place the staffing loop is waiting on
+  // the manager, so nothing requires opening every shift to find out.
+  const attention: {
+    href: string;
+    title: string;
+    meta?: string;
+    count?: number;
+  }[] = [];
+  for (const s of shifts) {
+    const pendingCount = s.applications.filter(
+      (a) => a.status === "APPLIED",
+    ).length;
+    if (s.status === "OPEN" && pendingCount > 0) {
+      attention.push({
+        href: `/manager/shifts/${s.id}/applicants`,
+        title: `Review applicants — ${s.productionName}`,
+        meta: `${pendingCount} waiting for a decision`,
+        count: pendingCount,
+      });
+    }
+    const cue = shiftAttention(s);
+    if (cue === "stale-open") {
+      attention.push({
+        href: `/manager/shifts/${s.id}`,
+        title: `Start date passed — ${s.productionName}`,
+        meta: "This shift can no longer fill. Close it or repost with new dates.",
+      });
+    }
+    if (cue === "awaiting-completion") {
+      attention.push({
+        href: `/manager/shifts/${s.id}`,
+        title: `Ready to mark complete — ${s.productionName}`,
+        meta: "Confirm the outcome so the marshal's record stays accurate.",
+      });
+    }
   }
 
   return (
     <div>
       <PageHeader
-        title={profile?.companyName ?? "Manager dashboard"}
-        subtitle={
-          profile?.displayName
-            ? `Signed in as ${profile.displayName}`
-            : "Manage your shifts"
-        }
+        kicker="Manager dashboard"
+        title={profile?.companyName ?? "Your shifts"}
+        subtitle="Post clear marshal shifts, review applicants in one place, and settle outcomes when the work is done."
         action={
           <div className="flex flex-wrap gap-2">
-            <ButtonLink href="/manager/market" variant="secondary">
-              Browse market
-            </ButtonLink>
             <ButtonLink href="/manager/profile/edit" variant="secondary">
               Edit profile
             </ButtonLink>
@@ -117,25 +117,26 @@ export default async function ManagerDashboard() {
         }
       />
 
-      {attentionParts.length > 0 && (
-        <div className="mb-4">
-          <Alert tone="info">
-            <span className="font-semibold">Needs your attention:</span>{" "}
-            {attentionParts.join(" · ")}
-          </Alert>
+      {attention.length > 0 && (
+        <div className="mb-6">
+          <AttentionList>
+            {attention.map((a) => (
+              <AttentionItem key={`${a.href}-${a.title}`} {...a} />
+            ))}
+          </AttentionList>
         </div>
       )}
 
       {shifts.length === 0 ? (
         <EmptyState
           title="No shifts yet"
-          body="Post your first shift to start receiving applications."
+          body="Post your first shift to start receiving applications. Contact details release only after you accept an applicant."
           action={
             <ButtonLink href="/manager/shifts/new">Post a shift</ButtonLink>
           }
         />
       ) : (
-        <div className="space-y-6">
+        <div className="space-y-8">
           <ShiftListSection title="Active" shifts={byGroup.active} empty="No active shifts." />
           <ShiftListSection
             title="Archive"
@@ -163,9 +164,7 @@ function ShiftListSection({
 }) {
   return (
     <section>
-      <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-ink-soft">
-        {title}
-      </h2>
+      <Kicker className="mb-2">{title}</Kicker>
       {shifts.length === 0 ? (
         <p className="text-sm text-ink-muted">{empty}</p>
       ) : (
@@ -182,17 +181,18 @@ function ShiftListSection({
               <Link
                 key={s.id}
                 href={`/manager/shifts/${s.id}`}
-                className="block rounded-md border border-line bg-white p-4 hover:bg-surface-subtle"
+                className="block rounded-md border border-line bg-white p-4 shadow-[0_1px_0_rgba(28,25,21,0.03)] hover:bg-surface-subtle"
               >
-                <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="flex items-start gap-3">
+                  <DateBlock date={s.startDate} />
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <ShiftStatusBadge status={s.status} />
-                      <p className="truncate text-base font-semibold">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="truncate font-serif text-lg leading-snug text-ink">
                         {s.productionName}
                       </p>
+                      <ShiftStatusBadge status={s.status} />
                     </div>
-                    <p className="mt-1 text-sm text-ink-muted">
+                    <p className="mt-0.5 text-sm text-ink-muted">
                       {s.location} ·{" "}
                       {formatShiftBlock(
                         s.startDate,
@@ -201,27 +201,30 @@ function ShiftListSection({
                         s.dailyEndTime,
                       )}
                     </p>
-                    <p className="mt-0.5 text-sm text-ink-muted">
-                      {formatRate(s.rate, s.rateUnit)}
-                    </p>
-                    <p className="mt-0.5 text-xs text-ink-soft">
-                      {capacityLabel(accepted, s.marshalsNeeded)}
-                    </p>
+                    <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1">
+                      <span className="text-sm font-medium text-ink">
+                        {formatRate(s.rate, s.rateUnit)}
+                      </span>
+                      <CapacityMeter booked={accepted} needed={s.marshalsNeeded} />
+                    </div>
                   </div>
-                  <div className="space-y-1 text-right text-sm">
-                    {s.status === "OPEN" && (
-                      <p className="text-ink-muted">
-                        {active} pending applicant{active === 1 ? "" : "s"}
+                  <div className="hidden shrink-0 space-y-1 text-right text-sm sm:block">
+                    {s.status === "OPEN" && active > 0 && (
+                      <p className="font-medium text-gold-ink">
+                        {active} to review
                       </p>
+                    )}
+                    {s.status === "OPEN" && active === 0 && (
+                      <p className="text-ink-soft">No new applicants</p>
                     )}
                     {attention === "stale-open" && (
                       <p className="font-medium text-warn">
-                        Start date passed — close or repost
+                        Start date passed
                       </p>
                     )}
                     {attention === "awaiting-completion" && (
                       <p className="font-medium text-warn">
-                        Ready to mark complete
+                        Ready to complete
                       </p>
                     )}
                   </div>

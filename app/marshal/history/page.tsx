@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import {
   Card,
   EmptyState,
+  Kicker,
   PageHeader,
 } from "@/components/ui";
 import { formatShiftBlock } from "@/lib/format";
@@ -45,21 +46,22 @@ export default async function CompletionHistoryPage() {
   return (
     <div>
       <PageHeader
-        title="Completion history"
-        subtitle="Your verified record of completed MarshalHQ shifts."
+        kicker="Completion history"
+        title="Your record"
+        subtitle="Completed MarshalHQ shifts, as confirmed by the managers who booked you. Managers see this alongside your applications."
       />
 
       <Card className="mb-4">
-        <p className="text-xs uppercase tracking-wide text-ink-soft">
-          Reliability signal
-        </p>
-        <p className="mt-1 text-lg font-semibold text-ink">{reliability}</p>
+        <Kicker>Reliability</Kicker>
+        <p className="mt-1 font-serif text-2xl text-ink">{reliability}</p>
         <div className="mt-2 flex items-center gap-2">
           <span className="text-xs text-ink-muted">Manager rating:</span>
           <StarRatingDisplay summary={ratingSummaryValue} />
         </div>
-        <p className="mt-1 text-xs text-ink-muted">
-          Managers see this alongside your applications.
+        <p className="mt-2 border-t border-line pt-2 text-xs text-ink-soft">
+          A shift counts as reliable when the manager confirms you turned up
+          and did the job. A flagged shift stays on the record without a
+          reliability credit.
         </p>
       </Card>
 
@@ -89,12 +91,12 @@ export default async function CompletionHistoryPage() {
                   </p>
                 </div>
                 {a.shift.reliabilityFlag === true && (
-                  <span className="rounded-full bg-[#e7f1ea] px-2 py-0.5 text-xs font-medium text-ok">
+                  <span className="rounded-full bg-ok-soft px-2 py-0.5 font-mono text-[11px] font-medium uppercase tracking-[0.04em] text-ok">
                     Reliable
                   </span>
                 )}
                 {a.shift.reliabilityFlag === false && (
-                  <span className="rounded-full bg-[#f3eded] px-2 py-0.5 text-xs font-medium text-danger">
+                  <span className="rounded-full bg-danger-soft px-2 py-0.5 font-mono text-[11px] font-medium uppercase tracking-[0.04em] text-danger">
                     Issue flagged
                   </span>
                 )}

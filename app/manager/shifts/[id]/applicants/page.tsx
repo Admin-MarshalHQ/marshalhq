@@ -6,6 +6,7 @@ import {
   ApplicationStatusBadge,
   Card,
   EmptyState,
+  Kicker,
   PageHeader,
   ShiftStatusBadge,
 } from "@/components/ui";
@@ -68,28 +69,19 @@ export default async function ApplicantReviewPage({
   return (
     <div>
       <PageHeader
-        title="Applicants"
-        subtitle={`${shift.productionName} \u00b7 ${formatShiftBlock(
+        kicker="Applicant review"
+        back={{ href: `/manager/shifts/${shift.id}`, label: "Back to shift" }}
+        title={shift.productionName}
+        subtitle={`${formatShiftBlock(
           shift.startDate,
           shift.endDate,
           shift.dailyStartTime,
           shift.dailyEndTime,
-        )} - ${capacityLabel(acceptedCount, shift.marshalsNeeded)}`}
+        )} · ${capacityLabel(acceptedCount, shift.marshalsNeeded)} · Contact details release only after you accept.`}
         action={<ShiftStatusBadge status={shift.status} />}
       />
 
-      <div className="mb-4">
-        <Link
-          href={`/manager/shifts/${shift.id}`}
-          className="text-sm text-accent underline-offset-2 hover:underline"
-        >
-          ← Back to shift
-        </Link>
-      </div>
-
-      <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-ink-soft">
-        Pending ({pending.length})
-      </h2>
+      <Kicker className="mb-2">Waiting for a decision ({pending.length})</Kicker>
       {pending.length === 0 ? (
         <EmptyState
           title="No pending applicants"
@@ -100,27 +92,35 @@ export default async function ApplicantReviewPage({
           {pending.map((a) => {
             const p = a.marshal.marshalProfile;
             if (!p) return null;
-            const reliability =
-              p.completedCount > 0
-                ? `${p.reliableCount}/${p.completedCount} reliable`
-                : "No completed shifts yet";
             return (
               <Link
                 key={a.id}
                 href={`/manager/shifts/${shift.id}/applicants/${a.id}`}
-                className="block rounded-md border border-line bg-white p-4 hover:bg-surface-subtle"
+                className="block rounded-md border border-line bg-white p-4 shadow-[0_1px_0_rgba(28,25,21,0.03)] hover:border-line-strong hover:bg-surface-subtle"
               >
                 <div className="flex items-start justify-between gap-2">
-                  <p className="font-semibold">{p.fullName}</p>
+                  <p className="font-serif text-lg leading-snug text-ink">
+                    {p.fullName}
+                  </p>
                   <ApplicationStatusBadge status={a.status} />
                 </div>
-                <p className="mt-1 text-sm text-ink-muted">
-                  {p.baseLocation} · within {p.travelRadiusMiles} mi
+                <p className="mt-0.5 text-sm text-ink-muted">
+                  {p.baseLocation} · travels up to {p.travelRadiusMiles} miles
                 </p>
                 <p className="mt-2 line-clamp-3 text-sm text-ink">
                   {p.experienceSummary}
                 </p>
-                <p className="mt-2 text-xs text-ink-soft">{reliability}</p>
+                <p className="mt-3 border-t border-line pt-2 font-mono text-[11px] uppercase tracking-[0.04em]">
+                  {p.completedCount > 0 ? (
+                    <span className="text-gold-ink">
+                      {p.reliableCount}/{p.completedCount} shifts rated reliable
+                    </span>
+                  ) : (
+                    <span className="text-ink-soft">
+                      No completed MarshalHQ shifts yet
+                    </span>
+                  )}
+                </p>
               </Link>
             );
           })}
@@ -129,9 +129,7 @@ export default async function ApplicantReviewPage({
 
       {decided.length > 0 && (
         <>
-          <h2 className="mb-2 mt-8 text-sm font-semibold uppercase tracking-wide text-ink-soft">
-            Decided
-          </h2>
+          <Kicker className="mb-2 mt-8">Decided</Kicker>
           <div className="space-y-2">
             {decided.map((a) => (
               <Card key={a.id}>

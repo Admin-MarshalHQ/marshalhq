@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireRole } from "@/lib/access";
 import { prisma } from "@/lib/db";
@@ -7,6 +6,7 @@ import {
   ApplicationStatusBadge,
   Card,
   DL,
+  Kicker,
   PageHeader,
   ShiftStatusBadge,
 } from "@/components/ui";
@@ -106,19 +106,15 @@ export default async function ApplicantDetailPage({
   return (
     <div>
       <PageHeader
+        kicker="Applicant"
+        back={{
+          href: `/manager/shifts/${shift.id}/applicants`,
+          label: "Back to applicants",
+        }}
         title={p.fullName}
-        subtitle={`Applicant for ${shift.productionName}`}
+        subtitle={`Applying for ${shift.productionName}`}
         action={<ApplicationStatusBadge status={app.status} />}
       />
-
-      <div className="mb-4">
-        <Link
-          href={`/manager/shifts/${shift.id}/applicants`}
-          className="text-sm text-accent underline-offset-2 hover:underline"
-        >
-          ← Back to applicants
-        </Link>
-      </div>
 
       {searchParams.stale === "1" && (
         <div className="mb-4">
@@ -163,28 +159,22 @@ export default async function ApplicantDetailPage({
             />
           </Card>
           <Card>
-            <p className="mb-1 text-xs uppercase tracking-wide text-ink-soft">
-              Experience summary
-            </p>
+            <Kicker className="mb-1">Experience summary</Kicker>
             <p className="whitespace-pre-wrap text-sm text-ink">
               {p.experienceSummary}
             </p>
           </Card>
           {app.coverNote && (
             <Card>
-              <p className="mb-1 text-xs uppercase tracking-wide text-ink-soft">
-                Cover note
-              </p>
+              <Kicker className="mb-1">Cover note</Kicker>
               <p className="whitespace-pre-wrap text-sm text-ink">
                 {app.coverNote}
               </p>
             </Card>
           )}
-          <Card>
-            <p className="text-sm text-ink-muted">
-              <strong className="text-ink">Trust signal:</strong>{" "}
-              {reliabilityLabel}.
-            </p>
+          <Card variant="sunken">
+            <Kicker className="mb-1.5">MarshalHQ record</Kicker>
+            <p className="text-sm text-ink">{reliabilityLabel}.</p>
             <div className="mt-2 flex items-center gap-2">
               <span className="text-sm text-ink-muted">Manager rating:</span>
               <StarRatingDisplay summary={marshalRating} />
@@ -194,7 +184,7 @@ export default async function ApplicantDetailPage({
 
         <div className="space-y-3">
           <Card>
-            <p className="text-sm font-semibold">Decision</p>
+            <Kicker className="mb-2">Decision</Kicker>
             {app.status !== "APPLIED" ? (
               <Alert tone="info">
                 This application is {APPLICATION_STATUS_LABEL[app.status as ApplicationStatus].toLowerCase()}.
@@ -209,7 +199,7 @@ export default async function ApplicantDetailPage({
                 accepted for this shift. Consider another applicant.
               </Alert>
             ) : (
-              <div className="mt-3 flex flex-col gap-2">
+              <div className="flex flex-col gap-2">
                 <ConfirmButton
                   action={accept}
                   triggerLabel="Accept and book this marshal"
@@ -226,7 +216,7 @@ export default async function ApplicantDetailPage({
                   confirmLabel={CONFIRM_REJECT_ACTION}
                   variant="secondary"
                 />
-                <p className="text-xs text-ink-soft">
+                <p className="border-t border-line pt-2 text-xs text-ink-soft">
                   Accepting releases phone and email to you and to this
                   marshal only. Other applicants remain available for review.
                 </p>
@@ -234,10 +224,8 @@ export default async function ApplicantDetailPage({
             )}
           </Card>
           <Card>
-            <p className="text-sm font-semibold">Shift</p>
-            <p className="mt-1 text-sm text-ink-muted">
-              {shift.productionName}
-            </p>
+            <Kicker className="mb-2">Shift</Kicker>
+            <p className="text-sm text-ink">{shift.productionName}</p>
             <div className="mt-2">
               <ShiftStatusBadge status={shift.status} />
             </div>

@@ -213,7 +213,7 @@ export default async function FounderShiftDetailPage({
                 </div>
                 <div className="flex items-center gap-2">
                   {a.marshal.marshalProfile?.paused && (
-                    <span className="rounded-full bg-[#fbf1e3] px-2 py-0.5 text-xs text-warn">
+                    <span className="rounded-full bg-warn-soft px-2 py-0.5 text-xs text-warn">
                       Marshal paused
                     </span>
                   )}

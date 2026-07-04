@@ -5,8 +5,10 @@ import { prisma } from "@/lib/db";
 import {
   Alert,
   ButtonLink,
+  CapacityMeter,
   Card,
   DL,
+  Kicker,
   PageHeader,
   ShiftStatusBadge,
 } from "@/components/ui";
@@ -19,13 +21,11 @@ import {
   unpublishShiftAction,
 } from "@/app/actions/shifts";
 import {
-  formatDate,
   formatRate,
   formatShiftBlock,
   shiftBlockLengthLabel,
 } from "@/lib/format";
 import { SHIFT_STATUS_LABEL } from "@/lib/state";
-import { capacityLabel } from "@/lib/capacity";
 import type { ShiftStatus } from "@/lib/types";
 import {
   CONFIRM_CANCEL_FILLED_ACTION,
@@ -124,8 +124,15 @@ export default async function ManagerShiftDetailPage({
   return (
     <div>
       <PageHeader
+        kicker="Shift record"
+        back={{ href: "/manager", label: "Back to dashboard" }}
         title={shift.productionName}
-        subtitle={`${shift.location} \u00b7 ${formatDate(shift.startDate)}`}
+        subtitle={`${shift.location} · ${formatShiftBlock(
+          shift.startDate,
+          shift.endDate,
+          shift.dailyStartTime,
+          shift.dailyEndTime,
+        )}`}
         action={<ShiftStatusBadge status={shift.status} />}
       />
 
@@ -188,14 +195,19 @@ export default async function ManagerShiftDetailPage({
                 ),
               },
               {
-                label: "Capacity",
-                value: capacityLabel(bookedCount, shift.marshalsNeeded),
+                label: "Marshals",
+                value: (
+                  <CapacityMeter
+                    booked={bookedCount}
+                    needed={shift.marshalsNeeded}
+                  />
+                ),
               },
               { label: "Rate", value: formatRate(shift.rate, shift.rateUnit) },
               { label: "Location", value: shift.location },
               {
                 label: "Parking / travel",
-                value: shift.parkingTravel ?? "\u2014",
+                value: shift.parkingTravel ?? "—",
               },
             ]}
           />
@@ -208,19 +220,15 @@ export default async function ManagerShiftDetailPage({
               <p className="mt-2 text-xs text-ink-soft">{length}</p>
             ) : null;
           })()}
-          <div className="mt-4">
-            <p className="mb-1 text-xs uppercase tracking-wide text-ink-soft">
-              Duties
-            </p>
+          <div className="mt-4 border-t border-line pt-3">
+            <Kicker className="mb-1">Duties</Kicker>
             <p className="whitespace-pre-wrap text-sm text-ink">
               {shift.duties}
             </p>
           </div>
           {shift.experienceNotes && (
-            <div className="mt-4">
-              <p className="mb-1 text-xs uppercase tracking-wide text-ink-soft">
-                Experience / notes
-              </p>
+            <div className="mt-4 border-t border-line pt-3">
+              <Kicker className="mb-1">Experience / notes</Kicker>
               <p className="whitespace-pre-wrap text-sm text-ink">
                 {shift.experienceNotes}
               </p>
@@ -230,16 +238,10 @@ export default async function ManagerShiftDetailPage({
 
         <div className="space-y-3">
           <Card>
-            <p className="text-sm font-semibold">Actions</p>
-            <div className="mt-3 flex flex-col gap-2">
+            <Kicker className="mb-3">Next step</Kicker>
+            <div className="flex flex-col gap-2">
               {shift.status === "DRAFT" && (
                 <>
-                  <ButtonLink
-                    href={`/manager/shifts/${shift.id}/edit`}
-                    variant="secondary"
-                  >
-                    Edit draft
-                  </ButtonLink>
                   <ConfirmButton
                     action={publish}
                     triggerLabel="Publish"
@@ -248,14 +250,16 @@ export default async function ManagerShiftDetailPage({
                     confirmLabel={CONFIRM_PUBLISH_ACTION}
                     variant="primary"
                   />
-                  <ConfirmButton
-                    action={close}
-                    triggerLabel="Abandon draft"
-                    title={CONFIRM_CLOSE_DRAFT_TITLE}
-                    description={CONFIRM_CLOSE_DRAFT_BODY}
-                    confirmLabel={CONFIRM_CLOSE_DRAFT_ACTION}
-                    variant="danger"
-                  />
+                  <ButtonLink
+                    href={`/manager/shifts/${shift.id}/edit`}
+                    variant="secondary"
+                  >
+                    Edit draft
+                  </ButtonLink>
+                  <p className="text-xs text-ink-soft">
+                    Publishing makes the shift visible to marshals and starts
+                    accepting applications.
+                  </p>
                 </>
               )}
               {shift.status === "OPEN" && (
@@ -292,28 +296,21 @@ export default async function ManagerShiftDetailPage({
                       variant="secondary"
                     />
                   )}
-                  <ConfirmButton
-                    action={close}
-                    triggerLabel="Close without hiring"
-                    title={CONFIRM_CLOSE_OPEN_TITLE}
-                    description={CONFIRM_CLOSE_OPEN_BODY}
-                    confirmLabel={CONFIRM_CLOSE_OPEN_ACTION}
-                    variant="danger"
-                  />
                 </>
               )}
               {shift.status === "FILLED" && (
                 <>
                   <ButtonLink href={`/manager/shifts/${shift.id}/booking`}>
-                    Open booking
+                    Open booking &amp; contact details
                   </ButtonLink>
                   {canComplete ? (
-                    <div className="flex flex-col gap-2 rounded-md border border-line bg-surface-subtle p-3">
+                    <div className="flex flex-col gap-2 rounded-md border border-gold/40 bg-gold-soft/50 p-3">
                       <p className="text-sm font-semibold text-ink">
                         Mark shift complete
                       </p>
                       <p className="text-xs text-ink-muted">
-                        Did the marshal turn up and do the job?
+                        Did the marshal turn up and do the job? Your answer
+                        builds their reliability record.
                       </p>
                       <ConfirmButton
                         action={completeReliable}
@@ -334,7 +331,8 @@ export default async function ManagerShiftDetailPage({
                     </div>
                   ) : (
                     <Alert tone="info">
-                      Mark complete is available after the scheduled end time.
+                      Mark complete becomes available after the scheduled end
+                      time.
                     </Alert>
                   )}
                   <ConfirmButton
@@ -345,14 +343,6 @@ export default async function ManagerShiftDetailPage({
                     confirmLabel={CONFIRM_REOPEN_ACTION}
                     variant="secondary"
                   />
-                  <ConfirmButton
-                    action={close}
-                    triggerLabel="Cancel shift"
-                    title={CONFIRM_CANCEL_FILLED_TITLE}
-                    description={CONFIRM_CANCEL_FILLED_BODY}
-                    confirmLabel={CONFIRM_CANCEL_FILLED_ACTION}
-                    variant="danger"
-                  />
                 </>
               )}
               {(shift.status === "COMPLETED" || shift.status === "CLOSED") && (
@@ -362,12 +352,52 @@ export default async function ManagerShiftDetailPage({
                 </p>
               )}
             </div>
+
+            {(shift.status === "DRAFT" ||
+              shift.status === "OPEN" ||
+              shift.status === "FILLED") && (
+              <div className="mt-4 border-t border-line pt-3">
+                <Kicker className="mb-2">If plans change</Kicker>
+                <div className="flex flex-col gap-2">
+                  {shift.status === "DRAFT" && (
+                    <ConfirmButton
+                      action={close}
+                      triggerLabel="Abandon draft"
+                      title={CONFIRM_CLOSE_DRAFT_TITLE}
+                      description={CONFIRM_CLOSE_DRAFT_BODY}
+                      confirmLabel={CONFIRM_CLOSE_DRAFT_ACTION}
+                      variant="danger"
+                    />
+                  )}
+                  {shift.status === "OPEN" && (
+                    <ConfirmButton
+                      action={close}
+                      triggerLabel="Close without hiring"
+                      title={CONFIRM_CLOSE_OPEN_TITLE}
+                      description={CONFIRM_CLOSE_OPEN_BODY}
+                      confirmLabel={CONFIRM_CLOSE_OPEN_ACTION}
+                      variant="danger"
+                    />
+                  )}
+                  {shift.status === "FILLED" && (
+                    <ConfirmButton
+                      action={close}
+                      triggerLabel="Cancel shift"
+                      title={CONFIRM_CANCEL_FILLED_TITLE}
+                      description={CONFIRM_CANCEL_FILLED_BODY}
+                      confirmLabel={CONFIRM_CANCEL_FILLED_ACTION}
+                      variant="danger"
+                    />
+                  )}
+                </div>
+              </div>
+            )}
           </Card>
 
           {shift.status === "OPEN" && pending.length > 0 && (
             <Card>
-              <p className="text-sm font-semibold">Pending applicants</p>
-              <ul className="mt-2 space-y-1 text-sm">
+              <Kicker className="mb-2">Pending applicants</Kicker>
+              <ul className="space-y-1 text-sm">
                 {pending.map((a) => (
                   <li key={a.id}>
                     <Link
@@ -384,14 +414,14 @@ export default async function ManagerShiftDetailPage({
 
           {shift.status === "FILLED" && acceptedApp && (
             <Card>
-              <p className="text-sm font-semibold">Booked</p>
-              <p className="mt-1 text-sm text-ink">
+              <Kicker className="mb-2">Booked</Kicker>
+              <p className="text-sm text-ink">
                 {acceptedApp.marshal.marshalProfile?.fullName ?? "Marshal"}
               </p>
               <ButtonLink
                 href={`/manager/shifts/${shift.id}/booking`}
                 variant="ghost"
-                className="mt-2 px-0"
+                className="mt-1 !min-h-0 px-0 py-0"
               >
                 View contact details →
               </ButtonLink>

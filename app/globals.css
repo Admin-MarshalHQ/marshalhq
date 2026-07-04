@@ -10,16 +10,18 @@
 
 html,
 body {
-  background: #f6f7f9;
-  color: #111418;
+  background: #f5f2ea;
+  color: #1c1915;
 }
 
 body {
   overflow-x: hidden;
   font-family:
-    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Inter, Arial, sans-serif;
+    "Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Arial,
+    sans-serif;
   font-feature-settings: "cv11", "ss01";
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
 a {
@@ -38,7 +40,7 @@ input[type="tel"],
 input:not([type]),
 select,
 textarea {
-  @apply w-full rounded-md border border-line bg-white px-3 py-2 text-[15px] text-ink placeholder:text-ink-soft focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent;
+  @apply w-full rounded-md border border-line bg-white px-3 py-2 text-[15px] text-ink placeholder:text-ink-soft focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/25;
 }
 
 textarea {

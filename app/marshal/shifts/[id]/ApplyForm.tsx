@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useFormState, useFormStatus } from "react-dom";
 import { Alert, Button, Field } from "@/components/ui";
 import { applyToShiftAction } from "@/app/actions/hiring";
@@ -27,6 +28,7 @@ export default function ApplyForm({
   unavailableDatesConflict?: boolean;
 }) {
   const [state, action] = useFormState(applyToShiftAction, null);
+  const [noteLen, setNoteLen] = useState(0);
   return (
     <form action={action} className="mt-2 space-y-3">
       {state?.error && <Alert tone="danger">{state.error}</Alert>}
@@ -44,8 +46,16 @@ export default function ApplyForm({
         <textarea
           name="coverNote"
           maxLength={1000}
+          onChange={(e) => setNoteLen(e.target.value.length)}
           placeholder="I can be on site 30 minutes before call."
         />
+        {noteLen > 0 && (
+          <div className="mt-1 text-right">
+            <span className="font-mono text-[11px] text-ink-soft">
+              {noteLen}/1000
+            </span>
+          </div>
+        )}
       </Field>
       <Submit />
       <p className="text-xs text-ink-soft">

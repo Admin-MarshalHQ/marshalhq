@@ -6,10 +6,12 @@ import { prisma } from "@/lib/db";
 import { isFounderEmail } from "@/lib/access";
 import { VersionBadge } from "@/components/VersionBadge";
 import { BrandLogo } from "@/components/BrandLogo";
+import AppNav, { type NavItem } from "@/components/AppNav";
 
 export const metadata: Metadata = {
   title: "MarshalHQ",
-  description: "UK film and TV location marshal staffing.",
+  description:
+    "A clearer way to hire location marshals for UK film and TV production.",
 };
 
 export default async function RootLayout({
@@ -28,119 +30,89 @@ export default async function RootLayout({
       })
     : 0;
 
+  let items: NavItem[] = [];
+  if (!userId) {
+    items = [
+      { href: "/#waitlist", label: "Join waitlist" },
+      { href: "/login", label: "Log in" },
+    ];
+  } else if (role === "MANAGER") {
+    items = [
+      { href: "/manager", label: "Dashboard" },
+      { href: "/manager/shifts/new", label: "Post shift" },
+      { href: "/notifications", label: "Inbox", badge: unread },
+      { href: "/settings", label: "Account" },
+    ];
+  } else if (role === "MARSHAL") {
+    items = [
+      { href: "/marshal", label: "Dashboard" },
+      { href: "/marshal/shifts", label: "Browse shifts" },
+      { href: "/marshal/applications", label: "My applications" },
+      { href: "/marshal/profile", label: "Profile" },
+      { href: "/notifications", label: "Inbox", badge: unread },
+      { href: "/settings", label: "Account" },
+    ];
+  } else {
+    items = [
+      { href: "/notifications", label: "Inbox", badge: unread },
+      { href: "/settings", label: "Account" },
+    ];
+  }
+
+  const logout = userId ? (
+    <form
+      action={async () => {
+        "use server";
+        await signOut({ redirectTo: "/" });
+      }}
+    >
+      <button
+        type="submit"
+        className="inline-flex min-h-[40px] items-center text-sm text-ink-muted hover:text-ink"
+      >
+        Log out
+      </button>
+    </form>
+  ) : null;
+
   return (
     <html lang="en-GB">
       <body className="min-h-screen">
-        <header className="mhq-app-header border-b border-line bg-white">
-          <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-3">
+        <header className="mhq-app-header sticky top-0 z-40 border-b border-line bg-white/90 backdrop-blur">
+          <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-x-4 gap-y-0 px-4 py-2.5">
             <Link
-              href="/"
+              href={role === "MANAGER" ? "/manager" : role === "MARSHAL" ? "/marshal" : "/"}
               className="flex items-center text-brand-navy"
               aria-label="MarshalHQ home"
             >
               <BrandLogo className="h-8 w-auto object-contain" priority alt="" />
             </Link>
-            <nav className="flex flex-wrap items-center justify-end gap-x-4 gap-y-1 text-sm">
-              {!userId && (
-                <>
-                  <Link
-                    href="/#waitlist"
-                    className="rounded-md border border-ink bg-ink px-3 py-1.5 text-white hover:opacity-90"
-                  >
-                    Join waitlist
-                  </Link>
-                  <Link href="/login" className="text-ink-muted hover:text-ink">
-                    Log in
-                  </Link>
-                </>
-              )}
-              {userId && role === "MANAGER" && (
-                <>
-                  <Link href="/manager" className="text-ink-muted hover:text-ink">
-                    Dashboard
-                  </Link>
-                  <Link
-                    href="/manager/shifts/new"
-                    className="text-ink-muted hover:text-ink"
-                  >
-                    Post shift
-                  </Link>
-                  <Link
-                    href="/manager/market"
-                    className="text-ink-muted hover:text-ink"
-                  >
-                    Browse market
-                  </Link>
-                </>
-              )}
-              {userId && role === "MARSHAL" && (
-                <>
-                  <Link
-                    href="/marshal/shifts"
-                    className="text-ink-muted hover:text-ink"
-                  >
-                    Browse shifts
-                  </Link>
-                  <Link href="/marshal" className="text-ink-muted hover:text-ink">
-                    My applications
-                  </Link>
-                </>
-              )}
-              {founder && (
-                <Link
-                  href="/founder"
-                  className="rounded-md border border-line px-2 py-1 text-ink-muted hover:bg-surface-subtle hover:text-ink"
-                >
-                  Founder
-                </Link>
-              )}
-              {userId && (
-                <>
-                  <Link
-                    href="/notifications"
-                    className="text-ink-muted hover:text-ink"
-                  >
-                    Inbox
-                    {unread > 0 && (
-                      <span className="ml-1 rounded-full bg-accent px-1.5 py-0.5 text-[11px] font-medium text-white">
-                        {unread}
-                      </span>
-                    )}
-                  </Link>
-                  <Link
-                    href="/settings"
-                    className="text-ink-muted hover:text-ink"
-                  >
-                    Account
-                  </Link>
-                  <form
-                    action={async () => {
-                      "use server";
-                      await signOut({ redirectTo: "/" });
-                    }}
-                  >
-                    <button
-                      type="submit"
-                      className="text-ink-muted hover:text-ink"
-                    >
-                      Log out
-                    </button>
-                  </form>
-                </>
-              )}
-            </nav>
+            <AppNav items={items} founder={founder} logout={logout} />
           </div>
         </header>
         <main className="mx-auto max-w-5xl px-4 py-6">{children}</main>
-        <footer className="mhq-app-footer mx-auto mt-8 max-w-5xl px-4 py-6 text-xs text-ink-soft">
+        <footer className="mhq-app-footer mx-auto mt-8 max-w-5xl border-t border-line px-4 py-6 text-xs text-ink-soft">
           <div className="flex flex-wrap items-center justify-between gap-4">
-            <div className="flex flex-wrap gap-4">
-              <Link href="/terms">Terms</Link>
-              <Link href="/privacy">Privacy</Link>
-              <Link href="/rules">Platform rules</Link>
-              <Link href="/support">Contact</Link>
+            <div className="flex flex-wrap gap-x-4 gap-y-2">
+              <Link className="hover:text-ink" href="/terms">
+                Terms
+              </Link>
+              <Link className="hover:text-ink" href="/privacy">
+                Privacy
+              </Link>
+              <Link className="hover:text-ink" href="/rules">
+                Platform rules
+              </Link>
+              <Link className="hover:text-ink" href="/support">
+                Contact
+              </Link>
             </div>
-            <VersionBadge />
+            <div className="flex flex-wrap items-center gap-4">
+              <span className="font-mono text-[10px] uppercase tracking-[0.08em]">
+                UK film &amp; TV location work
+              </span>
+              <VersionBadge />
+            </div>
           </div>
         </footer>
       </body>

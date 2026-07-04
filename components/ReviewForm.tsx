@@ -30,7 +30,7 @@ function StarInput() {
       {[5, 4, 3, 2, 1].map((n) => (
         <label
           key={n}
-          className="cursor-pointer text-2xl leading-none text-line transition-colors hover:text-[#b8860b] has-[:checked]:text-[#b8860b] [&:has(:checked)~label]:text-[#b8860b] [&:hover~label]:text-[#b8860b]"
+          className="cursor-pointer text-2xl leading-none text-line transition-colors hover:text-gold has-[:checked]:text-gold [&:has(:checked)~label]:text-gold [&:hover~label]:text-gold"
           title={`${n} star${n === 1 ? "" : "s"}`}
         >
           <input type="radio" name="rating" value={n} required className="sr-only" />

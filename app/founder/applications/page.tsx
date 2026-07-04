@@ -62,7 +62,7 @@ export default async function FounderApplicationsPage() {
                       <span className="text-ink-muted">{a.marshal.email}</span>
                     )}
                     {a.marshal.marshalProfile?.paused && (
-                      <span className="ml-2 rounded-full bg-[#fbf1e3] px-2 py-0.5 text-[10px] text-warn">
+                      <span className="ml-2 rounded-full bg-warn-soft px-2 py-0.5 text-[10px] text-warn">
                         Marshal paused
                       </span>
                     )}

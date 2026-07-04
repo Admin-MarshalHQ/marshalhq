@@ -20,8 +20,10 @@ export default async function EditManagerProfilePage() {
   return (
     <div className="mx-auto max-w-2xl">
       <PageHeader
-        title="Edit manager profile"
-        subtitle="Contact details are released only after a booking is confirmed."
+        kicker="Manager profile"
+        back={{ href: "/manager", label: "Back to dashboard" }}
+        title="Edit profile"
+        subtitle="Marshals see your company and name on shifts. Contact details release only after a booking is confirmed."
       />
       <Card>
         <ManagerProfileForm

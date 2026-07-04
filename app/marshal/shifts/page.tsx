@@ -2,14 +2,14 @@ import Link from "next/link";
 import { requireRole } from "@/lib/access";
 import { prisma } from "@/lib/db";
 import {
+  ApplicationStatusBadge,
   ButtonLink,
+  CapacityMeter,
+  DateBlock,
   EmptyState,
   PageHeader,
 } from "@/components/ui";
 import { formatRate, formatShiftBlock } from "@/lib/format";
-import { APPLICATION_STATUS_LABEL } from "@/lib/state";
-import { capacityLabel } from "@/lib/capacity";
-import type { ApplicationStatus } from "@/lib/types";
 
 export default async function BrowseShiftsPage() {
   const user = await requireRole("MARSHAL");
@@ -50,8 +50,9 @@ export default async function BrowseShiftsPage() {
   return (
     <div>
       <PageHeader
-        title="Open shifts"
-        subtitle="Shifts accepting applications now. Contact details are released only after you’re accepted."
+        kicker="Open shifts"
+        title="Browse shifts"
+        subtitle="Shifts accepting applications now. Contact details are released only after you're accepted."
         action={
           !profile ? (
             <ButtonLink href="/marshal/profile/edit">
@@ -73,14 +74,20 @@ export default async function BrowseShiftsPage() {
               <Link
                 key={s.id}
                 href={`/marshal/shifts/${s.id}`}
-                className="block rounded-md border border-line bg-white p-4 hover:bg-surface-subtle"
+                className="block rounded-md border border-line bg-white p-4 shadow-[0_1px_0_rgba(28,25,21,0.03)] hover:border-line-strong hover:bg-surface-subtle"
               >
-                <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="flex items-start gap-3">
+                  <DateBlock date={s.startDate} />
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-base font-semibold text-ink">
-                      {s.productionName}
-                    </p>
-                    <p className="mt-1 text-sm text-ink-muted">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="truncate font-serif text-lg leading-snug text-ink">
+                        {s.productionName}
+                      </p>
+                      {yourApp && (
+                        <ApplicationStatusBadge status={yourApp.status} />
+                      )}
+                    </div>
+                    <p className="mt-0.5 text-sm text-ink-muted">
                       {s.location} ·{" "}
                       {formatShiftBlock(
                         s.startDate,
@@ -89,20 +96,19 @@ export default async function BrowseShiftsPage() {
                         s.dailyEndTime,
                       )}
                     </p>
-                    <p className="mt-0.5 text-sm text-ink-muted">
-                      {formatRate(s.rate, s.rateUnit)}
-                    </p>
-                    <p className="mt-0.5 text-xs text-ink-soft">
-                      {capacityLabel(s._count.applications, s.marshalsNeeded)} -{" "}
-                      Posted by{" "}
-                      {s.manager.managerProfile?.companyName ?? "Manager"}
-                    </p>
+                    <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1">
+                      <span className="text-sm font-medium text-ink">
+                        {formatRate(s.rate, s.rateUnit)}
+                      </span>
+                      <CapacityMeter
+                        booked={s._count.applications}
+                        needed={s.marshalsNeeded}
+                      />
+                      <span className="font-mono text-[11px] uppercase tracking-[0.04em] text-ink-soft">
+                        {s.manager.managerProfile?.companyName ?? "Manager"}
+                      </span>
+                    </div>
                   </div>
-                  {yourApp && (
-                    <span className="whitespace-nowrap rounded-full bg-surface-sunken px-2 py-0.5 text-xs text-ink-muted">
-                      You: {APPLICATION_STATUS_LABEL[yourApp.status as ApplicationStatus]}
-                    </span>
-                  )}
                 </div>
               </Link>
             );

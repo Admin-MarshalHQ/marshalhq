@@ -19,7 +19,12 @@ export default async function EditShiftPage({
 
   return (
     <div className="mx-auto max-w-2xl">
-      <PageHeader title="Edit draft shift" />
+      <PageHeader
+        kicker="Draft shift"
+        back={{ href: `/manager/shifts/${shift.id}`, label: "Back to shift" }}
+        title="Edit draft"
+        subtitle="Changes save to the draft. Marshals see nothing until you publish."
+      />
       <Card>
         <ShiftForm action={bound} shift={shift} submitLabel="Save changes" />
       </Card>

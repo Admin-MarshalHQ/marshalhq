@@ -1,6 +1,6 @@
 import { requireRole } from "@/lib/access";
 import { prisma } from "@/lib/db";
-import { Card, EmptyState, PageHeader } from "@/components/ui";
+import { Card, EmptyState, Kicker, PageHeader } from "@/components/ui";
 import { formatDate, formatShiftBlock } from "@/lib/format";
 import { removeAvailabilityBlockAction } from "@/app/actions/availability";
 import AvailabilityForm from "./AvailabilityForm";
@@ -29,20 +29,19 @@ export default async function AvailabilityPage() {
   return (
     <div className="mx-auto max-w-2xl">
       <PageHeader
+        kicker="Availability"
         title="Your availability"
-        subtitle="Mark dates you can’t work. Managers and shift alerts use this to avoid clashing with your plans. Booked shifts are blocked automatically."
+        subtitle="Mark dates you can’t work. The apply flow uses this to warn you about clashes. Booked shifts are blocked automatically."
       />
 
       <Card className="mb-4">
-        <p className="mb-3 text-sm font-semibold">Add unavailable dates</p>
+        <Kicker className="mb-3">Add unavailable dates</Kicker>
         <AvailabilityForm />
       </Card>
 
       {bookedShifts.length > 0 && (
-        <Card className="mb-4">
-          <p className="mb-2 text-xs uppercase tracking-wide text-ink-soft">
-            Booked (blocked automatically)
-          </p>
+        <Card className="mb-4" variant="sunken">
+          <Kicker className="mb-2">Booked (blocked automatically)</Kicker>
           <div className="space-y-2">
             {bookedShifts.map((a) => (
               <div key={a.id} className="text-sm text-ink-muted">
@@ -59,9 +58,7 @@ export default async function AvailabilityPage() {
         </Card>
       )}
 
-      <p className="mb-2 text-xs uppercase tracking-wide text-ink-soft">
-        Unavailable dates you’ve set
-      </p>
+      <Kicker className="mb-2">Unavailable dates you’ve set</Kicker>
       {blocks.length === 0 ? (
         <EmptyState
           title="No unavailable dates"

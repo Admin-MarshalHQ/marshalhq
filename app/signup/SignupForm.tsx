@@ -36,8 +36,8 @@ export default function SignupForm() {
           <label
             className={`cursor-pointer rounded-md border p-3 transition ${
               role === "MANAGER"
-                ? "border-accent bg-[#f4f7fb]"
-                : "border-line bg-white"
+                ? "border-accent bg-accent-soft ring-1 ring-accent"
+                : "border-line bg-white hover:border-line-strong"
             }`}
           >
             <input
@@ -56,8 +56,8 @@ export default function SignupForm() {
           <label
             className={`cursor-pointer rounded-md border p-3 transition ${
               role === "MARSHAL"
-                ? "border-accent bg-[#f4f7fb]"
-                : "border-line bg-white"
+                ? "border-accent bg-accent-soft ring-1 ring-accent"
+                : "border-line bg-white hover:border-line-strong"
             }`}
           >
             <input

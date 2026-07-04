@@ -67,7 +67,7 @@ export default async function FounderUsersPage() {
                     </td>
                     <td className="py-2">
                       {paused ? (
-                        <span className="rounded-full bg-[#fbf1e3] px-2 py-0.5 text-xs text-warn">
+                        <span className="rounded-full bg-warn-soft px-2 py-0.5 text-xs text-warn">
                           Paused
                         </span>
                       ) : (

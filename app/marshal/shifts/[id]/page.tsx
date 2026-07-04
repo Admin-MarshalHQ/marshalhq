@@ -6,8 +6,11 @@ import {
   Alert,
   ApplicationStatusBadge,
   ButtonLink,
+  CapacityMeter,
   Card,
+  ContactCard,
   DL,
+  Kicker,
   PageHeader,
   ShiftStatusBadge,
 } from "@/components/ui";
@@ -18,7 +21,6 @@ import {
 } from "@/lib/format";
 import { canMarshalApply, isLimitedAvailability } from "@/lib/state";
 import { shiftConflicts, type ConflictReason } from "@/lib/availability";
-import { capacityLabel } from "@/lib/capacity";
 import { StarRatingDisplay } from "@/components/StarRating";
 import { ratingSummary } from "@/lib/reviews";
 import {
@@ -107,18 +109,12 @@ export default async function MarshalShiftDetailPage({
   return (
     <div>
       <PageHeader
+        kicker="Open shift"
+        back={{ href: "/marshal/shifts", label: "Back to open shifts" }}
         title={shift.productionName}
         subtitle={`Posted by ${shift.manager.managerProfile?.companyName ?? "Manager"}`}
         action={<ShiftStatusBadge status={shift.status} />}
       />
-      <div className="mb-4">
-        <Link
-          href="/marshal/shifts"
-          className="text-sm text-accent underline-offset-2 hover:underline"
-        >
-          ← Back to open shifts
-        </Link>
-      </div>
 
       {searchParams?.applied && (
         <div className="mb-4">
@@ -130,7 +126,7 @@ export default async function MarshalShiftDetailPage({
       )}
 
       <div className="grid gap-4 md:grid-cols-[2fr,1fr]">
-        <Card>
+        <Card className="md:order-1">
           <DL
             items={[
               {
@@ -144,8 +140,13 @@ export default async function MarshalShiftDetailPage({
               },
               { label: "Rate", value: formatRate(shift.rate, shift.rateUnit) },
               {
-                label: "Capacity",
-                value: capacityLabel(acceptedCount, shift.marshalsNeeded),
+                label: "Marshals",
+                value: (
+                  <CapacityMeter
+                    booked={acceptedCount}
+                    needed={shift.marshalsNeeded}
+                  />
+                ),
               },
               { label: "Location", value: shift.location },
               {
@@ -167,19 +168,15 @@ export default async function MarshalShiftDetailPage({
               <p className="mt-2 text-xs text-ink-soft">{length}</p>
             ) : null;
           })()}
-          <div className="mt-4">
-            <p className="mb-1 text-xs uppercase tracking-wide text-ink-soft">
-              Duties
-            </p>
+          <div className="mt-4 border-t border-line pt-3">
+            <Kicker className="mb-1">Duties</Kicker>
             <p className="whitespace-pre-wrap text-sm text-ink">
               {shift.duties}
             </p>
           </div>
           {shift.experienceNotes && (
-            <div className="mt-4">
-              <p className="mb-1 text-xs uppercase tracking-wide text-ink-soft">
-                Experience / notes
-              </p>
+            <div className="mt-4 border-t border-line pt-3">
+              <Kicker className="mb-1">Experience / notes</Kicker>
               <p className="whitespace-pre-wrap text-sm text-ink">
                 {shift.experienceNotes}
               </p>
@@ -187,12 +184,26 @@ export default async function MarshalShiftDetailPage({
           )}
         </Card>
 
-        <div className="space-y-3">
-          <Card>
-            <p className="text-sm font-semibold">Apply</p>
+        {/* Apply column: first in DOM so a marshal on a phone sees the apply
+            state before the long duties text; md:order-2 restores the
+            desktop sidebar position. */}
+        <div className="order-first space-y-3 md:order-2">
+          <Card
+            variant={
+              !yourApp && shift.status === "OPEN" ? "highlight" : "default"
+            }
+          >
+            <Kicker className="mb-2">Apply</Kicker>
             {yourApp ? (
-              <div className="mt-2 space-y-2">
+              <div className="space-y-2">
                 <ApplicationStatusBadge status={yourApp.status} />
+                <p className="text-sm text-ink-muted">
+                  {yourApp.status === "ACCEPTED"
+                    ? "You're booked on this shift."
+                    : yourApp.status === "APPLIED"
+                      ? "Your application is with the manager."
+                      : "You applied to this shift previously."}
+                </p>
                 <p className="text-xs text-ink-soft">
                   <Link
                     href={`/marshal/applications/${yourApp.id}`}
@@ -266,13 +277,11 @@ export default async function MarshalShiftDetailPage({
               />
             )}
           </Card>
-          <Card>
-            <p className="text-sm font-semibold">Contact</p>
-            <p className="mt-1 text-sm text-ink-muted">
-              Contact details are released only when a manager accepts your
-              application.
-            </p>
-          </Card>
+          <ContactCard
+            released={false}
+            title="Contact"
+            body="Contact details are released only when a manager accepts your application."
+          />
         </div>
       </div>
     </div>

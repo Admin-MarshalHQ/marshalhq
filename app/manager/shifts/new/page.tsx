@@ -8,8 +8,10 @@ export default async function NewShiftPage() {
   return (
     <div className="mx-auto max-w-2xl">
       <PageHeader
+        kicker="New shift · saves as a draft"
+        back={{ href: "/manager", label: "Back to dashboard" }}
         title="Post a shift"
-        subtitle="Only the fields here are visible to marshals. Contact details are released after acceptance."
+        subtitle="Only the fields here are visible to marshals. Contact details release after you accept an applicant."
       />
       <Card>
         <ShiftForm action={saveDraftShiftAction} submitLabel="Save draft" />

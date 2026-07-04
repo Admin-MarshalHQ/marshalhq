@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { requireRole } from "@/lib/access";
 import { prisma } from "@/lib/db";
 import {
@@ -6,6 +5,7 @@ import {
   Card,
   DL,
   EmptyState,
+  Kicker,
   PageHeader,
 } from "@/components/ui";
 import { StarRatingDisplay } from "@/components/StarRating";
@@ -51,8 +51,9 @@ export default async function MarshalProfilePage() {
   return (
     <div className="mx-auto max-w-2xl">
       <PageHeader
+        kicker="Your profile — as managers see it"
         title={p.fullName}
-        subtitle="This is what managers see when you apply. It never shows your contact details."
+        subtitle="Managers review this when you apply. It never shows your contact details — those release only after you're accepted."
         action={
           <ButtonLink href="/marshal/profile/edit" variant="secondary">
             Edit
@@ -125,9 +126,7 @@ export default async function MarshalProfilePage() {
           </div>
         </div>
         <div className="mt-4 border-t border-line pt-4">
-          <p className="mb-1 text-xs uppercase tracking-wide text-ink-soft">
-            Experience summary
-          </p>
+          <Kicker className="mb-1">Experience summary</Kicker>
           <p className="whitespace-pre-wrap text-sm text-ink">
             {p.experienceSummary}
           </p>
@@ -136,9 +135,7 @@ export default async function MarshalProfilePage() {
 
       {summary.count > 0 && (
         <Card className="mt-4">
-          <p className="mb-3 text-xs uppercase tracking-wide text-ink-soft">
-            Reviews from managers
-          </p>
+          <Kicker className="mb-3">Reviews from managers</Kicker>
           <div className="space-y-3">
             {reviews
               .filter((r) => r.comment)

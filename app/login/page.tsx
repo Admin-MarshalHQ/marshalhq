@@ -12,7 +12,10 @@ export default function LoginPage({
   const verifiedSuccess = searchParams?.verified === "1";
   return (
     <div className="mx-auto max-w-md">
-      <PageHeader title="Log in" />
+      <PageHeader
+        kicker="MarshalHQ · private pilot"
+        title="Log in"
+      />
       <Card>
         <LoginForm
           next={next}

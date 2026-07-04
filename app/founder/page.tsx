@@ -103,8 +103,8 @@ export default async function FounderOverviewPage() {
                 <span
                   className={
                     s.resolvedAt
-                      ? "rounded-full bg-[#e7f1ea] px-2 py-0.5 text-xs text-ok"
-                      : "rounded-full bg-[#fbf1e3] px-2 py-0.5 text-xs text-warn"
+                      ? "rounded-full bg-ok-soft px-2 py-0.5 text-xs text-ok"
+                      : "rounded-full bg-warn-soft px-2 py-0.5 text-xs text-warn"
                   }
                 >
                   {s.resolvedAt ? "Handled" : "Open"}
