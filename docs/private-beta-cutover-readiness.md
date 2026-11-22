@@ -1,5 +1,14 @@
 # Controlled private beta cutover — readiness report
 
+### Follow-up after open registration shipped (22 November 2026 UTC)
+
+**BLOCKED.** Production served commit `a786bf08` (PR #11). The release checkout passed 80/80 remediation assertions. Signup now permits manager and marshal registration without a pilot code.
+
+**Step 4, submission and persistence PASS.** One signed-out synthetic support request (reference `MHQ-LIVE-A786BF0`) reached the production “Request received” page. A scoped query on MarshalHQ-Dev returned exactly one matching row with category OTHER, directly corroborating the live application's database binding. This request went to the founder-controlled support mailbox. The connected personal Gmail search did not establish receipt. Both support emails, their link targets and the authenticated founder queue remain unverified. No error, warning or fatal entries were returned in the five-minute deployment log check after submission.
+
+The live hiring journey still requires controlled signup in separate sessions. Hold invitations. The previous release's isolated invariants and catalog checks retain their original scope.
+
+
 ## Latest release decision · 22 November 2026 UTC
 
 **BLOCKED — verification incomplete. Hold the first invitation.** This entry supersedes the conditional recommendation below. Production `marshalhq.com` resolved in Vercel to `marshalhqagent`, READY, commit `2a6186f972d653dc948fc52932dd19fa9fa22985`. GitHub main and the inspected checkout matched. PR #8 was merged. The public homepage rendered with the example shift labelled illustrative.
