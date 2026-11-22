@@ -171,9 +171,9 @@ function ShiftCard() {
   return (
     <article className="shiftcard" aria-label="Example shift posting">
       <header className="shiftcard__hd">
-        <span className="mono shiftcard__id">SHIFT &middot; LDN-0418-A</span>
+        <span className="mono shiftcard__id">ILLUSTRATIVE SHIFT &middot; NOT LIVE</span>
         <span className="shiftcard__status">
-          <span className="status-dot" /> Open &middot; 4 applicants
+          <span className="status-dot" /> Example only
         </span>
       </header>
 
@@ -187,8 +187,8 @@ function ShiftCard() {
 
         <dl className="shiftcard__dl">
           <div>
-            <dt>Dates</dt>
-            <dd>Thu 23 &mdash; Fri 24 Apr</dd>
+            <dt>Example dates</dt>
+            <dd>23 &mdash; 24 April (illustrative)</dd>
           </div>
           <div>
             <dt>Call</dt>
@@ -208,7 +208,7 @@ function ShiftCard() {
           </div>
           <div>
             <dt>Posted by</dt>
-            <dd>L. Ahmed &middot; Loc. Manager</dd>
+            <dd>Example location manager</dd>
           </div>
         </dl>
 
