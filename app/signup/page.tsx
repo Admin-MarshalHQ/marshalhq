@@ -6,9 +6,9 @@ export default function SignupPage() {
   return (
     <div className="mx-auto max-w-md">
       <PageHeader
-        kicker="MarshalHQ · private pilot"
+        kicker="MarshalHQ"
         title="Sign up"
-        subtitle="Account creation needs a founder-issued pilot code. Not part of the pilot yet? Join the waitlist below."
+        subtitle="Create a production manager or location marshal account."
       />
       <Card>
         <SignupForm />
@@ -17,11 +17,6 @@ export default function SignupPage() {
         Already have an account?{" "}
         <Link href="/login" className="text-accent underline">
           Log in
-        </Link>
-        {" · "}
-        Not in the pilot?{" "}
-        <Link href="/#waitlist" className="text-accent underline">
-          Join the waitlist
         </Link>
       </p>
     </div>
