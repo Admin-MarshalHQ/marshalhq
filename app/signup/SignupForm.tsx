@@ -20,7 +20,7 @@ function Submit({ role }: { role: "MANAGER" | "MARSHAL" | null }) {
   );
 }
 
-export default function SignupForm() {
+export default function SignupForm({ requiresCode }: { requiresCode: boolean }) {
   const [state, action] = useFormState(signupAction, null);
   const [role, setRole] = useState<"MANAGER" | "MARSHAL" | null>(null);
 
@@ -87,18 +87,20 @@ export default function SignupForm() {
         </div>
       )}
 
-      <Field
-        label="Pilot code"
-        hint="Founder-issued code for the private pilot."
-      >
-        <input
-          type="text"
-          name="pilotCode"
-          required
-          autoComplete="off"
-          spellCheck={false}
-        />
-      </Field>
+      {requiresCode && (
+        <Field
+          label="Pilot code"
+          hint="Founder-issued code for the private pilot."
+        >
+          <input
+            type="text"
+            name="pilotCode"
+            required
+            autoComplete="off"
+            spellCheck={false}
+          />
+        </Field>
+      )}
 
       <Field label="Email">
         <input type="email" name="email" required autoComplete="email" />

@@ -2,6 +2,7 @@
 
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db";
+import { isSignupOpen } from "@/lib/signup-window";
 import { SignupSchema } from "@/lib/zod";
 import { signIn } from "@/lib/auth";
 import { redirect } from "next/navigation";
@@ -30,22 +31,14 @@ export async function signupAction(
   }
   const { email, password, role, companyName, displayName, pilotCode } =
     parsed.data;
-  // MarshalHQ runs as a controlled private pilot. Account creation requires a
-  // valid founder-issued code matching the role. We compare against env vars
-  // (PILOT_CODE_MANAGER / PILOT_CODE_MARSHAL) rather than a DB table so there
-  // is no redemption history, no founder dashboard surface area, and rotation
-  // is a single env-var change. If the env var is unset, the comparison fails
-  // closed so a misconfigured deploy can't turn signup into an open path.
-  // The check runs before isReservedSignupEmail so an attacker without a code
-  // never learns whether a given email is reserved.
   const expectedPilotCode =
     role === "MANAGER"
       ? process.env.PILOT_CODE_MANAGER
       : process.env.PILOT_CODE_MARSHAL;
-  if (!expectedPilotCode || pilotCode !== expectedPilotCode) {
+  if (!isSignupOpen() && (!expectedPilotCode || pilotCode !== expectedPilotCode)) {
     return {
       error:
-        "Account creation requires a valid pilot code. If you don’t have one, you can join the waitlist.",
+        "Account creation requires a valid pilot code. If you don’t have one, refresh this page or join the waitlist.",
     };
   }
   // Founder access is pre-provisioned server-side only — never via the public
