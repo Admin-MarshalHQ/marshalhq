@@ -148,7 +148,7 @@ export default async function ManagerDashboard() {
         />
       ) : (
         <div className="space-y-8">
-          <div className="grid gap-3 min-[530px]:grid-cols-3">
+          <div className="summary-grid">
             <StatCard label="Open shifts" value={shifts.filter((shift) => shift.status === "OPEN" && !shift.paused && shiftAttention(shift) !== "stale-open").length} icon="calendar" />
             <StatCard label="Applications to review" value={attention.reduce((total, item) => total + (item.count ?? 0), 0)} icon="people" tone="booked" />
             <StatCard label="Ready to complete" value={shifts.filter((shift) => canCompleteShift(shift)).length} icon="check" tone="warn" />

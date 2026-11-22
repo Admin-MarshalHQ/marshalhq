@@ -68,7 +68,7 @@ label {
 }
 
 .brand-logo {
-  @apply inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap text-[1.25rem] font-extrabold leading-none tracking-[-0.06em] text-ink sm:text-[1.5rem];
+  @apply inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap text-[1.25rem] font-extrabold leading-tight tracking-[-0.06em] text-ink sm:text-[1.5rem];
 }
 
 .brand-logo__mark {
@@ -187,6 +187,11 @@ label {
   @apply block rounded-lg border border-line bg-white p-4 shadow-card hover:border-line-control hover:bg-surface-subtle;
 }
 
+.summary-grid {
+  @apply grid gap-3;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 11rem), 1fr));
+}
+
 body:has(.mhq-public-home) .mhq-app-header {
   display: none;
 }
@@ -210,6 +215,13 @@ body:has(.mhq-public-home) .mhq-app-footer {
 }
 
 .marketing-header nav a { @apply shell-link; }
+.marketing-header nav.mobile-menu__panel {
+  @apply absolute top-full z-10 flex-col items-stretch gap-0 rounded-md border border-line bg-white p-2 shadow-panel;
+  inset-inline: max(var(--gutter), env(safe-area-inset-left)) max(var(--gutter), env(safe-area-inset-right));
+  max-width: 16rem;
+  margin-inline-start: auto;
+}
+
 .marketing-header .mobile-menu a { @apply block py-3; }
 
 .marketing-hero {

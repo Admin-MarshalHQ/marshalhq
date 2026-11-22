@@ -46,7 +46,7 @@ export default async function Landing({ searchParams }: { searchParams?: { email
   return (
     <div className="mhq-public-home">
       <header className="marketing-header">
-        <div className="marketing-width flex min-h-[4.5rem] flex-wrap items-center justify-between gap-x-4 gap-y-1 py-2">
+        <div className="marketing-width relative flex min-h-[4.5rem] flex-wrap items-center justify-between gap-x-4 gap-y-1 py-2">
           <Link href="/" aria-label="MarshalHQ home" className="brand-link">
             <BrandLogo alt="" />
           </Link>
@@ -56,11 +56,11 @@ export default async function Landing({ searchParams }: { searchParams?: { email
           <div className="flex flex-wrap items-center gap-1 sm:gap-2">
             <Link href="/login" className="shell-link">Log in</Link>
             <ButtonLink href="#waitlist" className="!px-3"><span className="hidden sm:inline">Join the waitlist</span><span className="sm:hidden">Waitlist</span></ButtonLink>
-            <details className="mobile-menu relative lg:hidden">
+            <details className="mobile-menu lg:hidden">
               <summary className="shell-icon cursor-pointer list-none" aria-label="About MarshalHQ menu">
                 <Icon name="menu" />
               </summary>
-              <nav aria-label="About MarshalHQ" className="absolute right-0 z-10 min-w-44 !flex-col !items-stretch gap-0 rounded-md border border-line bg-white p-2 shadow-panel">
+              <nav aria-label="About MarshalHQ" className="mobile-menu__panel">
                 {navigation.map((item) => <a key={item.href} href={item.href}>{item.label}</a>)}
               </nav>
             </details>

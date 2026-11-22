@@ -68,7 +68,7 @@ export default async function MarshalHome() {
         </div>
       )}
 
-      <div className="grid gap-3 min-[530px]:grid-cols-3">
+      <div className="summary-grid">
         <StatCard label="Awaiting a decision" value={awaitingDecision.length} />
         <StatCard label="Booked shifts" value={booked.length} icon="check" tone="ok" />
         <StatCard label="Completed shifts" value={profile?.completedCount ?? 0} href="/marshal/history" icon="calendar" tone="neutral" />

@@ -64,11 +64,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       <body className={`${inter.variable} ${fraunces.variable}`}>
         <a className="skip-link" href="#main-content">Skip to content</a>
         <header className="mhq-app-header">
-          <div className="shell-width flex min-h-16 items-center justify-between gap-2">
+          <div className="shell-width flex min-h-16 flex-wrap items-center justify-between gap-x-2">
             <Link href={home} className="brand-link" aria-label="MarshalHQ home">
               <BrandLogo alt="" />
             </Link>
-            <nav aria-label="Account" className="flex flex-wrap items-center justify-end gap-1">
+            <nav aria-label="Account" className="ml-auto flex max-w-full flex-wrap items-center justify-end gap-1">
               {userId ? (
                 <>
                   {founder && <Link href="/founder" className="shell-link">Founder</Link>}

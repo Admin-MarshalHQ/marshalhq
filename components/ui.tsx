@@ -505,7 +505,7 @@ export function StatCard({
         <span className={clsx("grid size-10 shrink-0 place-items-center rounded-md", tints[tone])}>
           <Icon name={icon} />
         </span>
-        <div>
+        <div className="min-w-0">
           <p className="text-2xl font-extrabold leading-none tabular-nums">{value}</p>
           <p className="mt-1 text-sm font-semibold text-ink-muted">{label}</p>
         </div>
@@ -527,22 +527,17 @@ export function Skeleton({ className }: { className?: string }) {
   );
 }
 
-// Compact date block for shift rows: weekday over day+month, mono. Multi-day
-// blocks show the start date; the row's text carries the full range.
+// The tile shows the start date. The row shows the full date range.
 export function DateBlock({ date }: { date: Date | string }) {
   const d = typeof date === "string" ? new Date(date) : date;
   const weekday = d.toLocaleDateString("en-GB", { weekday: "short" });
   const day = d.toLocaleDateString("en-GB", { day: "2-digit" });
   const month = d.toLocaleDateString("en-GB", { month: "short" });
   return (
-    <span className="flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-md border border-coral-soft bg-coral-soft leading-none">
-      <span className="text-xs text-coral-ink">
-        {weekday}
-      </span>
-      <span className="mt-0.5 text-base font-semibold text-ink">{day}</span>
-      <span className="text-xs text-coral-ink">
-        {month}
-      </span>
+    <span className="shift-date-tile inline-grid min-w-12 shrink-0 justify-items-center gap-0.5 whitespace-nowrap rounded-md bg-coral-soft px-1.5 py-1.5 text-xs leading-none text-coral-ink">
+      <span>{weekday}</span>
+      <span className="text-base font-semibold leading-none tabular-nums text-ink">{day}</span>
+      <span>{month}</span>
     </span>
   );
 }

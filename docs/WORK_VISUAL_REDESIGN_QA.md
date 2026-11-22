@@ -85,3 +85,18 @@ A matrix pass means the intended route rendered its heading and a single main la
 | Not exercised | Physical iOS/Android devices, a live screen-reader app, production email, live founder or hiring writes, simultaneous competing multi-slot acceptances, and a protected hosted preview. Keyboard/ARIA inspections and automated accessibility checks do not establish full WCAG conformance. |
 
 Review on the branch. Production stays on its existing deployment.
+
+## Formatting follow-up
+
+The manager dashboard's **Wed 18 Nov** tile reproduced the reported overlap. At 390px, the measured weekday text box reached 5px above the tile and the month extended 4px below it. The earlier width checks passed because the labels overflowed a component inside the page. The shared tile now gives its three lines explicit line heights and padding and grows with the text.
+
+| Other issue found | Fix |
+|---|---|
+| The homepage menu could extend beyond the viewport at 320px. | Anchor the menu to the header and constrain it to the available width. |
+| The dashboard stat card label could extend out of its card when three columns were forced at 200% text size. | Size the columns from available space and let the text wrap within each card. |
+| Signed-in header account controls could extend 12px past a 390px viewport at 200% text size. | Allow the controls to wrap to a second row inside the header. |
+| Enlarged wordmark text could extend beyond its line box during viewport changes. | Give the wordmark proportional line height. |
+
+The follow-up audit measures text and control boundaries, document overflow and overlapping labels across 39 routes. It spans 13 standard widths from 320 to 1440px, additional large-text and landscape configurations, open menus, confirmation dialogues and keyboard focus near the fixed navigation. Sample content includes long titles, multi-day dates, status badges and booked contact cards. All fixtures use local synthetic data.
+
+The final Chromium run passed all **792 layout checks**, including **540 rendered date tiles** measured against their own boundaries. The build, type check and 80 remediation assertions passed.
