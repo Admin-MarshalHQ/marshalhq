@@ -1,5 +1,7 @@
 import Link from "next/link";
 import clsx from "clsx";
+import { cloneElement, useId, type ReactElement } from "react";
+import { Icon, type IconName } from "./Icon";
 import type {
   ApplicationStatus,
   ShiftStatus,
@@ -8,11 +10,6 @@ import {
   APPLICATION_STATUS_LABEL,
   SHIFT_STATUS_LABEL,
 } from "@/lib/state";
-
-// Shared presentational primitives. This file must stay hook-free ("use
-// client" free): it is imported by server pages and client forms alike.
-// Anything interactive lives in its own client component (AppNav,
-// ConfirmButton, the form components).
 
 export function Kicker({
   children,
@@ -24,7 +21,7 @@ export function Kicker({
   return (
     <p
       className={clsx(
-        "font-mono text-[11px] uppercase tracking-[0.08em] text-ink-soft",
+        "text-xs font-semibold uppercase tracking-[0.08em] text-ink-soft",
         className,
       )}
     >
@@ -43,9 +40,9 @@ export function BackLink({
   return (
     <Link
       href={href}
-      className="inline-flex min-h-[32px] items-center gap-1 text-sm text-ink-muted hover:text-ink"
+      className="inline-flex min-h-11 items-center gap-2 rounded-md text-sm font-semibold text-ink-muted hover:text-coral-ink"
     >
-      <span aria-hidden>←</span> {children}
+      <Icon name="back" className="size-4" /> {children}
     </Link>
   );
 }
@@ -64,7 +61,7 @@ export function PageHeader({
   action?: React.ReactNode;
 }) {
   return (
-    <div className="mb-6 border-b border-line pb-4">
+    <div className="mb-6">
       {back && (
         <div className="mb-2">
           <BackLink href={back.href}>{back.label}</BackLink>
@@ -73,11 +70,11 @@ export function PageHeader({
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div className="min-w-0">
           {kicker && <Kicker className="mb-1.5">{kicker}</Kicker>}
-          <h1 className="font-serif text-3xl font-medium leading-tight tracking-tight text-ink">
+          <h1 className="text-[1.625rem] font-extrabold leading-[1.16] tracking-[-0.035em] text-ink min-[375px]:text-[1.75rem] lg:text-4xl">
             {title}
           </h1>
           {subtitle && (
-            <p className="mt-1.5 max-w-2xl text-sm text-ink-muted">
+            <p className="mt-2 max-w-2xl text-base text-ink-muted">
               {subtitle}
             </p>
           )}
@@ -100,12 +97,12 @@ export function Card({
   return (
     <div
       className={clsx(
-        "rounded-md border p-4",
+        "rounded-lg border p-4 sm:p-5",
         variant === "sunken" && "border-line bg-surface-subtle",
         variant === "highlight" &&
-          "border-line border-t-2 border-t-gold bg-white shadow-[0_1px_0_rgba(28,25,21,0.03)]",
+          "border-line border-t-2 border-t-coral-action bg-white shadow-card",
         variant === "default" &&
-          "border-line bg-white shadow-[0_1px_0_rgba(28,25,21,0.03)]",
+          "border-line bg-white shadow-card",
         className,
       )}
     >
@@ -113,6 +110,13 @@ export function Card({
     </div>
   );
 }
+
+type FieldControl = ReactElement<{
+  id?: string;
+  "aria-describedby"?: string;
+  "aria-invalid"?: boolean;
+  className?: string;
+}>;
 
 export function Field({
   label,
@@ -123,28 +127,30 @@ export function Field({
   label: string;
   hint?: string;
   error?: string;
-  children: React.ReactNode;
+  children: FieldControl;
 }) {
+  const generatedId = useId();
+  const id = children.props.id ?? generatedId;
+  const description = [
+    children.props["aria-describedby"],
+    hint && `${id}-hint`,
+    error && `${id}-error`,
+  ].filter(Boolean).join(" ") || undefined;
+
   return (
-    <label className="block">
-      <div className="mb-1 flex items-center justify-between gap-3">
-        <span className="text-sm font-medium text-ink-muted">{label}</span>
-        {hint && <span className="text-xs text-ink-soft">{hint}</span>}
+    <div className="min-w-0">
+      <div className="mb-2 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+        <label htmlFor={id} className="text-sm font-semibold text-ink">{label}</label>
+        {hint && <span id={`${id}-hint`} className="text-sm text-ink-muted">{hint}</span>}
       </div>
-      <div
-        className={clsx(
-          error &&
-            "[&_input]:border-danger [&_select]:border-danger [&_textarea]:border-danger",
-        )}
-      >
-        {children}
-      </div>
-      {error && (
-        <p className="mt-1 text-xs text-danger" role="alert">
-          {error}
-        </p>
-      )}
-    </label>
+      {cloneElement(children, {
+        id,
+        "aria-describedby": description,
+        "aria-invalid": error ? true : children.props["aria-invalid"],
+        className: clsx(children.props.className, error && "!border-danger"),
+      })}
+      {error && <p id={`${id}-error`} className="mt-1 text-sm text-danger">{error}</p>}
+    </div>
   );
 }
 
@@ -158,17 +164,27 @@ export function FormSection({
   children: React.ReactNode;
 }) {
   return (
-    <fieldset className="border-t border-line pt-4">
-      <legend className="pr-3 font-mono text-[11px] uppercase tracking-[0.08em] text-ink-soft">
+    <fieldset className="min-w-0 border-t border-line pt-4">
+      <legend className="pr-3 text-base font-bold text-ink">
         {title}
       </legend>
       {description && (
-        <p className="mb-3 text-xs text-ink-soft">{description}</p>
+        <p className="mb-3 text-sm text-ink-muted">{description}</p>
       )}
       <div className="mt-2 space-y-4">{children}</div>
     </fieldset>
   );
 }
+
+type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
+
+const buttonBase = "inline-flex min-h-11 items-center justify-center rounded-md px-4 py-2.5 text-center text-sm font-bold";
+const buttonTone: Record<ButtonVariant, string> = {
+  primary: "bg-coral-action text-white hover:bg-coral-ink",
+  secondary: "border border-line-control bg-white text-ink hover:bg-coral-soft",
+  ghost: "text-coral-ink hover:bg-coral-soft",
+  danger: "border border-danger bg-white text-danger hover:bg-danger-soft",
+};
 
 export function Button({
   children,
@@ -177,25 +193,12 @@ export function Button({
   className,
   ...rest
 }: {
-  children: React.ReactNode;
-  variant?: "primary" | "secondary" | "ghost" | "danger";
+  variant?: ButtonVariant;
 } & React.ButtonHTMLAttributes<HTMLButtonElement>) {
-  const styles =
-    variant === "primary"
-      ? "bg-ink text-white hover:opacity-90 disabled:opacity-50"
-      : variant === "secondary"
-        ? "border border-line-strong bg-white text-ink hover:bg-surface-subtle"
-        : variant === "danger"
-          ? "border border-danger bg-white text-danger hover:bg-danger-soft"
-          : "text-ink-muted hover:text-ink";
   return (
     <button
       type={type}
-      className={clsx(
-        "inline-flex min-h-[40px] items-center justify-center rounded-md px-3.5 py-2 text-sm font-medium transition",
-        styles,
-        className,
-      )}
+      className={clsx(buttonBase, buttonTone[variant], "disabled:cursor-not-allowed disabled:bg-surface-sunken disabled:text-ink-muted", className)}
       {...rest}
     >
       {children}
@@ -211,48 +214,33 @@ export function ButtonLink({
 }: {
   href: string;
   children: React.ReactNode;
-  variant?: "primary" | "secondary" | "ghost" | "danger";
+  variant?: ButtonVariant;
   className?: string;
 }) {
-  const styles =
-    variant === "primary"
-      ? "bg-ink text-white hover:opacity-90"
-      : variant === "secondary"
-        ? "border border-line-strong bg-white text-ink hover:bg-surface-subtle"
-        : variant === "danger"
-          ? "border border-danger bg-white text-danger hover:bg-danger-soft"
-          : "text-accent underline-offset-2 hover:underline";
   return (
-    <Link
-      href={href}
-      className={clsx(
-        "inline-flex min-h-[40px] items-center justify-center rounded-md px-3.5 py-2 text-sm font-medium",
-        styles,
-        className,
-      )}
-    >
+    <Link href={href} className={clsx(buttonBase, buttonTone[variant], className)}>
       {children}
     </Link>
   );
 }
 
 // One status system for the whole product. Every badge maps a workflow state
-// to a tone; the dot + mono label reads at a glance on a phone. Tones use the
+// to a tone. Tones use the
 // *-soft/-DEFAULT token pairs — never hardcode status hex in markup.
-type BadgeTone = "neutral" | "ok" | "accent" | "danger" | "gold";
+type BadgeTone = "neutral" | "ok" | "accent" | "booked" | "danger";
 
 function StatusBadge({ label, tone }: { label: string; tone: BadgeTone }) {
   const styles: Record<BadgeTone, string> = {
-    neutral: "bg-surface-sunken text-ink-muted",
+    neutral: "bg-neutral-soft text-neutral",
     ok: "bg-ok-soft text-ok",
     accent: "bg-accent-soft text-accent",
     danger: "bg-danger-soft text-danger",
-    gold: "bg-gold-soft text-gold-ink",
+    booked: "bg-booked-soft text-booked",
   };
   return (
     <span
       className={clsx(
-        "inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2 py-0.5 font-mono text-[11px] font-medium uppercase tracking-[0.04em]",
+        "inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-semibold",
         styles[tone],
       )}
     >
@@ -268,9 +256,9 @@ function StatusBadge({ label, tone }: { label: string; tone: BadgeTone }) {
 const SHIFT_STATUS_TONE: Record<ShiftStatus, BadgeTone> = {
   DRAFT: "neutral",
   OPEN: "ok",
-  FILLED: "accent",
-  CLOSED: "danger",
-  COMPLETED: "gold",
+  FILLED: "booked",
+  CLOSED: "neutral",
+  COMPLETED: "ok",
 };
 
 export function ShiftStatusBadge({ status }: { status: string }) {
@@ -279,7 +267,7 @@ export function ShiftStatusBadge({ status }: { status: string }) {
 }
 
 const APPLICATION_STATUS_TONE: Record<ApplicationStatus, BadgeTone> = {
-  APPLIED: "neutral",
+  APPLIED: "accent",
   ACCEPTED: "ok",
   REJECTED: "danger",
   WITHDRAWN: "neutral",
@@ -309,8 +297,8 @@ export function EmptyState({
   action?: React.ReactNode;
 }) {
   return (
-    <div className="rounded-md border border-dashed border-line-strong bg-white/60 p-10 text-center">
-      <p className="font-serif text-lg text-ink">{title}</p>
+    <div className="rounded-md border border-dashed border-line-strong bg-white/80 p-5 text-center sm:p-10">
+      <p className="text-lg font-bold text-ink">{title}</p>
       <p className="mx-auto mt-1 max-w-md text-sm text-ink-muted">{body}</p>
       {action && <div className="mt-4">{action}</div>}
     </div>
@@ -334,10 +322,8 @@ export function Alert({
           : "border-line bg-surface-subtle text-ink-muted";
   return (
     <div
-      className={clsx(
-        "rounded-md border px-3 py-2 text-sm",
-        styles,
-      )}
+      role={tone === "danger" ? "alert" : tone === "success" ? "status" : undefined}
+      className={clsx("rounded-md border px-3 py-3 text-sm", styles)}
     >
       {children}
     </div>
@@ -357,7 +343,7 @@ export function DL({
     <dl className="grid grid-cols-1 gap-3 sm:grid-cols-2">
       {items.map((it) => (
         <div key={it.label}>
-          <dt className="font-mono text-[11px] uppercase tracking-[0.06em] text-ink-soft">
+          <dt className="text-xs font-semibold text-ink-muted">
             {it.label}
           </dt>
           <dd className="mt-0.5 text-sm text-ink">{it.value}</dd>
@@ -374,9 +360,9 @@ export function DL({
 // happens.
 export function AttentionList({ children }: { children: React.ReactNode }) {
   return (
-    <div className="overflow-hidden rounded-md border border-gold/40 bg-white shadow-[0_1px_0_rgba(28,25,21,0.03)]">
+    <div className="overflow-hidden rounded-md border border-gold/40 bg-white shadow-card">
       <div className="border-b border-gold/30 bg-gold-soft px-4 py-2">
-        <Kicker className="!text-gold-ink">Needs your attention</Kicker>
+        <h2 className="text-sm font-bold text-gold-ink">Needs your attention</h2>
       </div>
       <div className="divide-y divide-line">{children}</div>
     </div>
@@ -453,9 +439,7 @@ export function CapacityMeter({
 
 // The contact-release moment, shown identically on both sides of the accepted
 // pair. Purely presentational — every caller keeps its own guards; this
-// component never decides *whether* contact may be shown, only how the two
-// states look. released=false states the release rule; released=true is the
-// gold-stamped card.
+// component never decides whether contact may be shown.
 export function ContactCard({
   released,
   title,
@@ -479,13 +463,11 @@ export function ContactCard({
     );
   }
   return (
-    <Card variant="highlight">
-      <div className="mb-3 inline-flex items-center gap-2 rounded border border-dashed border-gold px-2 py-1">
-        <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-gold" />
-        <span className="font-mono text-[11px] font-semibold uppercase tracking-[0.08em] text-gold-ink">
-          {title}
-        </span>
-      </div>
+    <Card className="!border-ok/30 !bg-ok-soft">
+      <p className="mb-4 flex items-center gap-2 text-base font-bold text-ok">
+        <Icon name="check" className="shrink-0" />
+        {title}
+      </p>
       {items && <DL items={items} />}
       {children}
       <p className="mt-3 border-t border-line pt-2.5 text-xs text-ink-soft">
@@ -500,30 +482,38 @@ export function StatCard({
   value,
   hint,
   href,
+  icon = "clipboard",
+  tone = "accent",
 }: {
   label: string;
   value: React.ReactNode;
   hint?: React.ReactNode;
   href?: string;
+  icon?: IconName;
+  tone?: "accent" | "ok" | "booked" | "warn" | "neutral";
 }) {
+  const tints = {
+    accent: "bg-accent-soft text-accent",
+    ok: "bg-ok-soft text-ok",
+    booked: "bg-booked-soft text-booked",
+    warn: "bg-warn-soft text-warn",
+    neutral: "bg-neutral-soft text-neutral",
+  };
   const body = (
     <>
-      <Kicker>{label}</Kicker>
-      <p className="mt-1 font-serif text-3xl leading-none text-ink">{value}</p>
-      {hint && <p className="mt-2 text-xs text-ink-soft">{hint}</p>}
+      <div className="flex items-center gap-3">
+        <span className={clsx("grid size-10 shrink-0 place-items-center rounded-md", tints[tone])}>
+          <Icon name={icon} />
+        </span>
+        <div>
+          <p className="text-2xl font-extrabold leading-none tabular-nums">{value}</p>
+          <p className="mt-1 text-sm font-semibold text-ink-muted">{label}</p>
+        </div>
+      </div>
+      {hint && <p className="mt-2 text-sm text-ink-muted">{hint}</p>}
     </>
   );
-  if (href) {
-    return (
-      <Link
-        href={href}
-        className="block rounded-md border border-line bg-white p-4 shadow-[0_1px_0_rgba(28,25,21,0.03)] hover:bg-surface-subtle"
-      >
-        {body}
-      </Link>
-    );
-  }
-  return <Card>{body}</Card>;
+  return href ? <Link href={href} className="card-link">{body}</Link> : <Card>{body}</Card>;
 }
 
 export function Skeleton({ className }: { className?: string }) {
@@ -545,12 +535,12 @@ export function DateBlock({ date }: { date: Date | string }) {
   const day = d.toLocaleDateString("en-GB", { day: "2-digit" });
   const month = d.toLocaleDateString("en-GB", { month: "short" });
   return (
-    <span className="flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-md border border-line bg-surface-subtle font-mono leading-none">
-      <span className="text-[10px] uppercase tracking-[0.06em] text-ink-soft">
+    <span className="flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-md border border-coral-soft bg-coral-soft leading-none">
+      <span className="text-xs text-coral-ink">
         {weekday}
       </span>
       <span className="mt-0.5 text-base font-semibold text-ink">{day}</span>
-      <span className="text-[10px] uppercase tracking-[0.06em] text-ink-soft">
+      <span className="text-xs text-coral-ink">
         {month}
       </span>
     </span>

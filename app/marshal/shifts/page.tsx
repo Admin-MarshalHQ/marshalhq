@@ -9,7 +9,8 @@ import {
   EmptyState,
   PageHeader,
 } from "@/components/ui";
-import { formatRate, formatShiftBlock } from "@/lib/format";
+import { Icon } from "@/components/Icon";
+import { ShiftFacts } from "@/components/ShiftFacts";
 
 export default async function BrowseShiftsPage() {
   const user = await requireRole("MARSHAL");
@@ -50,9 +51,8 @@ export default async function BrowseShiftsPage() {
   return (
     <div>
       <PageHeader
-        kicker="Open shifts"
-        title="Browse shifts"
-        subtitle="Shifts accepting applications now. Contact details are released only after you're accepted."
+        title="Available shifts"
+        subtitle="Find location marshal work in UK film and TV."
         action={
           !profile ? (
             <ButtonLink href="/marshal/profile/edit">
@@ -67,53 +67,37 @@ export default async function BrowseShiftsPage() {
           body="Check back soon. New shifts appear here as managers publish them."
         />
       ) : (
-        <div className="space-y-2">
-          {shifts.map((s) => {
-            const yourApp = s.applications[0];
+        <ul className="grid gap-4 md:grid-cols-2">
+          {shifts.map((shift) => {
+            const application = shift.applications[0];
             return (
-              <Link
-                key={s.id}
-                href={`/marshal/shifts/${s.id}`}
-                className="block rounded-md border border-line bg-white p-4 shadow-[0_1px_0_rgba(28,25,21,0.03)] hover:border-line-strong hover:bg-surface-subtle"
-              >
-                <div className="flex items-start gap-3">
-                  <DateBlock date={s.startDate} />
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="truncate font-serif text-lg leading-snug text-ink">
-                        {s.productionName}
-                      </p>
-                      {yourApp && (
-                        <ApplicationStatusBadge status={yourApp.status} />
-                      )}
+              <li key={shift.id} className="min-w-0">
+                <Link
+                  href={`/marshal/shifts/${shift.id}`}
+                  className="card-link h-full"
+                  aria-labelledby={`shift-title-${shift.id}`}
+                >
+                  <div className="mb-3 flex items-center gap-3">
+                    <DateBlock date={shift.startDate} />
+                    <div className="min-w-0 flex-1">
+                      <h2 id={`shift-title-${shift.id}`} className="text-xl font-bold leading-snug tracking-tight">
+                        {shift.productionName}
+                      </h2>
+                      <p className="mt-0.5 text-sm text-ink-muted">{shift.manager.managerProfile?.companyName ?? "Manager"}</p>
                     </div>
-                    <p className="mt-0.5 text-sm text-ink-muted">
-                      {s.location} ·{" "}
-                      {formatShiftBlock(
-                        s.startDate,
-                        s.endDate,
-                        s.dailyStartTime,
-                        s.dailyEndTime,
-                      )}
-                    </p>
-                    <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1">
-                      <span className="text-sm font-medium text-ink">
-                        {formatRate(s.rate, s.rateUnit)}
-                      </span>
-                      <CapacityMeter
-                        booked={s._count.applications}
-                        needed={s.marshalsNeeded}
-                      />
-                      <span className="font-mono text-[11px] uppercase tracking-[0.04em] text-ink-soft">
-                        {s.manager.managerProfile?.companyName ?? "Manager"}
-                      </span>
-                    </div>
+                    <Icon name="chevron" className="shrink-0 text-coral-ink" />
                   </div>
-                </div>
-              </Link>
+                  <ShiftFacts shift={shift} />
+                  <p className="mt-3 line-clamp-2 text-sm text-ink">{shift.duties}</p>
+                  <div className="mt-3 flex flex-wrap items-center gap-3 border-t border-line pt-3">
+                    <CapacityMeter booked={shift._count.applications} needed={shift.marshalsNeeded} />
+                    {application && <ApplicationStatusBadge status={application.status} />}
+                  </div>
+                </Link>
+              </li>
             );
           })}
-        </div>
+        </ul>
       )}
     </div>
   );

@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useFormState, useFormStatus } from "react-dom";
+import { Button } from "@/components/ui";
+import { Icon } from "@/components/Icon";
 import { submitWaitlistEntryAction } from "@/app/actions/waitlist";
 import { WAITLIST_ROLE_LABEL, type WaitlistRole } from "@/lib/types";
 
@@ -27,16 +29,13 @@ function SubmitButton({ disabled }: { disabled: boolean }) {
   const { pending } = useFormStatus();
 
   return (
-    <button
-      className="btn btn--primary btn--lg"
+    <Button
       type="submit"
       disabled={pending || disabled}
     >
       {pending ? "Sending..." : "Join the waitlist"}
-      <span className="btn__arrow" aria-hidden="true">
-        &rarr;
-      </span>
-    </button>
+      <Icon name="arrow" className="ml-2 size-4" />
+    </Button>
   );
 }
 
@@ -50,17 +49,10 @@ export default function EarlyAccessForm({
   const [email, setEmail] = useState(defaultEmail);
   const [role, setRole] = useState<WaitlistRole | "">("");
   const [roleOther, setRoleOther] = useState("");
-  const otherInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setEmail(defaultEmail);
   }, [defaultEmail]);
-
-  useEffect(() => {
-    if (role === "OTHER") {
-      otherInputRef.current?.focus();
-    }
-  }, [role]);
 
   const hasUsableEmail = /\S+@\S+\.\S+/.test(email);
   const otherRoleComplete = role !== "OTHER" || roleOther.trim().length > 0;
@@ -103,15 +95,15 @@ export default function EarlyAccessForm({
           />
         </Field>
 
-        <div className="field field--full">
-          <span className="field__lbl">
+        <fieldset className="field field--full">
+          <legend className="field__lbl">
             <span>
               I am a
               <i className="field__req" aria-hidden="true">
                 *
               </i>
             </span>
-          </span>
+          </legend>
 
           <div className="roles">
             {ROLE_OPTIONS.map((option) => (
@@ -154,7 +146,6 @@ export default function EarlyAccessForm({
               </label>
               <input
                 id="roleOther"
-                ref={otherInputRef}
                 type="text"
                 name="roleOther"
                 required
@@ -165,7 +156,7 @@ export default function EarlyAccessForm({
               />
             </div>
           )}
-        </div>
+        </fieldset>
 
         <Field label="Company or production" hint="optional">
           <input

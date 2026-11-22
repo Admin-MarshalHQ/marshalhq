@@ -1,69 +1,45 @@
 import type { Config } from "tailwindcss";
 
-// MarshalHQ design tokens — "the production office, not the job board".
-// The app shares its palette with the public landing page (see the
-// .mhq-public-home variables in globals.css): warm paper surfaces, hairline
-// rules, navy for interactive elements, gold reserved for attention cues and
-// the contact-release moment. Status colours live here as *-soft/-DEFAULT
-// pairs so badges and alerts never hardcode hex values in markup.
 const config: Config = {
   content: ["./app/**/*.{ts,tsx}", "./components/**/*.{ts,tsx}"],
   theme: {
     extend: {
       colors: {
-        ink: {
-          DEFAULT: "#1c1915",
-          muted: "#57503f",
-          soft: "#8a8270",
-        },
+        ink: { DEFAULT: "#0F172A", muted: "#475569", soft: "#526176" },
         surface: {
-          DEFAULT: "#ffffff",
-          page: "#f5f2ea",
-          subtle: "#f6f2e7",
-          sunken: "#ece6d8",
+          DEFAULT: "#FFFFFF",
+          page: "#FFF7F2",
+          subtle: "#FCFAF8",
+          sunken: "#F8F6F4",
         },
-        line: {
-          DEFAULT: "#dcd4c0",
-          strong: "#c2b9a4",
-        },
-        accent: {
-          DEFAULT: "#1f3b5a",
-          soft: "#e9edf2",
-        },
-        gold: {
-          DEFAULT: "#c8881f",
-          soft: "#f3e7cd",
-          ink: "#7c5714",
-        },
-        ok: { DEFAULT: "#1a7f5a", soft: "#e5efe4" },
-        warn: { DEFAULT: "#a15c00", soft: "#f6ecd9" },
-        danger: { DEFAULT: "#a1302b", soft: "#f6e7e4" },
+        line: { DEFAULT: "#E7E3E0", strong: "#D7D2CE", control: "#8B7C75" },
+        coral: { DEFAULT: "#FF6B5F", action: "#B74136", ink: "#9F342B", soft: "#FFF0EA" },
+        accent: { DEFAULT: "#3730A3", soft: "#EEF2FF" },
+        booked: { DEFAULT: "#1E40AF", soft: "#DBEAFE" },
+        neutral: { DEFAULT: "#475569", soft: "#F1F5F9" },
+        gold: { DEFAULT: "#92400E", soft: "#FEF3C7", ink: "#92400E" },
+        ok: { DEFAULT: "#166534", soft: "#D1FAE5" },
+        warn: { DEFAULT: "#92400E", soft: "#FEF3C7" },
+        danger: { DEFAULT: "#991B1B", soft: "#FEE2E2" },
         brand: {
-          navy: "#06142E",
-          gold: "#F5A400",
-          forest: "#1F7A3A",
-          cream: "#FAFAF7",
-          hairline: "#E6E8EC",
-          mute: "#5F6673",
+          navy: "#0F172A",
+          gold: "#B74136",
+          forest: "#166534",
+          cream: "#FFF7F2",
+          hairline: "#E7E3E0",
+          mute: "#64748B",
         },
       },
+      borderRadius: { md: "12px", lg: "16px" },
+      boxShadow: {
+        card: "0 2px 8px rgb(15 23 42 / 0.05)",
+        panel: "0 8px 24px rgb(15 23 42 / 0.07)",
+      },
       fontFamily: {
-        sans: [
-          "Geist",
-          "ui-sans-serif",
-          "system-ui",
-          "-apple-system",
-          "Segoe UI",
-          "Arial",
-          "sans-serif",
-        ],
-        serif: ["Newsreader", "Georgia", "serif"],
-        mono: [
-          "JetBrains Mono",
-          "ui-monospace",
-          "SFMono-Regular",
-          "monospace",
-        ],
+        sans: ["var(--font-inter)", "Arial", "Helvetica", "sans-serif"],
+        serif: ["var(--font-inter)", "Arial", "Helvetica", "sans-serif"],
+        editorial: ["var(--font-fraunces)", "Georgia", "serif"],
+        mono: ["var(--font-inter)", "Arial", "Helvetica", "sans-serif"],
       },
     },
   },

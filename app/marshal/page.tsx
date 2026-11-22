@@ -6,11 +6,11 @@ import {
   ButtonLink,
   DateBlock,
   EmptyState,
-  Kicker,
   PageHeader,
   ShiftStatusBadge,
   StatCard,
 } from "@/components/ui";
+import { Icon } from "@/components/Icon";
 import { formatShiftBlock } from "@/lib/format";
 
 export default async function MarshalHome() {
@@ -24,15 +24,17 @@ export default async function MarshalHome() {
     include: { shift: true },
   });
 
-  const acceptedCount = apps.filter((a) => a.status === "ACCEPTED").length;
-  const pendingCount = apps.filter((a) => a.status === "APPLIED").length;
+  const booked = apps
+    .filter((a) => a.status === "ACCEPTED" && ["OPEN", "FILLED"].includes(a.shift.status))
+    .sort((a, b) => a.shift.startDate.getTime() - b.shift.startDate.getTime());
+  const awaitingDecision = apps.filter((a) => a.status === "APPLIED");
+  const nextBooking = booked[0];
 
   return (
     <div>
       <PageHeader
-        kicker="Marshal dashboard"
-        title={profile?.fullName ?? "Your dashboard"}
-        subtitle="Your applications and bookings in one place. Contact details release when a manager accepts you."
+        title={profile ? `Welcome back, ${profile.fullName}` : "Your dashboard"}
+        subtitle="Your applications and upcoming work."
         action={
           <ButtonLink href="/marshal/shifts">Browse shifts</ButtonLink>
         }
@@ -55,27 +57,28 @@ export default async function MarshalHome() {
         </div>
       )}
 
-      <div className="mt-4 grid gap-3 sm:grid-cols-3">
-        <StatCard
-          label="Awaiting a decision"
-          value={pendingCount}
-          hint="Applications a manager hasn't decided on yet"
-        />
-        <StatCard
-          label="Booked"
-          value={acceptedCount}
-          hint="Accepted bookings — contact details are on each one"
-        />
-        <StatCard
-          label="Completed"
-          value={profile?.completedCount ?? 0}
-          hint="Your completed-shift record"
-          href="/marshal/history"
-        />
+      {nextBooking && (
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-ok/30 bg-ok-soft p-4">
+          <div>
+            <p className="flex items-center gap-2 text-sm font-bold text-ok"><Icon name="check" className="size-4 shrink-0" /> Booked shift</p>
+            <p className="mt-1 font-bold">{nextBooking.shift.productionName}</p>
+            <p className="mt-1 text-sm text-ink-muted">{formatShiftBlock(nextBooking.shift.startDate, nextBooking.shift.endDate, nextBooking.shift.dailyStartTime, nextBooking.shift.dailyEndTime)}</p>
+          </div>
+          <ButtonLink href={`/marshal/applications/${nextBooking.id}`} variant="secondary">View booking</ButtonLink>
+        </div>
+      )}
+
+      <div className="grid gap-3 min-[530px]:grid-cols-3">
+        <StatCard label="Awaiting a decision" value={awaitingDecision.length} />
+        <StatCard label="Booked shifts" value={booked.length} icon="check" tone="ok" />
+        <StatCard label="Completed shifts" value={profile?.completedCount ?? 0} href="/marshal/history" icon="calendar" tone="neutral" />
       </div>
 
-      <Kicker className="mb-2 mt-8">Active applications</Kicker>
-      {apps.length === 0 ? (
+      <div className="mb-2 mt-6 flex flex-wrap items-center justify-between gap-2">
+        <h2 className="text-xl font-bold tracking-tight">Active applications</h2>
+        <ButtonLink href="/marshal/applications" variant="ghost">View all <Icon name="arrow" className="ml-2 size-4" /></ButtonLink>
+      </div>
+      {booked.length + awaitingDecision.length === 0 ? (
         <EmptyState
           title="No active applications"
           body="Browse open shifts to find work near you. You'll see each application's status here after you apply."
@@ -83,17 +86,17 @@ export default async function MarshalHome() {
         />
       ) : (
         <div className="space-y-2">
-          {apps.map((a) => (
+          {[...booked, ...awaitingDecision].map((a) => (
             <Link
               key={a.id}
               href={`/marshal/applications/${a.id}`}
-              className="block rounded-md border border-line bg-white p-4 shadow-[0_1px_0_rgba(28,25,21,0.03)] hover:bg-surface-subtle"
+              className="card-link"
             >
               <div className="flex items-start gap-3">
                 <DateBlock date={a.shift.startDate} />
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
-                    <p className="truncate font-serif text-lg leading-snug text-ink">
+                    <p className="text-lg font-bold leading-snug text-ink">
                       {a.shift.productionName}
                     </p>
                     <ApplicationStatusBadge status={a.status} />

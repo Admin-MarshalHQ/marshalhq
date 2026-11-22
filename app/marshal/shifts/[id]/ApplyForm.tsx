@@ -12,8 +12,8 @@ import {
 function Submit() {
   const { pending } = useFormStatus();
   return (
-    <Button type="submit" disabled={pending} className="w-full">
-      {pending ? "Submitting\u2026" : "Apply to this shift"}
+    <Button type="submit" disabled={pending} className="min-h-12 w-full">
+      {pending ? "Submitting\u2026" : "Apply for this shift"}
     </Button>
   );
 }
@@ -48,15 +48,15 @@ export default function ApplyForm({
           maxLength={1000}
           onChange={(e) => setNoteLen(e.target.value.length)}
           placeholder="I can be on site 30 minutes before call."
-        />
-        {noteLen > 0 && (
+          />
+      </Field>
+      {noteLen > 0 && (
           <div className="mt-1 text-right">
             <span className="font-mono text-[11px] text-ink-soft">
               {noteLen}/1000
             </span>
           </div>
-        )}
-      </Field>
+      )}
       <Submit />
       <p className="text-xs text-ink-soft">
         By applying you agree to be contacted if the manager accepts you.

@@ -16,8 +16,7 @@ export default async function NotificationsPage() {
   return (
     <div className="mx-auto max-w-2xl">
       <PageHeader
-        kicker="Inbox"
-        title="Updates"
+        title="Inbox"
         subtitle="What's changed on your shifts and applications — the updates MarshalHQ would have emailed you."
       />
       {items.length === 0 ? (
@@ -29,11 +28,11 @@ export default async function NotificationsPage() {
         <div className="space-y-2">
           {items.map((n) => (
             <Card key={n.id} variant={n.readAt ? "sunken" : "default"}>
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex-1">
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div className="min-w-0 flex-1 basis-48">
                   <div className="flex items-center gap-2">
                     {!n.readAt && (
-                      <span className="inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-gold" />
+                      <span className="rounded-full bg-accent-soft px-2 py-0.5 text-xs font-semibold text-accent">Unread</span>
                     )}
                     <p
                       className={
@@ -61,7 +60,7 @@ export default async function NotificationsPage() {
                   >
                     <button
                       type="submit"
-                      className="inline-flex min-h-[32px] items-center whitespace-nowrap text-xs text-ink-muted underline hover:text-ink"
+                      className="shell-link text-coral-ink"
                     >
                       Mark read
                     </button>

@@ -3,430 +3,179 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { BrandLogo } from "@/components/BrandLogo";
+import { Icon, type IconName } from "@/components/Icon";
+import { Button, ButtonLink } from "@/components/ui";
 import EarlyAccessForm from "./early-access/EarlyAccessForm";
 
 export const metadata: Metadata = {
-  title: "MarshalHQ - Location marshal hiring for UK film and TV",
+  title: "MarshalHQ – Location marshal hiring for UK film and TV",
   description:
-    "A clearer way to hire location marshals across UK film and TV production. Post structured shifts, review applicants in one place, and build early trust signals.",
+    "Post clear shifts, compare location marshal applicants and share contact details after acceptance. Built for UK film and TV.",
 };
 
-const loopSteps = [
-  {
-    number: "01",
-    title: "Post a structured shift",
-    body:
-      "A clear brief: dates, call, base, unit, notes. The same fields every time, so applicants know what they are applying to.",
-  },
-  {
-    number: "02",
-    title: "Marshals apply",
-    body:
-      "Working marshals see the shift, review the brief, and apply with relevant experience attached.",
-  },
-  {
-    number: "03",
-    title: "Review applicants in one place",
-    body:
-      "All applicants for that shift, side by side. No scrolling group chats. No forwarded CVs.",
-  },
-  {
-    number: "04",
-    title: "Accept one marshal",
-    body:
-      "Choose your marshal. Contact details for that person are released to both sides only after acceptance.",
-  },
-  {
-    number: "05",
-    title: "Shift completed",
-    body:
-      "After the shift, a small, factual record is kept, quietly building early trust signals over time.",
-  },
+const navigation = [
+  { href: "#managers", label: "For managers" },
+  { href: "#marshals", label: "For marshals" },
+  { href: "#loop", label: "How it works" },
+  { href: "#why", label: "About" },
 ];
 
-const comparisonRows = [
-  {
-    current: "Shifts sent through WhatsApp groups",
-    marshalhq: "Shifts posted with the same structured fields each time",
-  },
-  {
-    current: "Applicants reply across DMs, texts, emails",
-    marshalhq: "Applicants gathered in one place, against one shift",
-  },
-  {
-    current: "Decisions made under time pressure with little context",
-    marshalhq: "Side-by-side applicant review with relevant experience visible",
-  },
-  {
-    current: "Contact details shared upfront, every time",
-    marshalhq: "Contact details released only after acceptance",
-  },
-  {
-    current: "No record of who actually worked",
-    marshalhq: "A quiet, factual record builds over completed shifts",
-  },
+const benefits: { icon: IconName; title: string; body: string }[] = [
+  { icon: "calendar", title: "Post clear shifts", body: "Put the call time, location, rate and duties in one brief." },
+  { icon: "people", title: "Compare applicants", body: "See relevant experience, availability and travel range." },
+  { icon: "shield", title: "Hire with confidence", body: "Share contact details only after you accept." },
 ];
 
-export default async function Landing({
-  searchParams,
-}: {
-  searchParams?: { email?: string };
-}) {
+const steps = [
+  { title: "Post the shift", body: "Set the location, dates, call time, rate and duties so marshals can judge the work." },
+  { title: "Receive applications", body: "Working marshals apply with their profile and an optional note." },
+  { title: "Review applicants", body: "Compare their availability, experience and practical fit in one place." },
+  { title: "Make the booking", body: "Contact details are released to the manager and each marshal they accept." },
+  { title: "Complete the shift", body: "Mark the shift complete afterwards to build a factual record of work." },
+];
+
+export default async function Landing({ searchParams }: { searchParams?: { email?: string } }) {
   const session = await auth();
   if (session?.user?.id) {
     if (session.user.role === "MANAGER") redirect("/manager");
     if (session.user.role === "MARSHAL") redirect("/marshal");
   }
 
-  const defaultEmail =
-    typeof searchParams?.email === "string" ? searchParams.email : "";
+  const defaultEmail = typeof searchParams?.email === "string" ? searchParams.email : "";
 
   return (
     <div className="mhq-public-home">
-      <TopBar />
-      <div className="public-main">
-        <Hero />
-        <ForWhom />
-        <Loop />
-        <Why />
-        <Waitlist defaultEmail={defaultEmail} />
-      </div>
-      <Footer />
-    </div>
-  );
-}
-
-function TopBar() {
-  return (
-    <header className="topbar">
-      <div className="container topbar__row">
-        <a className="brand" href="#top" aria-label="MarshalHQ">
-          <BrandLogo className="brand__logo" priority alt="" />
-        </a>
-        <div className="topbar__meta">
-          <span className="mono tag">
-            REF&nbsp;<b>MHQ-2026-W1</b>
-          </span>
-          <span className="dot" aria-hidden="true" />
-          <span className="mono">Pre-launch &middot; United Kingdom</span>
-        </div>
-        <a className="topbar__cta" href="#waitlist">
-          Join waitlist &rarr;
-        </a>
-      </div>
-    </header>
-  );
-}
-
-function Hero() {
-  return (
-    <section id="top" className="hero">
-      <div className="container hero__grid">
-        <div className="hero__lede">
-          <div className="kicker mono">
-            <span className="kicker__dot" />
-            UK FILM &amp; TV &middot; LOCATION MARSHAL HIRING
+      <header className="marketing-header">
+        <div className="marketing-width flex min-h-[4.5rem] flex-wrap items-center justify-between gap-x-4 gap-y-1 py-2">
+          <Link href="/" aria-label="MarshalHQ home" className="brand-link">
+            <BrandLogo alt="" />
+          </Link>
+          <nav className="!hidden lg:!flex" aria-label="About MarshalHQ">
+            {navigation.map((item) => <a key={item.href} href={item.href}>{item.label}</a>)}
+          </nav>
+          <div className="flex flex-wrap items-center gap-1 sm:gap-2">
+            <Link href="/login" className="shell-link">Log in</Link>
+            <ButtonLink href="#waitlist" className="!px-3"><span className="hidden sm:inline">Join the waitlist</span><span className="sm:hidden">Waitlist</span></ButtonLink>
+            <details className="mobile-menu relative lg:hidden">
+              <summary className="shell-icon cursor-pointer list-none" aria-label="About MarshalHQ menu">
+                <Icon name="menu" />
+              </summary>
+              <nav aria-label="About MarshalHQ" className="absolute right-0 z-10 min-w-44 !flex-col !items-stretch gap-0 rounded-md border border-line bg-white p-2 shadow-panel">
+                {navigation.map((item) => <a key={item.href} href={item.href}>{item.label}</a>)}
+              </nav>
+            </details>
           </div>
-          <h1 className="display">
-            A clearer way to hire <em>location marshals</em> across UK film and
-            TV production.
-          </h1>
-          <p className="lede">
-            Post a structured shift. Review applicants in one place. Choose
-            with confidence &mdash; without trawling WhatsApp groups, forwarded
-            emails, and word-of-mouth chains.
-          </p>
-          <form className="hero__form" action="/#waitlist">
-            <label className="hero__field">
-              <span className="visually-hidden">Email address</span>
-              <input
-                type="email"
-                required
-                name="email"
-                placeholder="you@production.co.uk"
-                autoComplete="email"
-              />
-            </label>
-            <button className="btn btn--primary" type="submit">
-              Join the waitlist
-              <span className="btn__arrow" aria-hidden="true">
-                &rarr;
-              </span>
-            </button>
-          </form>
-          <p className="hero__fineprint mono">
-            Two questions. About thirty seconds. We won&apos;t share your details.
-          </p>
         </div>
-
-        <aside className="hero__side">
-          <ShiftCard />
-        </aside>
-      </div>
-    </section>
-  );
-}
-
-function ShiftCard() {
-  return (
-    <article className="shiftcard" aria-label="Example shift posting">
-      <header className="shiftcard__hd">
-        <span className="mono shiftcard__id">ILLUSTRATIVE SHIFT &middot; NOT LIVE</span>
-        <span className="shiftcard__status">
-          <span className="status-dot" /> Example only
-        </span>
       </header>
 
-      <div className="shiftcard__body">
-        <div className="shiftcard__title">
-          <h3>Night marshal &mdash; exterior unit</h3>
-          <p className="mono">
-            Feature &middot; Episodic block 2 &middot; Two-night booking
-          </p>
+      <section className="marketing-hero" aria-labelledby="hero-heading">
+        <div className="marketing-width">
+          <div className="hero-grid">
+            <div className="min-w-0">
+              <p className="mb-4 text-xs font-bold uppercase tracking-[0.14em] text-ink">Film &amp; TV location staffing</p>
+              <h1 id="hero-heading" className="hero-title">
+                Find and hire location marshals with <em>confidence</em>
+              </h1>
+              <p className="mb-6 mt-5 max-w-[45ch] text-base leading-relaxed text-ink-muted sm:text-lg">
+                MarshalHQ helps UK film and TV productions fill location marshal shifts and helps working marshals find their next shift.
+              </p>
+              <form action="/#waitlist" className="max-w-[29rem] space-y-3">
+                <label className="block">
+                  <span className="sr-only">Email address for the waitlist</span>
+                  <input type="email" name="email" autoComplete="email" placeholder="Your email address" />
+                </label>
+                <div className="flex flex-wrap gap-3">
+                  <Button type="submit">Join the waitlist <Icon name="arrow" className="ml-2 size-4" /></Button>
+                  <ButtonLink href="#loop" variant="secondary">See how it works</ButtonLink>
+                </div>
+              </form>
+              <p className="mt-4 text-sm text-ink-muted">Join the list for updates on private beta access.</p>
+            </div>
+            <div className="hero-art">
+              <ExampleShift />
+            </div>
+          </div>
+          <ul className="grid gap-4 pb-8 sm:grid-cols-3 sm:pb-12">
+            {benefits.map(({ icon, title, body }) => (
+              <li key={title} className="flex items-start gap-3">
+                <span className="grid size-11 shrink-0 place-items-center rounded-md bg-coral-soft text-coral-ink"><Icon name={icon} /></span>
+                <div><p className="font-bold">{title}</p><p className="mt-0.5 text-sm text-ink-muted">{body}</p></div>
+              </li>
+            ))}
+          </ul>
         </div>
+      </section>
 
-        <dl className="shiftcard__dl">
-          <div>
-            <dt>Example dates</dt>
-            <dd>23 &mdash; 24 April (illustrative)</dd>
+      <section id="who" className="marketing-section">
+        <div className="marketing-width">
+          <h2 className="mb-6 text-2xl font-bold tracking-tight sm:text-3xl">Who it’s for</h2>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <article id="managers" className="rounded-lg border border-line bg-white p-5 shadow-card sm:p-7">
+              <h3 className="text-xl font-bold">Location managers</h3>
+              <p className="mt-2 text-ink-muted">Post one clear brief for your production, see who can cover it and keep a record of the people you’ve worked with.</p>
+            </article>
+            <article id="marshals" className="rounded-lg border border-line bg-white p-5 shadow-card sm:p-7">
+              <h3 className="text-xl font-bold">Working location marshals</h3>
+              <p className="mt-2 text-ink-muted">See the call time, rate and duties before you apply. Keep your contact details private until you’re accepted and build a record of completed shifts.</p>
+            </article>
           </div>
-          <div>
-            <dt>Call</dt>
-            <dd>17:30</dd>
-          </div>
-          <div>
-            <dt>Wrap</dt>
-            <dd>04:00 (est.)</dd>
-          </div>
-          <div>
-            <dt>Base</dt>
-            <dd>Hackney Wick, E9</dd>
-          </div>
-          <div>
-            <dt>Unit</dt>
-            <dd>Exterior &mdash; public right of way</dd>
-          </div>
-          <div>
-            <dt>Posted by</dt>
-            <dd>Example location manager</dd>
-          </div>
-        </dl>
-
-        <div className="shiftcard__notes">
-          <span className="mono notes-label">Notes</span>
-          <p>
-            Hi-vis essential. Two crossings to hold during principal
-            photography. Confident communication with public expected. Previous
-            night-unit experience preferred.
-          </p>
         </div>
-      </div>
+      </section>
 
-      <footer className="shiftcard__ft">
-        <span className="mono">Contact details released after acceptance</span>
-        <button className="btn btn--ghost btn--sm" type="button" disabled>
-          Apply (preview)
-        </button>
-      </footer>
-    </article>
-  );
-}
-
-function ForWhom() {
-  return (
-    <section className="section" id="who">
-      <div className="container">
-        <SectionHead num="01" label="WHO IT'S FOR" />
-        <div className="forwhom">
-          <article className="audience">
-            <div className="audience__hd">
-              <span className="mono audience__role">A &middot; Hiring side</span>
-              <h3>Location managers &amp; production-side decision-makers</h3>
-            </div>
-            <p>
-              You need a quicker, clearer way to post marshal shifts, see who
-              is actually available, and choose someone you can stand behind
-              &mdash; under real production pressure.
-            </p>
-            <ul className="ticks">
-              <li>Post a structured shift in under a minute.</li>
-              <li>See every applicant for that shift in one place.</li>
-              <li>Accept one marshal. Contact details release after acceptance.</li>
-              <li>Keep a running record of who has worked with you before.</li>
-            </ul>
-          </article>
-
-          <article className="audience">
-            <div className="audience__hd">
-              <span className="mono audience__role">B &middot; Working side</span>
-              <h3>Working location marshals</h3>
-            </div>
-            <p>
-              You need a professional way to find real shifts, present relevant
-              experience clearly, and start building credibility through
-              completed work &mdash; not group-chat reputation.
-            </p>
-            <ul className="ticks">
-              <li>See live shifts that match your region and availability.</li>
-              <li>Apply once, properly. No re-typing for every chat.</li>
-              <li>Build a quiet record of completed shifts over time.</li>
-              <li>Keep your contact details private until a manager accepts you.</li>
-            </ul>
-          </article>
+      <section id="loop" className="marketing-section bg-surface-subtle">
+        <div className="marketing-width">
+          <h2 className="mb-6 text-2xl font-bold tracking-tight sm:text-3xl">From call time to completion</h2>
+          <ol className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+            {steps.map(({ title, body }) => (
+              <li key={title} className="rounded-lg border border-line bg-white p-4">
+                <h3 className="font-bold">{title}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-ink-muted">{body}</p>
+              </li>
+            ))}
+          </ol>
         </div>
-      </div>
-    </section>
-  );
-}
+      </section>
 
-function Loop() {
-  return (
-    <section className="section section--alt" id="loop">
-      <div className="container">
-        <SectionHead
-          num="02"
-          label="THE LOOP"
-          title="How marshal hiring runs through MarshalHQ"
-        />
-        <ol className="loop">
-          {loopSteps.map((step, index) => (
-            <li className="loop__step" key={step.number}>
-              <div className="loop__num mono">{step.number}</div>
-              <div className="loop__body">
-                <h4>{step.title}</h4>
-                <p>{step.body}</p>
-              </div>
-              {index < loopSteps.length - 1 && (
-                <div className="loop__rule" aria-hidden="true" />
-              )}
-            </li>
-          ))}
-        </ol>
-        <p className="loop__foot mono">
-          That is the whole product. No payments, no payroll, no in-app chat,
-          no public ratings.
-        </p>
-      </div>
-    </section>
-  );
-}
-
-function Why() {
-  return (
-    <section className="section" id="why">
-      <div className="container">
-        <SectionHead
-          num="03"
-          label="WHY IT EXISTS"
-          title="Marshal hiring works. It is just messier than it needs to be."
-        />
-        <p className="why__lede">
-          Most location marshal hiring still happens through WhatsApp groups,
-          forwarded messages, and word of mouth. It works, but it is hard to
-          compare applicants, hard to keep a record, and hard to keep contact
-          details where they belong until someone is actually booked.
-        </p>
-
-        <div
-          className="compare"
-          role="table"
-          aria-label="Current methods compared with MarshalHQ"
-        >
-          <div className="compare__hd" role="row">
-            <div className="mono" role="columnheader">
-              Today, in most cases
-            </div>
-            <div className="mono" role="columnheader">
-              With MarshalHQ
-            </div>
-          </div>
-          {comparisonRows.map((row) => (
-            <div className="compare__row" role="row" key={row.current}>
-              <div className="compare__cell compare__cell--now" role="cell">
-                {row.current}
-              </div>
-              <div className="compare__cell compare__cell--mhq" role="cell">
-                {row.marshalhq}
-              </div>
-            </div>
-          ))}
+      <section id="why" className="marketing-section">
+        <div className="marketing-width">
+          <h2 className="max-w-[25ch] font-editorial text-3xl font-medium sm:text-[2.625rem]">A clearer alternative to scattered group chats</h2>
+          <p className="mt-4 max-w-2xl text-ink-muted">WhatsApp and word of mouth help crews find people quickly. MarshalHQ puts the brief, applications and hiring decision against the same shift, so everyone knows what was agreed.</p>
         </div>
+      </section>
 
-        <p className="why__note">
-          We are not anti-WhatsApp. We just think the same job can run with a
-          bit more structure - clearer briefs in, clearer applicants out, and a
-          record at the end.
-        </p>
-      </div>
-    </section>
-  );
-}
-
-function SectionHead({
-  num,
-  label,
-  title,
-}: {
-  num: string;
-  label: string;
-  title?: string;
-}) {
-  return (
-    <div className="sectionhead">
-      <span className="mono sectionhead__num">&sect; {num}</span>
-      <span className="mono sectionhead__label">{label}</span>
-      {title && <h2 className="sectionhead__title">{title}</h2>}
+      <section id="waitlist" className="marketing-section bg-coral-soft">
+        <div className="marketing-width !max-w-3xl">
+          <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">Join the waitlist</h2>
+          <p className="mt-2 text-ink-muted">Tell us whether you hire or work as a location marshal. We’ll be in touch as beta access opens up.</p>
+          <EarlyAccessForm defaultEmail={defaultEmail} />
+        </div>
+      </section>
     </div>
   );
 }
 
-function Waitlist({ defaultEmail }: { defaultEmail: string }) {
+function ExampleShift() {
   return (
-    <section id="waitlist" className="section section--form">
-      <div className="container container--narrow">
-        <SectionHead
-          num="04"
-          label="JOIN THE WAITLIST"
-          title="Two questions. About thirty seconds."
-        />
-        <p className="form__lede">
-          Tell us who you are and how you hire &mdash; or how you work. We&apos;ll get in
-          touch when MarshalHQ opens to your side of the loop.
-        </p>
-
-        <EarlyAccessForm defaultEmail={defaultEmail} />
+    <article className="w-full max-w-md rounded-lg border border-white/80 bg-white p-4 shadow-panel sm:p-6" aria-label="Example shift posting">
+      <div className="flex flex-wrap items-center gap-2 text-sm font-semibold text-coral-ink">
+        <Icon name="clipboard" className="shrink-0" />
+        <span>Illustrative example – not a live shift</span>
       </div>
-    </section>
-  );
-}
-
-function Footer() {
-  return (
-    <footer className="footer">
-      <div className="container footer__row">
-        <div className="footer__brand">
-          <BrandLogo className="footer__logo" alt="MarshalHQ" />
-        </div>
-        <nav className="footer__nav">
-          <a href="#who">Who it&apos;s for</a>
-          <a href="#loop">The loop</a>
-          <a href="#why">Why it exists</a>
-          <a href="#waitlist">Waitlist</a>
-        </nav>
-        <div className="footer__legal mono">
-          <span>&copy; 2026 MarshalHQ Ltd</span>
-          <span className="footer__sep">&middot;</span>
-          <Link href="/privacy">Privacy</Link>
-          <span className="footer__sep">&middot;</span>
-          <Link href="/terms">Terms</Link>
-          <span className="footer__sep">&middot;</span>
-          <Link href="/support">Contact</Link>
-        </div>
-      </div>
-      <div className="container footer__strip mono">
-        <span>UK &middot; Film &amp; Television &middot; Location marshal hiring</span>
-        <span>Built with production teams, not for them.</span>
-      </div>
-    </footer>
+      <p className="mt-4 text-xl font-bold tracking-tight sm:text-2xl">Location marshal · exterior unit</p>
+      <dl className="mt-4 grid grid-cols-1 gap-3 text-sm min-[400px]:grid-cols-2">
+        {[
+          ["Location", "Hackney Wick, London"],
+          ["Example date", "23 April"],
+          ["Call to wrap", "07:00–17:00"],
+          ["Example rate", "£180 / day"],
+        ].map(([label, value]) => (
+          <div key={label} className="border-t border-line pt-2">
+            <dt className="text-ink-muted">{label}</dt>
+            <dd className="mt-1 font-semibold">{value}</dd>
+          </div>
+        ))}
+      </dl>
+      <p className="mt-4 border-t border-line pt-3 text-sm text-ink-muted">Help pedestrians navigate the set perimeter and keep the unit entrance clear.</p>
+    </article>
   );
 }

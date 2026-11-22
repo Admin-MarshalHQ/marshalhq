@@ -50,7 +50,7 @@ export default function LoginForm({
         />
       </Field>
       <div className="text-right text-xs">
-        <Link href="/forgot" className="text-accent underline-offset-2 hover:underline">
+        <Link href="/forgot" className="shell-link text-coral-ink">
           Forgot password?
         </Link>
       </div>

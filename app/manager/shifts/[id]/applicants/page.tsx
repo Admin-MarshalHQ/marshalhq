@@ -4,13 +4,14 @@ import { requireRole } from "@/lib/access";
 import { prisma } from "@/lib/db";
 import {
   ApplicationStatusBadge,
-  Card,
   EmptyState,
-  Kicker,
   PageHeader,
   ShiftStatusBadge,
 } from "@/components/ui";
-import { formatShiftBlock } from "@/lib/format";
+import { Icon } from "@/components/Icon";
+import { formatRate, formatShiftBlock } from "@/lib/format";
+import { AVAILABILITY_LABEL } from "@/lib/state";
+import type { Availability } from "@/lib/types";
 import { capacityLabel } from "@/lib/capacity";
 
 export default async function ApplicantReviewPage({
@@ -38,8 +39,11 @@ export default async function ApplicantReviewPage({
                   baseLocation: true,
                   travelRadiusMiles: true,
                   experienceSummary: true,
+                  availability: true,
+                  hasDriversLicence: true,
+                  hasTransport: true,
+                  training: true,
                   completedCount: true,
-                  reliableCount: true,
                   paused: true,
                 },
               },
@@ -52,16 +56,16 @@ export default async function ApplicantReviewPage({
   if (!shift || shift.managerId !== user.id) notFound();
 
   // Paused marshal profiles are excluded from the active pending list so the
-  // manager doesn't review and accept someone the founder has pulled. The
-  // applications remain in the database (and appear in the Decided list as
-  // Applied) so the audit trail is preserved, but they are not treated as
-  // valid active applicants.
-  const pending = shift.applications.filter(
-    (a) => a.status === "APPLIED" && !a.marshal.marshalProfile?.paused,
-  );
-  const decided = shift.applications.filter(
-    (a) => a.status !== "APPLIED" || a.marshal.marshalProfile?.paused,
-  );
+  // manager doesn't review and accept someone the founder has pulled.
+  // The application and its actual status remain visible in the record.
+  type Applicant = (typeof shift.applications)[number];
+
+  function needsReview(a: Applicant) {
+    return a.status === "APPLIED" && a.marshal.marshalProfile && !a.marshal.marshalProfile.paused;
+  }
+
+  const pending = shift.applications.filter(needsReview);
+  const other = shift.applications.filter((a) => !needsReview(a));
   const acceptedCount = shift.applications.filter(
     (a) => a.status === "ACCEPTED",
   ).length;
@@ -69,81 +73,99 @@ export default async function ApplicantReviewPage({
   return (
     <div>
       <PageHeader
-        kicker="Applicant review"
         back={{ href: `/manager/shifts/${shift.id}`, label: "Back to shift" }}
-        title={shift.productionName}
-        subtitle={`${formatShiftBlock(
-          shift.startDate,
-          shift.endDate,
-          shift.dailyStartTime,
-          shift.dailyEndTime,
-        )} · ${capacityLabel(acceptedCount, shift.marshalsNeeded)} · Contact details release only after you accept.`}
+        title={`Applicants – ${shift.productionName}`}
+        subtitle={`${shift.location} · ${formatShiftBlock(
+          shift.startDate, shift.endDate, shift.dailyStartTime, shift.dailyEndTime,
+        )} · ${formatRate(shift.rate, shift.rateUnit)}`}
         action={<ShiftStatusBadge status={shift.status} />}
       />
+      <div className="mb-5 flex flex-wrap gap-x-3 gap-y-1 text-sm text-ink-muted">
+        <p className="font-bold text-ink">{shift.applications.length} {shift.applications.length === 1 ? "applicant" : "applicants"}</p>
+        <p>{capacityLabel(acceptedCount, shift.marshalsNeeded)}</p>
+        <p>Contact details release only after acceptance.</p>
+      </div>
 
-      <Kicker className="mb-2">Waiting for a decision ({pending.length})</Kicker>
+      <h2 className="mb-3 text-xl font-bold tracking-tight">Waiting for a decision ({pending.length})</h2>
       {pending.length === 0 ? (
-        <EmptyState
-          title="No pending applicants"
-          body="When a marshal applies, you’ll see their profile summary here to decide quickly."
-        />
+        <EmptyState title="No pending applicants" body="When a marshal applies, their profile summary will appear here." />
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2">
+        <ul className="grid gap-3">
           {pending.map((a) => {
-            const p = a.marshal.marshalProfile;
-            if (!p) return null;
+            const profile = a.marshal.marshalProfile;
+            if (!profile) return null;
+            const initials = profile.fullName.trim().split(/\s+/).slice(0, 2)
+              .map((name) => Array.from(name)[0]).join("").toLocaleUpperCase("en-GB");
+            const availability = AVAILABILITY_LABEL[profile.availability as Availability] ?? "Not stated";
+
             return (
-              <Link
-                key={a.id}
-                href={`/manager/shifts/${shift.id}/applicants/${a.id}`}
-                className="block rounded-md border border-line bg-white p-4 shadow-[0_1px_0_rgba(28,25,21,0.03)] hover:border-line-strong hover:bg-surface-subtle"
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <p className="font-serif text-lg leading-snug text-ink">
-                    {p.fullName}
+              <li key={a.id} className="grid grid-cols-[auto,minmax(0,1fr)] items-start gap-3 rounded-lg border border-line bg-white p-4 shadow-card sm:grid-cols-[auto,minmax(0,1fr),auto] sm:p-5">
+                <span aria-hidden="true" className="grid size-11 shrink-0 place-items-center rounded-md bg-coral-soft text-sm font-bold text-coral-ink">
+                  {initials || <Icon name="person" />}
+                </span>
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                    <h3 className="text-lg font-bold tracking-tight">{profile.fullName}</h3>
+                    <ApplicationStatusBadge status={a.status} />
+                  </div>
+                  <p className="mt-1 text-sm text-ink-muted">{profile.baseLocation} · up to {profile.travelRadiusMiles} miles</p>
+                  <dl className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm text-ink-muted">
+                    <div><dt className="sr-only">Availability</dt><dd>{availability}</dd></div>
+                    <div><dt className="inline font-semibold">Transport </dt><dd className="inline">{practicalAnswer(profile.hasTransport)}</dd></div>
+                    <div><dt className="inline font-semibold">Driving licence </dt><dd className="inline">{practicalAnswer(profile.hasDriversLicence)}</dd></div>
+                  </dl>
+                  <p className="mt-2 line-clamp-2 text-sm">{profile.experienceSummary}</p>
+                  {profile.training && <p className="mt-1 line-clamp-2 text-sm text-ink-muted"><span className="font-semibold">Training reported </span>{profile.training}</p>}
+                  <p className="mt-2 text-sm font-medium text-ink-muted">
+                    {profile.completedCount > 0
+                      ? `${profile.completedCount} ${profile.completedCount === 1 ? "shift" : "shifts"} completed through MarshalHQ`
+                      : "No completed MarshalHQ shifts yet"}
                   </p>
-                  <ApplicationStatusBadge status={a.status} />
                 </div>
-                <p className="mt-0.5 text-sm text-ink-muted">
-                  {p.baseLocation} · travels up to {p.travelRadiusMiles} miles
-                </p>
-                <p className="mt-2 line-clamp-3 text-sm text-ink">
-                  {p.experienceSummary}
-                </p>
-                <p className="mt-3 border-t border-line pt-2 font-mono text-[11px] uppercase tracking-[0.04em]">
-                  {p.completedCount > 0 ? (
-                    <span className="text-gold-ink">
-                      {p.reliableCount}/{p.completedCount} shifts rated reliable
-                    </span>
-                  ) : (
-                    <span className="text-ink-soft">
-                      No completed MarshalHQ shifts yet
-                    </span>
-                  )}
-                </p>
-              </Link>
+                <Link
+                  href={`/manager/shifts/${shift.id}/applicants/${a.id}`}
+                  aria-label={`View application from ${profile.fullName}`}
+                  className="col-span-2 inline-flex min-h-11 items-center justify-center gap-2 rounded-md border border-line-control px-3 py-2 text-center text-sm font-bold hover:bg-coral-soft sm:col-span-1 sm:self-center"
+                >
+                  View application <Icon name="chevron" className="size-4 shrink-0" />
+                </Link>
+              </li>
             );
           })}
-        </div>
+        </ul>
       )}
 
-      {decided.length > 0 && (
-        <>
-          <Kicker className="mb-2 mt-8">Decided</Kicker>
-          <div className="space-y-2">
-            {decided.map((a) => (
-              <Card key={a.id}>
-                <div className="flex items-center justify-between">
-                  <p className="text-sm">
-                    {a.marshal.marshalProfile?.fullName ?? "Marshal"}
-                  </p>
-                  <ApplicationStatusBadge status={a.status} />
-                </div>
-              </Card>
-            ))}
-          </div>
-        </>
+      {other.length > 0 && (
+        <section className="mt-8">
+          <h2 className="mb-3 text-xl font-bold tracking-tight">Other applications</h2>
+          <ul className="grid gap-2">
+            {other.map((a) => {
+              const profile = a.marshal.marshalProfile;
+              const name = profile?.fullName ?? "Marshal";
+              return (
+                <li key={a.id} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-md border border-line bg-white px-4 py-2">
+                  <div>
+                    <p className="font-semibold">{name}</p>
+                    {!profile || profile.paused ? <p className="text-sm text-ink-muted">Profile unavailable</p> : null}
+                  </div>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <ApplicationStatusBadge status={a.status} />
+                    {profile && !profile.paused && (
+                      <Link className="shell-link text-coral-ink" href={`/manager/shifts/${shift.id}/applicants/${a.id}`} aria-label={`View application from ${name}`}>
+                        View application
+                      </Link>
+                    )}
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
       )}
     </div>
   );
+}
+
+function practicalAnswer(value: boolean | null) {
+  return value === null ? "Not stated" : value ? "Yes" : "No";
 }

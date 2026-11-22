@@ -12,12 +12,12 @@ export default function FounderNav() {
     { href: "/founder/waitlist", label: "Waitlist" },
   ];
   return (
-    <nav className="mb-4 flex flex-wrap gap-2 border-b border-line pb-3 text-sm">
+    <nav aria-label="Founder tools" className="mb-4 flex flex-wrap gap-2 border-b border-line pb-3 text-sm">
       {items.map((i) => (
         <Link
           key={i.href}
           href={i.href}
-          className="rounded-md border border-line bg-white px-3 py-1.5 text-ink-muted hover:bg-surface-subtle hover:text-ink"
+          className="inline-flex min-h-11 items-center rounded-md border border-line bg-white px-3 py-1.5 text-ink-muted hover:bg-surface-subtle hover:text-ink"
         >
           {i.label}
         </Link>

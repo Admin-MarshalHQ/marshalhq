@@ -8,10 +8,11 @@ import {
   CapacityMeter,
   DateBlock,
   EmptyState,
-  Kicker,
   PageHeader,
   ShiftStatusBadge,
+  StatCard,
 } from "@/components/ui";
+import { Icon } from "@/components/Icon";
 import { formatRate, formatShiftBlock } from "@/lib/format";
 import { canCompleteShift, shiftStartDateTime } from "@/lib/state";
 
@@ -104,15 +105,14 @@ export default async function ManagerDashboard() {
   return (
     <div>
       <PageHeader
-        kicker="Manager dashboard"
-        title={profile?.companyName ?? "Your shifts"}
-        subtitle="Post clear marshal shifts, review applicants in one place, and settle outcomes when the work is done."
+        title="Production dashboard"
+        subtitle={profile?.companyName ?? "Manage your shifts and applicants."}
         action={
           <div className="flex flex-wrap gap-2">
             <ButtonLink href="/manager/profile/edit" variant="secondary">
               Edit profile
             </ButtonLink>
-            <ButtonLink href="/manager/shifts/new">Post shift</ButtonLink>
+            <ButtonLink href="/manager/shifts/new"><Icon name="plus" className="mr-2 size-4" /> Post a shift</ButtonLink>
           </div>
         }
       />
@@ -137,9 +137,14 @@ export default async function ManagerDashboard() {
         />
       ) : (
         <div className="space-y-8">
-          <ShiftListSection title="Active" shifts={byGroup.active} empty="No active shifts." />
+          <div className="grid gap-3 min-[530px]:grid-cols-3">
+            <StatCard label="Open shifts" value={shifts.filter((shift) => shift.status === "OPEN" && !shift.paused && shiftAttention(shift) !== "stale-open").length} icon="calendar" />
+            <StatCard label="Applications to review" value={attention.reduce((total, item) => total + (item.count ?? 0), 0)} icon="people" tone="booked" />
+            <StatCard label="Ready to complete" value={shifts.filter((shift) => canCompleteShift(shift)).length} icon="check" tone="warn" />
+          </div>
+          <ShiftListSection title="Active shifts" shifts={byGroup.active} empty="No active shifts." />
           <ShiftListSection
-            title="Archive"
+            title="Past shifts"
             shifts={byGroup.archive}
             empty="No completed or closed shifts yet."
           />
@@ -164,7 +169,7 @@ function ShiftListSection({
 }) {
   return (
     <section>
-      <Kicker className="mb-2">{title}</Kicker>
+      <h2 className="mb-3 text-xl font-bold tracking-tight">{title}</h2>
       {shifts.length === 0 ? (
         <p className="text-sm text-ink-muted">{empty}</p>
       ) : (
@@ -181,13 +186,13 @@ function ShiftListSection({
               <Link
                 key={s.id}
                 href={`/manager/shifts/${s.id}`}
-                className="block rounded-md border border-line bg-white p-4 shadow-[0_1px_0_rgba(28,25,21,0.03)] hover:bg-surface-subtle"
+                className="card-link"
               >
-                <div className="flex items-start gap-3">
+                <div className="grid grid-cols-[auto,minmax(0,1fr)] items-start gap-x-3 gap-y-2 sm:grid-cols-[auto,minmax(0,1fr),auto]">
                   <DateBlock date={s.startDate} />
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <p className="truncate font-serif text-lg leading-snug text-ink">
+                      <p className="text-lg font-bold leading-snug text-ink">
                         {s.productionName}
                       </p>
                       <ShiftStatusBadge status={s.status} />
@@ -208,7 +213,7 @@ function ShiftListSection({
                       <CapacityMeter booked={accepted} needed={s.marshalsNeeded} />
                     </div>
                   </div>
-                  <div className="hidden shrink-0 space-y-1 text-right text-sm sm:block">
+                  <div className="col-start-2 space-y-1 text-sm sm:col-start-3 sm:text-right">
                     {s.status === "OPEN" && active > 0 && (
                       <p className="font-medium text-gold-ink">
                         {active} to review

@@ -28,53 +28,51 @@ export default function SignupForm() {
     <form action={action} className="space-y-5">
       {state?.error && <Alert tone="danger">{state.error}</Alert>}
 
-      <div>
-        <p className="mb-2 text-sm font-medium text-ink-muted">
-          I’m signing up as a
-        </p>
+      <fieldset className="min-w-0">
+        <legend className="mb-2 text-sm font-semibold text-ink">I’m signing up as a</legend>
         <div className="grid gap-3 sm:grid-cols-2">
           <label
-            className={`cursor-pointer rounded-md border p-3 transition ${
+            className={`cursor-pointer rounded-md border p-3 has-[:focus-visible]:outline has-[:focus-visible]:outline-[3px] has-[:focus-visible]:outline-offset-[3px] has-[:focus-visible]:outline-ink ${
               role === "MANAGER"
-                ? "border-accent bg-accent-soft ring-1 ring-accent"
-                : "border-line bg-white hover:border-line-strong"
+                ? "border-coral-action bg-coral-soft ring-1 ring-coral-action"
+                : "border-line-control bg-white hover:bg-surface-subtle"
             }`}
           >
             <input
               type="radio"
               name="role"
               value="MANAGER"
-              className="hidden"
+              className="mr-2 size-4"
               onChange={() => setRole("MANAGER")}
               required
             />
-            <div className="text-sm font-semibold">Production manager</div>
+            <span className="text-sm font-semibold">Production manager</span>
             <p className="mt-1 text-xs text-ink-muted">
               Post shifts and hire marshals.
             </p>
           </label>
           <label
-            className={`cursor-pointer rounded-md border p-3 transition ${
+            className={`cursor-pointer rounded-md border p-3 has-[:focus-visible]:outline has-[:focus-visible]:outline-[3px] has-[:focus-visible]:outline-offset-[3px] has-[:focus-visible]:outline-ink ${
               role === "MARSHAL"
-                ? "border-accent bg-accent-soft ring-1 ring-accent"
-                : "border-line bg-white hover:border-line-strong"
+                ? "border-coral-action bg-coral-soft ring-1 ring-coral-action"
+                : "border-line-control bg-white hover:bg-surface-subtle"
             }`}
           >
             <input
               type="radio"
               name="role"
               value="MARSHAL"
-              className="hidden"
+              className="mr-2 size-4"
               onChange={() => setRole("MARSHAL")}
               required
             />
-            <div className="text-sm font-semibold">Location marshal</div>
+            <span className="text-sm font-semibold">Location marshal</span>
             <p className="mt-1 text-xs text-ink-muted">
               Browse shifts and apply for work.
             </p>
           </label>
         </div>
-      </div>
+      </fieldset>
 
       {role === "MANAGER" && (
         <div className="grid gap-4 sm:grid-cols-2">
