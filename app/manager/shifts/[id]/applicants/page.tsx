@@ -60,15 +60,15 @@ export default async function ApplicantReviewPage({
   // The application and its actual status remain visible in the record.
   type Applicant = (typeof shift.applications)[number];
 
+  const acceptedCount = shift.applications.filter((a) => a.status === "ACCEPTED").length;
+  const canReview = shift.status === "OPEN" && !shift.paused && acceptedCount < shift.marshalsNeeded;
+
   function needsReview(a: Applicant) {
-    return a.status === "APPLIED" && a.marshal.marshalProfile && !a.marshal.marshalProfile.paused;
+    return canReview && a.status === "APPLIED" && a.marshal.marshalProfile && !a.marshal.marshalProfile.paused;
   }
 
   const pending = shift.applications.filter(needsReview);
   const other = shift.applications.filter((a) => !needsReview(a));
-  const acceptedCount = shift.applications.filter(
-    (a) => a.status === "ACCEPTED",
-  ).length;
 
   return (
     <div>
@@ -88,7 +88,7 @@ export default async function ApplicantReviewPage({
 
       <h2 className="mb-3 text-xl font-bold tracking-tight">Waiting for a decision ({pending.length})</h2>
       {pending.length === 0 ? (
-        <EmptyState title="No pending applicants" body="When a marshal applies, their profile summary will appear here." />
+        <EmptyState title="No applicants to review" body={canReview ? "When a marshal applies, their profile summary will appear here." : "This shift is not accepting hiring decisions."} />
       ) : (
         <ul className="grid gap-3">
           {pending.map((a) => {

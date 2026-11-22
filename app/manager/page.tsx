@@ -48,13 +48,27 @@ export default async function ManagerDashboard() {
   const profile = await prisma.managerProfile.findUnique({
     where: { userId: user.id },
   });
-  const shifts = await prisma.shift.findMany({
+  const records = await prisma.shift.findMany({
     where: { managerId: user.id },
     orderBy: [{ startDate: "asc" }, { createdAt: "desc" }],
     include: {
-      applications: { select: { id: true, status: true } },
+      applications: {
+        select: {
+          status: true,
+          marshal: { select: { marshalProfile: { select: { paused: true } } } },
+        },
+      },
     },
   });
+
+  const shifts = records.map((shift) => ({
+    ...shift,
+    pendingCount: shift.applications.filter((application) => {
+      const profile = application.marshal.marshalProfile;
+      return application.status === "APPLIED" && profile && !profile.paused;
+    }).length,
+    bookedCount: shift.applications.filter((application) => application.status === "ACCEPTED").length,
+  }));
 
   const byGroup = {
     active: shifts.filter(
@@ -74,15 +88,12 @@ export default async function ManagerDashboard() {
     count?: number;
   }[] = [];
   for (const s of shifts) {
-    const pendingCount = s.applications.filter(
-      (a) => a.status === "APPLIED",
-    ).length;
-    if (s.status === "OPEN" && pendingCount > 0) {
+    if (s.status === "OPEN" && !s.paused && s.pendingCount > 0) {
       attention.push({
         href: `/manager/shifts/${s.id}/applicants`,
         title: `Review applicants — ${s.productionName}`,
-        meta: `${pendingCount} waiting for a decision`,
-        count: pendingCount,
+        meta: `${s.pendingCount} waiting for a decision`,
+        count: s.pendingCount,
       });
     }
     const cue = shiftAttention(s);
@@ -162,7 +173,8 @@ function ShiftListSection({
   title: string;
   shifts: Array<
     Awaited<ReturnType<typeof prisma.shift.findMany>>[number] & {
-      applications: { id: string; status: string }[];
+      pendingCount: number;
+      bookedCount: number;
     }
   >;
   empty: string;
@@ -175,12 +187,6 @@ function ShiftListSection({
       ) : (
         <div className="space-y-2">
           {shifts.map((s) => {
-            const active = s.applications.filter(
-              (a) => a.status === "APPLIED",
-            ).length;
-            const accepted = s.applications.filter(
-              (a) => a.status === "ACCEPTED",
-            ).length;
             const attention = shiftAttention(s);
             return (
               <Link
@@ -210,16 +216,16 @@ function ShiftListSection({
                       <span className="text-sm font-medium text-ink">
                         {formatRate(s.rate, s.rateUnit)}
                       </span>
-                      <CapacityMeter booked={accepted} needed={s.marshalsNeeded} />
+                      <CapacityMeter booked={s.bookedCount} needed={s.marshalsNeeded} />
                     </div>
                   </div>
                   <div className="col-start-2 space-y-1 text-sm sm:col-start-3 sm:text-right">
-                    {s.status === "OPEN" && active > 0 && (
+                    {s.status === "OPEN" && !s.paused && s.pendingCount > 0 && (
                       <p className="font-medium text-gold-ink">
-                        {active} to review
+                        {s.pendingCount} to review
                       </p>
                     )}
-                    {s.status === "OPEN" && active === 0 && (
+                    {s.status === "OPEN" && !s.paused && s.pendingCount === 0 && (
                       <p className="text-ink-soft">No new applicants</p>
                     )}
                     {attention === "stale-open" && (

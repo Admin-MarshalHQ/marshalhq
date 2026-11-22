@@ -27,7 +27,7 @@ export default async function MarshalHome() {
   const booked = apps
     .filter((a) => a.status === "ACCEPTED" && ["OPEN", "FILLED"].includes(a.shift.status))
     .sort((a, b) => a.shift.startDate.getTime() - b.shift.startDate.getTime());
-  const awaitingDecision = apps.filter((a) => a.status === "APPLIED");
+  const awaitingDecision = apps.filter((a) => a.status === "APPLIED" && a.shift.status === "OPEN" && !a.shift.paused);
   const nextBooking = booked[0];
 
   return (
