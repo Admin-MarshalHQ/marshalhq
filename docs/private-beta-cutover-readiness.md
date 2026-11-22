@@ -1,5 +1,38 @@
 # Controlled private beta cutover — readiness report
 
+## Latest release decision · 22 November 2026 UTC
+
+**BLOCKED — verification incomplete. Hold the first invitation.** This entry supersedes the conditional recommendation below. Production `marshalhq.com` resolved in Vercel to `marshalhqagent`, READY, commit `2a6186f972d653dc948fc52932dd19fa9fa22985`. GitHub main and the inspected checkout matched. PR #8 was merged. The public homepage rendered with the example shift labelled illustrative.
+
+| Checklist step | Expected result | Observed result and status |
+|---|---|---|
+| 1. Signup and verification | Controlled manager and marshal register, receive verification and acquire the intended role. Reserved addresses refused. | BLOCKED. Live signup rendered. No controlled registration submitted. Earlier invalid-code evidence remains historical. |
+| 2. Login and sessions | Both roles can log out and back in, retain their own session and see the correct dashboard. Quarantined sessions lose access. | BLOCKED. Signed-out manager and marshal dashboard redirects passed. No authenticated session or retained pre-quarantine browser session was tested. |
+| 3. Recovery | Both reset emails arrive, target production, permit one reset and reject used and expired links. | BLOCKED. Public recovery form rendered. No live delivery, expiry, reuse or password change exercised. |
+| 4. Support | Submitter and founder receive the correct emails, production link works and the request appears in the founder queue. | BLOCKED. Public form rendered. No request submitted or delivery verified. |
+| 5. Founder panel | Founder pages render for founder only. | BLOCKED. Signed-out founder dashboard redirected to login. Signed-in founder and non-founder cases outstanding. |
+| 6. Shift | Draft, edit, publish, validate essential fields, reject embedded contact and show eligible marshals the shift. | BLOCKED. No live QA shift created. |
+| 7. Profile | Valid synthetic profile saves and contact in public text is refused. | BLOCKED. No controlled marshal session. |
+| 8. Apply | New application shows APPLIED and hides manager contact. | BLOCKED. No live application. |
+| 9. Review | Manager can compare applicants without pre-acceptance contact. | BLOCKED. No live applicant review. |
+| 10. Accept | Booking reaches FILLED at capacity and releases contact to the accepted pair. | BLOCKED. No live acceptance. |
+| 11. Bench and rejection | Sibling stays APPLIED until rejected, receives notification and sees no contact. | BLOCKED. No separate sibling session. |
+| 12. Contact and exceptions | Accepted-only access survives direct navigation and state changes. Withdrawal, dropout and cancellation behave correctly. | BLOCKED. No live account matrix or operational exception exercised. |
+| 13. Completion | Eligible booking completes, history appears and counters increment as intended. | BLOCKED. No eligible live test booking. |
+| 14. Wrap-up | All new fixtures accounted for and production scanner reviewed. | BLOCKED. This attempt created zero production fixtures. Full scanner awaiting a production-bound runner. |
+
+### Supporting evidence
+
+- **PASS, regression:** release source ran 80/80 remediation assertions. The unchanged database invariant suite passed all 18 assertions against disposable local PostgreSQL. It covered multi-hire capacity, bench preservation, dropout, completion and token storage. The suite creates verified accounts with a static test password, so it ran only in isolation.
+- **PASS, read-only database checks:** Supabase reported MarshalHQ-Dev active and healthy and the historical marshalhq project inactive. All 13 model tables and 122 expected scalar columns matched by name on MarshalHQ-Dev. Zero overbookings, FILLED capacity mismatches or OPEN-at-capacity rows. Eight example-domain accounts, zero verified. This run did not independently resolve the deployed connection string or exercise an existing fixture session.
+- **Partial contamination check:** applied the release contact patterns to the scanner's profile and shift text fields plus application cover notes. Zero flagged fields across nine profiles, nine shifts and 17 applications. The official production scanner and its reserved-user review remain outstanding.
+- **BLOCKED, production commands:** the official drift checker exited before comparison because its connection variable was unavailable. The scanner likewise reached Prisma without a configured connection. Vercel denied project environment access (403). No database changes or cleanup performed.
+- **PASS, bounded runtime observation:** the 55-minute project-wide error/fatal query contained two log entries from one rejected login on the previous deployment. Filtering to the current production deployment returned zero error/fatal groups. No authenticated journey ran during this observation.
+- **Session risk:** the release uses JWT sessions. The login callback checks the password, while the JWT/session callbacks retain the signed-in identity. Clearing a verification flag and changing a password do not establish revocation of a previously issued session. No pre-quarantine session was available to observe. Keep this gate open.
+- **Corrections and retests:** no live workflow defect reproduced in the exercised paths, no fix deployed and no post-fix pass claimed. Resume with founder-controlled manager and marshal signup, a separate sibling marshal, secure founder access for the support checks, and a runner able to execute read-only production drift and contamination checks. Never copy credentials, cookies, tokens or connection strings into this record.
+
+---
+
 Date assembled: 2026-04-28
 Branch: `claude/lucid-rhodes-9bf48c`
 Database: production Postgres (via Prisma)
