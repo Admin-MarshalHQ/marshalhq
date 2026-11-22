@@ -14,34 +14,9 @@ import {
 } from "@/components/ui";
 import { Icon } from "@/components/Icon";
 import { formatRate, formatShiftBlock } from "@/lib/format";
-import { canCompleteShift, shiftStartDateTime } from "@/lib/state";
-
-// Per-shift attention cues. The loop stalls on exactly two manager actions —
-// reviewing applicants and settling a shift's outcome — so the dashboard must
-// say where those are needed instead of leaving the manager to open every
-// shift. "stale-open" = an OPEN shift whose first day started with no one
-// booked: it will never fill and should be closed (or reposted with new
-// dates). "awaiting-completion" = a FILLED shift past its scheduled end,
-// ready to be marked complete so the marshal's trust record accrues.
-type ShiftAttention = "stale-open" | "awaiting-completion" | null;
-
-function shiftAttention(shift: {
-  status: string;
-  startDate: Date;
-  endDate: Date;
-  dailyStartTime: string;
-  dailyEndTime: string;
-}): ShiftAttention {
-  if (
-    shift.status === "OPEN" &&
-    shiftStartDateTime(shift.startDate, shift.dailyStartTime).getTime() <=
-      Date.now()
-  ) {
-    return "stale-open";
-  }
-  if (canCompleteShift(shift)) return "awaiting-completion";
-  return null;
-}
+import { shiftStartDateTime } from "@/lib/state";
+import { capacityLabel } from "@/lib/capacity";
+import { actionableApplicantCount, managerAttention } from "@/lib/workspace-shifts";
 
 export default async function ManagerDashboard() {
   const user = await requireRole("MANAGER");
@@ -79,39 +54,9 @@ export default async function ManagerDashboard() {
     ),
   };
 
-  // Attention queue: one linked row per place the staffing loop is waiting on
-  // the manager, so nothing requires opening every shift to find out.
-  const attention: {
-    href: string;
-    title: string;
-    meta?: string;
-    count?: number;
-  }[] = [];
-  for (const s of shifts) {
-    if (s.status === "OPEN" && !s.paused && s.pendingCount > 0) {
-      attention.push({
-        href: `/manager/shifts/${s.id}/applicants`,
-        title: `Review applicants — ${s.productionName}`,
-        meta: `${s.pendingCount} waiting for a decision`,
-        count: s.pendingCount,
-      });
-    }
-    const cue = shiftAttention(s);
-    if (cue === "stale-open") {
-      attention.push({
-        href: `/manager/shifts/${s.id}`,
-        title: `Start date passed — ${s.productionName}`,
-        meta: "This shift can no longer fill. Close it or repost with new dates.",
-      });
-    }
-    if (cue === "awaiting-completion") {
-      attention.push({
-        href: `/manager/shifts/${s.id}`,
-        title: `Ready to mark complete — ${s.productionName}`,
-        meta: "Confirm the outcome so the marshal's record stays accurate.",
-      });
-    }
-  }
+  const now = new Date();
+  const attention = managerAttention(shifts, now);
+  const cues = new Map(attention.map(({ shift, kind }) => [shift.id, kind]));
 
   return (
     <div>
@@ -131,9 +76,31 @@ export default async function ManagerDashboard() {
       {attention.length > 0 && (
         <div className="mb-6">
           <AttentionList>
-            {attention.map((a) => (
-              <AttentionItem key={`${a.href}-${a.title}`} {...a} />
-            ))}
+            {attention.map(({ shift, kind, count, callTime }) => {
+              const callDay = callTime.toLocaleDateString("en-GB", {
+                weekday: "short", day: "numeric", month: "short",
+              });
+              const cue = {
+                review: "Review applicants",
+                elapsed: "Call time has passed · Review shift",
+                completion: "Ready to mark complete",
+              }[kind];
+              const details = [
+                count > 0 ? `${count} to review` : null,
+                capacityLabel(shift.bookedCount, shift.marshalsNeeded),
+                `${callDay} ${shift.dailyStartTime}`,
+              ].filter(Boolean).join(" · ");
+
+              return (
+                <AttentionItem
+                  key={shift.id}
+                  href={`/manager/shifts/${shift.id}${kind === "review" ? "/applicants" : ""}`}
+                  title={shift.productionName}
+                  cue={cue}
+                  meta={details}
+                />
+              );
+            })}
           </AttentionList>
         </div>
       )}
@@ -149,14 +116,15 @@ export default async function ManagerDashboard() {
       ) : (
         <div className="space-y-8">
           <div className="summary-grid">
-            <StatCard label="Open shifts" value={shifts.filter((shift) => shift.status === "OPEN" && !shift.paused && shiftAttention(shift) !== "stale-open").length} icon="calendar" />
-            <StatCard label="Applications to review" value={attention.reduce((total, item) => total + (item.count ?? 0), 0)} icon="people" tone="booked" />
-            <StatCard label="Ready to complete" value={shifts.filter((shift) => canCompleteShift(shift)).length} icon="check" tone="warn" />
+            <StatCard label="Open shifts" value={shifts.filter((shift) => shift.status === "OPEN" && !shift.paused && shiftStartDateTime(shift.startDate, shift.dailyStartTime) > now).length} icon="calendar" />
+            <StatCard label="Applications to review" value={attention.reduce((total, item) => total + item.count, 0)} icon="people" tone="booked" />
+            <StatCard label="Ready to complete" value={shifts.filter((shift) => cues.get(shift.id) === "completion").length} icon="check" tone="warn" />
           </div>
-          <ShiftListSection title="Active shifts" shifts={byGroup.active} empty="No active shifts." />
+          <ShiftListSection title="Active shifts" shifts={byGroup.active} cues={cues} empty="No active shifts." />
           <ShiftListSection
             title="Past shifts"
             shifts={byGroup.archive}
+            cues={cues}
             empty="No completed or closed shifts yet."
           />
         </div>
@@ -168,9 +136,11 @@ export default async function ManagerDashboard() {
 function ShiftListSection({
   title,
   shifts,
+  cues,
   empty,
 }: {
   title: string;
+  cues: ReadonlyMap<string, "review" | "elapsed" | "completion">;
   shifts: Array<
     Awaited<ReturnType<typeof prisma.shift.findMany>>[number] & {
       pendingCount: number;
@@ -187,7 +157,8 @@ function ShiftListSection({
       ) : (
         <div className="space-y-2">
           {shifts.map((s) => {
-            const attention = shiftAttention(s);
+            const cue = cues.get(s.id);
+            const reviewCount = actionableApplicantCount(s);
             return (
               <Link
                 key={s.id}
@@ -220,20 +191,20 @@ function ShiftListSection({
                     </div>
                   </div>
                   <div className="col-start-2 space-y-1 text-sm sm:col-start-3 sm:text-right">
-                    {s.status === "OPEN" && !s.paused && s.pendingCount > 0 && (
+                    {reviewCount > 0 && (
                       <p className="font-medium text-gold-ink">
-                        {s.pendingCount} to review
+                        {reviewCount} to review
                       </p>
                     )}
-                    {s.status === "OPEN" && !s.paused && s.pendingCount === 0 && (
+                    {s.status === "OPEN" && !s.paused && reviewCount === 0 && cue !== "elapsed" && (
                       <p className="text-ink-soft">No new applicants</p>
                     )}
-                    {attention === "stale-open" && (
+                    {cue === "elapsed" && (
                       <p className="font-medium text-warn">
-                        Start date passed
+                        Call time has passed
                       </p>
                     )}
-                    {attention === "awaiting-completion" && (
+                    {cue === "completion" && (
                       <p className="font-medium text-warn">
                         Ready to complete
                       </p>

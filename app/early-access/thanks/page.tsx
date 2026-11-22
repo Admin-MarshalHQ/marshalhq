@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { WAITLIST_NEXT_STEP } from "@/lib/copy";
 import { Icon } from "@/components/Icon";
 import { ButtonLink, Card, PageHeader } from "@/components/ui";
 
@@ -15,7 +16,7 @@ export default function EarlyAccessThanksPage() {
         <span className="grid size-11 place-items-center rounded-md bg-ok-soft text-ok">
           <Icon name="check" />
         </span>
-        <p>We’ve received your waitlist request. We’ll get in touch as beta access opens up.</p>
+        <p>{WAITLIST_NEXT_STEP}</p>
         <ButtonLink href="/">Back to home</ButtonLink>
       </Card>
     </div>

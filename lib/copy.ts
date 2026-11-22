@@ -30,8 +30,17 @@ export const FLASH_APPLICATION_NO_LONGER_ACTIONABLE =
 // places where the same action exists (manager shift detail vs. applicant
 // detail both surface Accept, for example).
 export const CONFIRM_ACCEPT_TITLE = "Accept and book this marshal?";
-export const CONFIRM_ACCEPT_BODY =
-  "This applicant will be accepted for one slot. The shift becomes Filled only when all required marshal slots are booked. Contact details will be released to you and this marshal only.";
+export function confirmAcceptBody(booked: number, needed: number) {
+  const projected = booked + 1;
+  const remaining = needed - projected;
+  const availability = remaining === 0
+    ? "The shift will be filled."
+    : remaining === 1
+      ? "One place will remain open."
+      : `${remaining} places will remain open.`;
+
+  return `This will book ${projected} of ${needed} places. ${availability} Contact details will be shared between you and this marshal.`;
+}
 export const CONFIRM_ACCEPT_ACTION = "Accept and book";
 
 export const CONFIRM_REJECT_TITLE = "Reject this applicant?";
@@ -121,3 +130,6 @@ export const APPLY_BLOCKED_BOOKED_BODY =
 
 export const APPLY_UNAVAILABLE_DATES_REMINDER =
   "You’ve marked yourself unavailable during these dates. You can still apply, but only do so if you’re genuinely free — the manager is relying on you to show up.";
+
+export const WAITLIST_NEXT_STEP =
+  "We’ll email you as private beta places open for your role.";

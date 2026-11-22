@@ -100,3 +100,39 @@ The manager dashboard's **Wed 18 Nov** tile reproduced the reported overlap. At 
 The follow-up audit measures text and control boundaries, document overflow and overlapping labels across 39 routes. It spans 13 standard widths from 320 to 1440px, additional large-text and landscape configurations, open menus, confirmation dialogues and keyboard focus near the fixed navigation. Sample content includes long titles, multi-day dates, status badges and booked contact cards. All fixtures use local synthetic data.
 
 The final Chromium run passed all **792 layout checks**, including **540 rendered date tiles** measured against their own boundaries. The build, type check and 80 remediation assertions passed.
+
+## Independent review follow-up
+
+The five fixes build on the reviewed PR head, `c0bf8ed8582403236a1dea8f5405a1bda1d31bfd`.
+
+- Discovery uses the existing application schedule check. The featured booking uses the first call time and final scheduled wrap to select current or upcoming work. Older bookings stay in My applications. The dashboard shows the ten most recent applications, including their outcomes.
+- The production queue puts live reviews first by call time, with one row per shift. Elapsed open shifts and shifts ready to complete have their own cues. Applicants and applicant detail show booked capacity. Acceptance projects the count and remaining places, including when the shift will fill.
+- The marshal dashboard, application list and application detail share outcome wording. The booking status links to manager contact only when the existing protected panel is available.
+- The private beta hero links directly to the existing waitlist form. The illustrative shift and rate remain visible. The form still captures the role and consent and sends submissions to the existing confirmation page.
+- Mobile navigation sizes each tab around its label and reflows when text is enlarged. Scroll clearance follows the fixed bar’s rendered height.
+
+### Workflow source conflicts
+
+| Project source | Current behaviour used by this PR |
+|---|---|
+| Core Workflow States and Transitions describes one accepted marshal, immediate filling and automatic rejection of siblings. | Each acceptance books one place. The shift fills at its required capacity. Pending siblings can be reviewed again if a place reopens. |
+| Trust and Ops Playbook section 6 ties contact release to the shift reaching Filled. | The manager and each accepted marshal can see each other’s contact as soon as that place is booked, subject to the existing access rules. This works while a multi-place shift is still open. |
+| Trust and Ops Playbook sections 7 and 8 describe dropout and cancellation for a single booked marshal. | Dropout can reopen a place while other bookings remain. Closure can set accepted applications to Withdrawn, the same stored status used for a marshal’s own withdrawal. Closed records with that status say the shift is closed and the marshal has no active booking. |
+
+Managers can still decide on existing actionable applications after call time. The new queue flags the elapsed call time. Post-call acceptance eligibility and overnight posting remain separate product decisions.
+
+### Verification
+
+All browser checks used a production build served locally with synthetic records in a fresh PostgreSQL database.
+
+| Check | Result |
+|---|---|
+| Build and type check | `npm run build` and `tsc --noEmit` passed. |
+| Automated assertions | Five workspace regression tests, 80 remediation assertions and 18 local database smoke assertions passed. |
+| Shift discovery and featured booking | Only the future shift appeared among two same-day shifts. The future multi-day booking was featured and the elapsed booking opened from My applications. |
+| Manager decisions | Upcoming reviews sorted by call time. Elapsed and completion work appeared once each. Two real acceptances moved the shift from open with a booked place to filled. A stale third confirmation was refused. The two accepted pairs gained access. The pending sibling, paused marshal and unrelated manager were denied access to the tested contact panels. |
+| Marshal outcomes | Pending, booked, filled with a pending application, completed, rejected, withdrawn and closed wording matched across surfaces. The contact link moved keyboard focus to the protected panel. |
+| Waitlist | The hero CTA reached the form at 320px and 1440px. A local submission reached confirmation, stored the role and consent, created no user and put no email address in any request or navigation URL. |
+| Responsive and keyboard | Chromium passed 320px, 390px and 1440px checks for date tiles, long titles and multi-day facts. Applications remained a single word at default size and the bar reflowed at 200% root text size. Keyboard checks covered the manager dashboard, discovery and enlarged mobile applications with visible focus and no horizontal scrolling. |
+
+Physical mobile devices, other browser engines, external email delivery and simultaneous acceptances were outside this pass. The stale confirmation check used two tabs and submitted the stale confirmation after capacity filled.

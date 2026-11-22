@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useFormState, useFormStatus } from "react-dom";
 import { Button } from "@/components/ui";
 import { Icon } from "@/components/Icon";
@@ -39,20 +39,12 @@ function SubmitButton({ disabled }: { disabled: boolean }) {
   );
 }
 
-export default function EarlyAccessForm({
-  defaultEmail = "",
-}: {
-  defaultEmail?: string;
-}) {
+export default function EarlyAccessForm() {
   const [state, action] = useFormState(submitWaitlistEntryAction, null);
   const [name, setName] = useState("");
-  const [email, setEmail] = useState(defaultEmail);
+  const [email, setEmail] = useState("");
   const [role, setRole] = useState<WaitlistRole | "">("");
   const [roleOther, setRoleOther] = useState("");
-
-  useEffect(() => {
-    setEmail(defaultEmail);
-  }, [defaultEmail]);
 
   const hasUsableEmail = /\S+@\S+\.\S+/.test(email);
   const otherRoleComplete = role !== "OTHER" || roleOther.trim().length > 0;

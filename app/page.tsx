@@ -4,7 +4,8 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { BrandLogo } from "@/components/BrandLogo";
 import { Icon, type IconName } from "@/components/Icon";
-import { Button, ButtonLink } from "@/components/ui";
+import { ButtonLink } from "@/components/ui";
+import { WAITLIST_NEXT_STEP } from "@/lib/copy";
 import EarlyAccessForm from "./early-access/EarlyAccessForm";
 
 export const metadata: Metadata = {
@@ -30,18 +31,16 @@ const steps = [
   { title: "Post the shift", body: "Set the location, dates, call time, rate and duties so marshals can judge the work." },
   { title: "Receive applications", body: "Working marshals apply with their profile and an optional note." },
   { title: "Review applicants", body: "Compare their availability, experience and practical fit in one place." },
-  { title: "Make the booking", body: "Contact details are released to the manager and each marshal they accept." },
+  { title: "Make the booking", body: "Accept one marshal per place, up to the shift’s capacity. Contact details are shared privately between the manager and each accepted marshal." },
   { title: "Complete the shift", body: "Mark the shift complete afterwards to build a factual record of work." },
 ];
 
-export default async function Landing({ searchParams }: { searchParams?: { email?: string } }) {
+export default async function Landing() {
   const session = await auth();
   if (session?.user?.id) {
     if (session.user.role === "MANAGER") redirect("/manager");
     if (session.user.role === "MARSHAL") redirect("/marshal");
   }
-
-  const defaultEmail = typeof searchParams?.email === "string" ? searchParams.email : "";
 
   return (
     <div className="mhq-public-home">
@@ -72,24 +71,17 @@ export default async function Landing({ searchParams }: { searchParams?: { email
         <div className="marketing-width">
           <div className="hero-grid">
             <div className="min-w-0">
-              <p className="mb-4 text-xs font-bold uppercase tracking-[0.14em] text-ink">Film &amp; TV location staffing</p>
               <h1 id="hero-heading" className="hero-title">
-                Find and hire location marshals with <em>confidence</em>
+                Location marshal shifts for <em>UK film and TV</em>
               </h1>
-              <p className="mb-6 mt-5 max-w-[45ch] text-base leading-relaxed text-ink-muted sm:text-lg">
-                MarshalHQ helps UK film and TV productions fill location marshal shifts and helps working marshals find their next shift.
-              </p>
-              <form action="/#waitlist" className="max-w-[29rem] space-y-3">
-                <label className="block">
-                  <span className="sr-only">Email address for the waitlist</span>
-                  <input type="email" name="email" autoComplete="email" placeholder="Your email address" />
-                </label>
-                <div className="flex flex-wrap gap-3">
-                  <Button type="submit">Join the waitlist <Icon name="arrow" className="ml-2 size-4" /></Button>
-                  <ButtonLink href="#loop" variant="secondary">See how it works</ButtonLink>
-                </div>
-              </form>
-              <p className="mt-4 text-sm text-ink-muted">Join the list for updates on private beta access.</p>
+              <div className="mb-6 mt-5 max-w-[45ch] space-y-2 text-base leading-relaxed text-ink-muted sm:text-lg">
+                <p>Location managers can post a clear shift and compare applicants in one place.</p>
+                <p>Working marshals can check call times, rates and duties before applying.</p>
+              </div>
+              <div className="flex flex-wrap gap-3">
+                <ButtonLink href="#waitlist">Join the private beta waitlist <Icon name="arrow" className="ml-2 size-4 shrink-0" /></ButtonLink>
+                <ButtonLink href="#loop" variant="secondary">See how it works</ButtonLink>
+              </div>
             </div>
             <div className="hero-art">
               <ExampleShift />
@@ -143,11 +135,11 @@ export default async function Landing({ searchParams }: { searchParams?: { email
         </div>
       </section>
 
-      <section id="waitlist" className="marketing-section bg-coral-soft">
+      <section id="waitlist" tabIndex={-1} className="marketing-section bg-coral-soft">
         <div className="marketing-width !max-w-3xl">
-          <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">Join the waitlist</h2>
-          <p className="mt-2 text-ink-muted">Tell us whether you hire or work as a location marshal. We’ll be in touch as beta access opens up.</p>
-          <EarlyAccessForm defaultEmail={defaultEmail} />
+          <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">Join the private beta waitlist</h2>
+          <p className="mt-2 text-ink-muted">{WAITLIST_NEXT_STEP}</p>
+          <EarlyAccessForm />
         </div>
       </section>
     </div>

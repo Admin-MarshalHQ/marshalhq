@@ -11,6 +11,7 @@ import {
 } from "@/components/ui";
 import { Icon } from "@/components/Icon";
 import { ShiftFacts } from "@/components/ShiftFacts";
+import { isShiftSchedulable } from "@/lib/state";
 
 export default async function BrowseShiftsPage() {
   const user = await requireRole("MARSHAL");
@@ -22,16 +23,15 @@ export default async function BrowseShiftsPage() {
   // Paused shifts are hidden from marshal browsing entirely — a paused shift
   // behaves as if the founder has taken it off the market, even if its status
   // is still OPEN in the database.
-  const shifts = await prisma.shift.findMany({
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const candidates = await prisma.shift.findMany({
     where: {
       status: "OPEN",
       paused: false,
-      // Filter on startDate so a multi-day block whose first day is still in
-      // the future appears, while one whose start has already passed drops
-      // off the browse list.
-      startDate: { gte: new Date(new Date().toDateString()) },
+      startDate: { gte: today },
     },
-    orderBy: [{ startDate: "asc" }],
+    orderBy: [{ startDate: "asc" }, { dailyStartTime: "asc" }],
     include: {
       manager: {
         select: {
@@ -47,6 +47,9 @@ export default async function BrowseShiftsPage() {
       },
     },
   });
+
+  const now = new Date();
+  const shifts = candidates.filter((shift) => isShiftSchedulable(shift, now));
 
   return (
     <div>
@@ -77,10 +80,10 @@ export default async function BrowseShiftsPage() {
                   <div className="min-w-0 flex-1">
                     <h2 className="text-xl font-bold leading-snug tracking-tight">
                       <Link href={`/marshal/shifts/${shift.id}`} className="after:absolute after:inset-0 after:content-['']">
-                        {shift.productionName}
+                        <span className="max-sm:line-clamp-2">{shift.productionName}</span>
                       </Link>
                     </h2>
-                    <p className="mt-0.5 text-sm text-ink-muted">{shift.manager.managerProfile?.companyName ?? "Manager"}</p>
+                    <p className="mt-0.5 text-sm text-ink-muted max-sm:truncate">{shift.manager.managerProfile?.companyName ?? "Manager"}</p>
                   </div>
                   <Icon name="chevron" className="shrink-0 text-coral-ink" />
                 </div>

@@ -20,7 +20,7 @@ import { StarRatingDisplay } from "@/components/StarRating";
 import { ratingSummary } from "@/lib/reviews";
 import {
   CONFIRM_ACCEPT_ACTION,
-  CONFIRM_ACCEPT_BODY,
+  confirmAcceptBody,
   CONFIRM_ACCEPT_TITLE,
   CONFIRM_REJECT_ACTION,
   CONFIRM_REJECT_BODY,
@@ -28,6 +28,7 @@ import {
   FLASH_APPLICATION_NO_LONGER_ACTIONABLE,
 } from "@/lib/copy";
 import type { ApplicationStatus, Availability } from "@/lib/types";
+import { capacityLabel, hasOpenSlot } from "@/lib/capacity";
 
 export default async function ApplicantDetailPage({
   params,
@@ -42,7 +43,7 @@ export default async function ApplicantDetailPage({
   const acceptedCount = await prisma.application.count({
     where: { shiftId: shift.id, status: "ACCEPTED" },
   });
-  const hasOpenSlot = acceptedCount < shift.marshalsNeeded;
+  const hasCapacity = hasOpenSlot(acceptedCount, shift.marshalsNeeded);
 
   // Contact-release invariant, enforced structurally: pre-acceptance review
   // must never show the applicant's email or phone, so the query never
@@ -185,13 +186,14 @@ export default async function ApplicantDetailPage({
         <div className="space-y-3">
           <Card>
             <Kicker className="mb-2">Decision</Kicker>
+            <p className="mb-3 text-sm font-semibold">{capacityLabel(acceptedCount, shift.marshalsNeeded)}</p>
             {app.status !== "APPLIED" ? (
               <Alert tone="info">
                 This application is {APPLICATION_STATUS_LABEL[app.status as ApplicationStatus].toLowerCase()}.
               </Alert>
-            ) : shift.status !== "OPEN" || !hasOpenSlot ? (
+            ) : shift.status !== "OPEN" || !hasCapacity ? (
               <Alert tone="warn">
-                You can only accept applicants while the shift is open and has an unfilled slot.
+                You can only accept applicants while the shift is open and has a place available.
               </Alert>
             ) : p.paused ? (
               <Alert tone="warn">
@@ -204,7 +206,7 @@ export default async function ApplicantDetailPage({
                   action={accept}
                   triggerLabel="Accept and book this marshal"
                   title={CONFIRM_ACCEPT_TITLE}
-                  description={CONFIRM_ACCEPT_BODY}
+                  description={confirmAcceptBody(acceptedCount, shift.marshalsNeeded)}
                   confirmLabel={CONFIRM_ACCEPT_ACTION}
                   variant="primary"
                 />
@@ -216,10 +218,6 @@ export default async function ApplicantDetailPage({
                   confirmLabel={CONFIRM_REJECT_ACTION}
                   variant="secondary"
                 />
-                <p className="border-t border-line pt-2 text-xs text-ink-soft">
-                  Accepting releases phone and email to you and to this
-                  marshal only. Other applicants remain available for review.
-                </p>
               </div>
             )}
           </Card>

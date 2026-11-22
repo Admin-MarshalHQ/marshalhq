@@ -1,0 +1,63 @@
+import { hasOpenSlot } from "@/lib/capacity";
+import { canCompleteShift, hasShiftEnded, shiftStartDateTime } from "@/lib/state";
+
+type ScheduledShift = {
+  startDate: Date;
+  endDate: Date;
+  dailyStartTime: string;
+  dailyEndTime: string;
+  status: string;
+};
+
+type ManagerShift = ScheduledShift & {
+  paused: boolean;
+  marshalsNeeded: number;
+  bookedCount: number;
+  pendingCount: number;
+};
+
+export function actionableApplicantCount(shift: ManagerShift): number {
+  return shift.status === "OPEN" && !shift.paused && hasOpenSlot(shift.bookedCount, shift.marshalsNeeded)
+    ? shift.pendingCount
+    : 0;
+}
+
+export function managerAttention<T extends ManagerShift>(shifts: T[], now: Date) {
+  const reviews = [];
+  const closeouts = [];
+  const ordered = shifts
+    .map((shift) => ({ shift, callTime: shiftStartDateTime(shift.startDate, shift.dailyStartTime) }))
+    .sort((a, b) => a.callTime.getTime() - b.callTime.getTime());
+
+  for (const entry of ordered) {
+    const { shift, callTime } = entry;
+    const count = actionableApplicantCount(shift);
+    if (shift.status === "OPEN" && callTime <= now) {
+      closeouts.push({ ...entry, count, kind: "elapsed" as const });
+    } else if (canCompleteShift(shift, now)) {
+      closeouts.push({ ...entry, count, kind: "completion" as const });
+    } else if (count > 0) {
+      reviews.push({ ...entry, count, kind: "review" as const });
+    }
+  }
+
+  return [...reviews, ...closeouts];
+}
+
+export function currentBookings<T extends { status: string; shift: ScheduledShift }>(
+  applications: T[],
+  now: Date,
+): T[] {
+  return applications
+    .filter(({ status, shift }) =>
+      status === "ACCEPTED" &&
+      (shift.status === "OPEN" || shift.status === "FILLED") &&
+      !hasShiftEnded(shift, now),
+    )
+    .map((application) => ({
+      application,
+      callTime: shiftStartDateTime(application.shift.startDate, application.shift.dailyStartTime),
+    }))
+    .sort((a, b) => a.callTime.getTime() - b.callTime.getTime())
+    .map(({ application }) => application);
+}

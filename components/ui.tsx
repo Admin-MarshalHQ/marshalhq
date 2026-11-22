@@ -229,7 +229,7 @@ export function ButtonLink({
 // *-soft/-DEFAULT token pairs — never hardcode status hex in markup.
 type BadgeTone = "neutral" | "ok" | "accent" | "booked" | "danger";
 
-function StatusBadge({ label, tone }: { label: string; tone: BadgeTone }) {
+export function StatusBadge({ label, tone }: { label: string; tone: BadgeTone }) {
   const styles: Record<BadgeTone, string> = {
     neutral: "bg-neutral-soft text-neutral",
     ok: "bg-ok-soft text-ok",
@@ -240,15 +240,15 @@ function StatusBadge({ label, tone }: { label: string; tone: BadgeTone }) {
   return (
     <span
       className={clsx(
-        "inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-semibold",
+        "inline-flex max-w-full items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold",
         styles[tone],
       )}
     >
       <span
         aria-hidden
-        className="h-1.5 w-1.5 rounded-full bg-current opacity-70"
+        className="size-1.5 shrink-0 rounded-full bg-current opacity-70"
       />
-      {label}
+      <span className="min-w-0">{label}</span>
     </span>
   );
 }
@@ -372,35 +372,25 @@ export function AttentionList({ children }: { children: React.ReactNode }) {
 export function AttentionItem({
   href,
   title,
+  cue,
   meta,
-  count,
 }: {
   href: string;
   title: string;
-  meta?: string;
-  count?: number;
+  cue: string;
+  meta: string;
 }) {
   return (
     <Link
       href={href}
-      className="flex min-h-[44px] items-center justify-between gap-3 px-4 py-2.5 hover:bg-surface-subtle"
+      className="flex min-h-[44px] items-center justify-between gap-3 px-4 py-2.5 hover:bg-surface-subtle focus-visible:outline-offset-[-4px]"
     >
       <span className="min-w-0">
-        <span className="block text-sm font-medium text-ink">{title}</span>
-        {meta && (
-          <span className="mt-0.5 block text-xs text-ink-soft">{meta}</span>
-        )}
+        <span className="block text-sm font-bold text-ink">{title}</span>
+        <span className="mt-0.5 block text-sm font-medium text-ink">{cue}</span>
+        <span className="mt-0.5 block text-xs text-ink-soft">{meta}</span>
       </span>
-      <span className="flex shrink-0 items-center gap-2">
-        {typeof count === "number" && (
-          <span className="rounded-full bg-gold-soft px-2 py-0.5 font-mono text-[11px] font-medium text-gold-ink">
-            {count}
-          </span>
-        )}
-        <span aria-hidden className="text-ink-soft">
-          →
-        </span>
-      </span>
+      <span aria-hidden className="shrink-0 text-ink-soft">→</span>
     </Link>
   );
 }
