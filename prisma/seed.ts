@@ -15,7 +15,37 @@ import bcrypt from "bcryptjs";
 const prisma = new PrismaClient();
 
 async function main() {
-  const pw = await bcrypt.hash("password123", 10);
+  // Safety gate: the seed creates fictitious manager/marshal accounts and
+  // resets their shift/application history. Never run it against a hosted
+  // database, even if NODE_ENV is accidentally set to "development".
+  if (
+    process.env.NODE_ENV === "production" ||
+    process.env.VERCEL_ENV === "production"
+  ) {
+    throw new Error("Fixture seeding is forbidden in a production runtime.");
+  }
+
+  let databaseHost: string;
+  try {
+    databaseHost = new URL(process.env.DATABASE_URL ?? "").hostname;
+  } catch {
+    throw new Error("Set DATABASE_URL to a local Postgres database before seeding.");
+  }
+  if (!["localhost", "127.0.0.1", "[::1]"].includes(databaseHost)) {
+    throw new Error("Fixture seeding is restricted to local Postgres only.");
+  }
+
+  // Use a test-only secret provided by the operator, never a source-controlled
+  // default password. Example local invocation:
+  // MHQ_ALLOW_LOCAL_SEED=yes MHQ_SEED_PASSWORD=<unique-16+-character-value> npm run db:seed
+  if (process.env.MHQ_ALLOW_LOCAL_SEED !== "yes") {
+    throw new Error("Set MHQ_ALLOW_LOCAL_SEED=yes to acknowledge fixture resets.");
+  }
+  const seedPassword = process.env.MHQ_SEED_PASSWORD;
+  if (!seedPassword || seedPassword.length < 16) {
+    throw new Error("MHQ_SEED_PASSWORD must be a unique test-only value of at least 16 characters.");
+  }
+  const pw = await bcrypt.hash(seedPassword, 10);
 
   // ---- Founder account -------------------------------------------------
   // Matches FOUNDER_EMAILS in .env. Sign-in flow is a normal manager; the
