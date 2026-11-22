@@ -9,7 +9,9 @@ import {
   EmptyState,
   PageHeader,
 } from "@/components/ui";
-import { formatRate, formatShiftBlock } from "@/lib/format";
+import { Icon } from "@/components/Icon";
+import { ShiftFacts } from "@/components/ShiftFacts";
+import { isShiftSchedulable } from "@/lib/state";
 
 export default async function BrowseShiftsPage() {
   const user = await requireRole("MARSHAL");
@@ -21,16 +23,15 @@ export default async function BrowseShiftsPage() {
   // Paused shifts are hidden from marshal browsing entirely — a paused shift
   // behaves as if the founder has taken it off the market, even if its status
   // is still OPEN in the database.
-  const shifts = await prisma.shift.findMany({
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const candidates = await prisma.shift.findMany({
     where: {
       status: "OPEN",
       paused: false,
-      // Filter on startDate so a multi-day block whose first day is still in
-      // the future appears, while one whose start has already passed drops
-      // off the browse list.
-      startDate: { gte: new Date(new Date().toDateString()) },
+      startDate: { gte: today },
     },
-    orderBy: [{ startDate: "asc" }],
+    orderBy: [{ startDate: "asc" }, { dailyStartTime: "asc" }],
     include: {
       manager: {
         select: {
@@ -47,12 +48,14 @@ export default async function BrowseShiftsPage() {
     },
   });
 
+  const now = new Date();
+  const shifts = candidates.filter((shift) => isShiftSchedulable(shift, now));
+
   return (
     <div>
       <PageHeader
-        kicker="Open shifts"
-        title="Browse shifts"
-        subtitle="Shifts accepting applications now. Contact details are released only after you're accepted."
+        title="Available shifts"
+        subtitle="Find location marshal work in UK film and TV."
         action={
           !profile ? (
             <ButtonLink href="/marshal/profile/edit">
@@ -67,53 +70,33 @@ export default async function BrowseShiftsPage() {
           body="Check back soon. New shifts appear here as managers publish them."
         />
       ) : (
-        <div className="space-y-2">
-          {shifts.map((s) => {
-            const yourApp = s.applications[0];
+        <ul className="grid gap-4 md:grid-cols-2">
+          {shifts.map((shift) => {
+            const application = shift.applications[0];
             return (
-              <Link
-                key={s.id}
-                href={`/marshal/shifts/${s.id}`}
-                className="block rounded-md border border-line bg-white p-4 shadow-[0_1px_0_rgba(28,25,21,0.03)] hover:border-line-strong hover:bg-surface-subtle"
-              >
-                <div className="flex items-start gap-3">
-                  <DateBlock date={s.startDate} />
+              <li key={shift.id} className="card-link relative min-w-0 has-[:focus-visible]:outline has-[:focus-visible]:outline-[3px] has-[:focus-visible]:outline-offset-[3px] has-[:focus-visible]:outline-ink">
+                <div className="mb-3 flex items-center gap-3">
+                  <DateBlock date={shift.startDate} />
                   <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="truncate font-serif text-lg leading-snug text-ink">
-                        {s.productionName}
-                      </p>
-                      {yourApp && (
-                        <ApplicationStatusBadge status={yourApp.status} />
-                      )}
-                    </div>
-                    <p className="mt-0.5 text-sm text-ink-muted">
-                      {s.location} ·{" "}
-                      {formatShiftBlock(
-                        s.startDate,
-                        s.endDate,
-                        s.dailyStartTime,
-                        s.dailyEndTime,
-                      )}
-                    </p>
-                    <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1">
-                      <span className="text-sm font-medium text-ink">
-                        {formatRate(s.rate, s.rateUnit)}
-                      </span>
-                      <CapacityMeter
-                        booked={s._count.applications}
-                        needed={s.marshalsNeeded}
-                      />
-                      <span className="font-mono text-[11px] uppercase tracking-[0.04em] text-ink-soft">
-                        {s.manager.managerProfile?.companyName ?? "Manager"}
-                      </span>
-                    </div>
+                    <h2 className="text-xl font-bold leading-snug tracking-tight">
+                      <Link href={`/marshal/shifts/${shift.id}`} className="after:absolute after:inset-0 after:content-['']">
+                        <span className="max-sm:line-clamp-2">{shift.productionName}</span>
+                      </Link>
+                    </h2>
+                    <p className="mt-0.5 text-sm text-ink-muted max-sm:truncate">{shift.manager.managerProfile?.companyName ?? "Manager"}</p>
                   </div>
+                  <Icon name="chevron" className="shrink-0 text-coral-ink" />
                 </div>
-              </Link>
+                <ShiftFacts shift={shift} />
+                <p className="mt-3 line-clamp-2 text-sm text-ink">{shift.duties}</p>
+                <div className="mt-3 flex flex-wrap items-center gap-3 border-t border-line pt-3">
+                  <CapacityMeter booked={shift._count.applications} needed={shift.marshalsNeeded} />
+                  {application && <ApplicationStatusBadge status={application.status} />}
+                </div>
+              </li>
             );
           })}
-        </div>
+        </ul>
       )}
     </div>
   );

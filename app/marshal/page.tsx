@@ -1,17 +1,17 @@
-import Link from "next/link";
 import { requireRole } from "@/lib/access";
 import { prisma } from "@/lib/db";
 import {
-  ApplicationStatusBadge,
   ButtonLink,
-  DateBlock,
   EmptyState,
-  Kicker,
   PageHeader,
-  ShiftStatusBadge,
   StatCard,
+  StatusBadge,
 } from "@/components/ui";
+import { Icon } from "@/components/Icon";
 import { formatShiftBlock } from "@/lib/format";
+import { marshalApplicationOutcome } from "@/lib/application-outcome";
+import { currentBookings } from "@/lib/workspace-shifts";
+import { MarshalApplicationRow } from "@/components/MarshalApplicationRow";
 
 export default async function MarshalHome() {
   const user = await requireRole("MARSHAL");
@@ -19,20 +19,22 @@ export default async function MarshalHome() {
     where: { userId: user.id },
   });
   const apps = await prisma.application.findMany({
-    where: { marshalId: user.id, status: { in: ["APPLIED", "ACCEPTED"] } },
+    where: { marshalId: user.id },
     orderBy: { appliedAt: "desc" },
     include: { shift: true },
   });
 
-  const acceptedCount = apps.filter((a) => a.status === "ACCEPTED").length;
-  const pendingCount = apps.filter((a) => a.status === "APPLIED").length;
+  const booked = currentBookings(apps, new Date());
+  const awaitingDecision = apps.filter((a) => a.status === "APPLIED" && a.shift.status === "OPEN" && !a.shift.paused);
+  const nextBooking = booked[0];
+  const featuredOutcome = nextBooking && marshalApplicationOutcome(nextBooking.status, nextBooking.shift);
+  const recentApplications = apps.slice(0, 10);
 
   return (
     <div>
       <PageHeader
-        kicker="Marshal dashboard"
-        title={profile?.fullName ?? "Your dashboard"}
-        subtitle="Your applications and bookings in one place. Contact details release when a manager accepts you."
+        title={profile ? `Welcome back, ${profile.fullName}` : "Your dashboard"}
+        subtitle="Your applications and upcoming work."
         action={
           <ButtonLink href="/marshal/shifts">Browse shifts</ButtonLink>
         }
@@ -55,67 +57,37 @@ export default async function MarshalHome() {
         </div>
       )}
 
-      <div className="mt-4 grid gap-3 sm:grid-cols-3">
-        <StatCard
-          label="Awaiting a decision"
-          value={pendingCount}
-          hint="Applications a manager hasn't decided on yet"
-        />
-        <StatCard
-          label="Booked"
-          value={acceptedCount}
-          hint="Accepted bookings — contact details are on each one"
-        />
-        <StatCard
-          label="Completed"
-          value={profile?.completedCount ?? 0}
-          hint="Your completed-shift record"
-          href="/marshal/history"
-        />
+      {nextBooking && featuredOutcome && (
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-ok/30 bg-ok-soft p-4">
+          <div className="min-w-0">
+            <StatusBadge label={featuredOutcome.label} tone={featuredOutcome.tone} />
+            <p className="mt-1 font-bold max-sm:line-clamp-2">{nextBooking.shift.productionName}</p>
+            <p className="mt-1 text-sm text-ink-muted">{formatShiftBlock(nextBooking.shift.startDate, nextBooking.shift.endDate, nextBooking.shift.dailyStartTime, nextBooking.shift.dailyEndTime)}</p>
+          </div>
+          <ButtonLink href={`/marshal/applications/${nextBooking.id}`} variant="secondary">View booking</ButtonLink>
+        </div>
+      )}
+
+      <div className="summary-grid">
+        <StatCard label="Awaiting a decision" value={awaitingDecision.length} />
+        <StatCard label="Current and upcoming bookings" value={booked.length} icon="check" tone="ok" />
+        <StatCard label="Completed shifts" value={profile?.completedCount ?? 0} href="/marshal/history" icon="calendar" tone="neutral" />
       </div>
 
-      <Kicker className="mb-2 mt-8">Active applications</Kicker>
-      {apps.length === 0 ? (
+      <div className="mb-2 mt-6 flex flex-wrap items-center justify-between gap-2">
+        <h2 className="text-xl font-bold tracking-tight">Recent applications</h2>
+        <ButtonLink href="/marshal/applications" variant="ghost">View all <Icon name="arrow" className="ml-2 size-4" /></ButtonLink>
+      </div>
+      {recentApplications.length === 0 ? (
         <EmptyState
-          title="No active applications"
+          title="No applications yet"
           body="Browse open shifts to find work near you. You'll see each application's status here after you apply."
           action={<ButtonLink href="/marshal/shifts">Browse shifts</ButtonLink>}
         />
       ) : (
         <div className="space-y-2">
-          {apps.map((a) => (
-            <Link
-              key={a.id}
-              href={`/marshal/applications/${a.id}`}
-              className="block rounded-md border border-line bg-white p-4 shadow-[0_1px_0_rgba(28,25,21,0.03)] hover:bg-surface-subtle"
-            >
-              <div className="flex items-start gap-3">
-                <DateBlock date={a.shift.startDate} />
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className="truncate font-serif text-lg leading-snug text-ink">
-                      {a.shift.productionName}
-                    </p>
-                    <ApplicationStatusBadge status={a.status} />
-                    <ShiftStatusBadge status={a.shift.status} />
-                  </div>
-                  <p className="mt-0.5 text-sm text-ink-muted">
-                    {a.shift.location} ·{" "}
-                    {formatShiftBlock(
-                      a.shift.startDate,
-                      a.shift.endDate,
-                      a.shift.dailyStartTime,
-                      a.shift.dailyEndTime,
-                    )}
-                  </p>
-                  <p className="mt-1 text-xs text-ink-soft">
-                    {a.status === "ACCEPTED"
-                      ? "You're booked — contact details are on the application page."
-                      : "Waiting for the manager's decision. You'll be notified either way."}
-                  </p>
-                </div>
-              </div>
-            </Link>
+          {recentApplications.map((application) => (
+            <MarshalApplicationRow key={application.id} application={application} />
           ))}
         </div>
       )}

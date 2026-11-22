@@ -119,12 +119,12 @@ export default function MarshalProfileForm({
             onChange={(e) => setSummaryLen(e.target.value.length)}
             placeholder="3 years on UK commercials and drama. Comfortable with traffic management, unit base, and long outdoor days."
           />
+        </Field>
           <div className="mt-1 text-right">
             <span className="font-mono text-[11px] text-ink-soft">
               {summaryLen}/2000
             </span>
           </div>
-        </Field>
         <Field
           label="Relevant training or credentials"
           hint="Optional"

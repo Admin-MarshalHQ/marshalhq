@@ -1,44 +1,23 @@
-import Image from "next/image";
-
-const LOGO_ASSETS = {
-  mark: {
-    src: "/brand/marshalhq-mark.png",
-    width: 272,
-    height: 230,
-    sizes: "48px",
-  },
-  wordmark: {
-    src: "/brand/marshalhq-wordmark.png",
-    width: 1130,
-    height: 230,
-    sizes: "(max-width: 720px) 132px, 170px",
-  },
-} as const;
-
-type BrandLogoProps = {
-  variant?: keyof typeof LOGO_ASSETS;
-  className?: string;
-  priority?: boolean;
-  alt?: string;
-};
+import clsx from "clsx";
 
 export function BrandLogo({
   variant = "wordmark",
-  className = "",
-  priority,
+  className,
   alt = "MarshalHQ",
-}: BrandLogoProps) {
-  const asset = LOGO_ASSETS[variant];
-
+}: {
+  variant?: "mark" | "wordmark";
+  className?: string;
+  alt?: string;
+}) {
   return (
-    <Image
-      src={asset.src}
-      width={asset.width}
-      height={asset.height}
-      alt={alt}
-      priority={priority}
-      sizes={asset.sizes}
-      className={`brand-logo brand-logo--${variant}${className ? ` ${className}` : ""}`}
-    />
+    <span
+      className={clsx("brand-logo", className)}
+      role={alt ? "img" : undefined}
+      aria-label={alt || undefined}
+      aria-hidden={alt ? undefined : true}
+    >
+      <span className="brand-logo__mark" />
+      {variant === "wordmark" && <span>MarshalHQ</span>}
+    </span>
   );
 }

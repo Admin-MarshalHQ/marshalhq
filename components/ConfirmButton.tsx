@@ -1,40 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useId, useRef, useState, useTransition } from "react";
 import clsx from "clsx";
-
-// Small, focused confirm-modal primitive for destructive workflow actions.
-//
-// The trigger button is always the outermost element so parent layouts can keep
-// treating it like any other button. Clicking it opens a dialog with plain
-// operational copy explaining the consequence; only the Confirm button inside
-// the dialog invokes the server action.
-//
-// Designed around Next.js server actions: `action` is a bound server action the
-// parent page creates (e.g. `async () => { "use server"; await closeShiftAction(id); }`).
-// Server action redirects propagate through startTransition as normal.
+import { Button } from "./ui";
 
 type Variant = "primary" | "secondary" | "danger";
-
-function triggerClasses(variant: Variant): string {
-  if (variant === "danger") {
-    return "border border-danger bg-white text-danger hover:bg-danger-soft";
-  }
-  if (variant === "secondary") {
-    return "border border-line-strong bg-white text-ink hover:bg-surface-subtle";
-  }
-  return "bg-ink text-white hover:opacity-90";
-}
-
-function confirmClasses(variant: Variant): string {
-  if (variant === "danger") {
-    return "bg-danger text-white hover:opacity-90";
-  }
-  if (variant === "secondary") {
-    return "bg-ink text-white hover:opacity-90";
-  }
-  return "bg-ink text-white hover:opacity-90";
-}
 
 export default function ConfirmButton({
   action,
@@ -57,86 +27,63 @@ export default function ConfirmButton({
   disabled?: boolean;
   className?: string;
 }) {
-  const [open, setOpen] = useState(false);
-  const [isPending, startTransition] = useTransition();
-  const confirmRef = useRef<HTMLButtonElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    // Move focus into the dialog so keyboard users can confirm or cancel without
-    // hunting for the modal; Escape dismisses without firing the action.
-    confirmRef.current?.focus();
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && !isPending) setOpen(false);
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [open, isPending]);
+  const id = useId();
+  const dialog = useRef<HTMLDialogElement>(null);
+  const [working, setWorking] = useState(false);
+  const [pending, startTransition] = useTransition();
+  const busy = working || pending;
 
   return (
     <>
-      <button
-        type="button"
+      <Button
+        variant={variant}
         disabled={disabled}
-        onClick={() => setOpen(true)}
-        className={clsx(
-          "inline-flex min-h-[40px] w-full items-center justify-center rounded-md px-3.5 py-2 text-sm font-medium transition disabled:opacity-50",
-          triggerClasses(variant),
-          className,
-        )}
+        aria-haspopup="dialog"
+        className={clsx("w-full", className)}
+        onClick={() => dialog.current?.showModal()}
       >
         {triggerLabel}
-      </button>
-      {open && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="confirm-title"
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
-          onClick={(e) => {
-            if (e.target === e.currentTarget && !isPending) setOpen(false);
-          }}
-        >
-          <div className="w-full max-w-md rounded-md border border-line bg-white p-5 shadow-xl">
-            <p
-              id="confirm-title"
-              className="text-base font-semibold text-ink"
-            >
-              {title}
-            </p>
-            <div className="mt-2 text-sm text-ink-muted">{description}</div>
-            <div className="mt-4 flex justify-end gap-2">
-              <button
-                type="button"
-                disabled={isPending}
-                onClick={() => setOpen(false)}
-                className="inline-flex items-center justify-center rounded-md border border-line bg-white px-3 py-2 text-sm font-medium text-ink hover:bg-surface-subtle disabled:opacity-50"
-              >
-                {cancelLabel}
-              </button>
-              <button
-                ref={confirmRef}
-                type="button"
-                disabled={isPending}
-                onClick={() => {
-                  startTransition(async () => {
-                    await action();
-                    // If the action redirects (the usual case for these flows),
-                    // this component unmounts before we reach this line.
-                    setOpen(false);
-                  });
-                }}
-                className={clsx(
-                  "inline-flex items-center justify-center rounded-md px-3 py-2 text-sm font-medium transition disabled:opacity-50",
-                  confirmClasses(variant),
-                )}
-              >
-                {isPending ? "Working\u2026" : confirmLabel}
-              </button>
-            </div>
-          </div>
+      </Button>
+      <dialog
+        ref={dialog}
+        aria-labelledby={`${id}-title`}
+        aria-describedby={`${id}-description`}
+        className="w-[calc(100%-2rem)] max-w-lg rounded-lg border border-line bg-white p-5 text-ink shadow-panel backdrop:bg-ink/50 sm:p-6"
+        onCancel={(event) => {
+          if (busy) event.preventDefault();
+        }}
+      >
+        <h2 id={`${id}-title`} className="text-xl font-bold tracking-tight">{title}</h2>
+        <div id={`${id}-description`} className="mt-2 text-sm text-ink-muted">{description}</div>
+        <div className="mt-5 flex flex-wrap justify-end gap-2">
+          <Button
+            variant="secondary"
+            autoFocus
+            disabled={busy}
+            onClick={() => dialog.current?.close()}
+          >
+            {cancelLabel}
+          </Button>
+          <Button
+            variant={variant === "danger" ? "danger" : "primary"}
+            disabled={busy}
+            onClick={() => {
+              if (busy) return;
+              setWorking(true);
+              startTransition(async () => {
+                try {
+                  await action();
+                  dialog.current?.close();
+                } finally {
+                  setWorking(false);
+                }
+              });
+            }}
+          >
+            {busy ? "Working…" : confirmLabel}
+          </Button>
         </div>
-      )}
+      </dialog>
     </>
   );
 }

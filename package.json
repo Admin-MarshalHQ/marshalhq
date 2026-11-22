@@ -17,7 +17,8 @@
     "version:write": "node scripts/write-version.mjs",
     "prebuild": "node scripts/write-version.mjs",
     "predev": "node scripts/write-version.mjs",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "test:workspace": "node --import tsx --test scripts/workspace_regression_tests.ts"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.7.4",

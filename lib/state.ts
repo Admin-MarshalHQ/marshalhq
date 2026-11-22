@@ -68,10 +68,21 @@ export function canCompleteShift(
   now: Date = new Date(),
 ): boolean {
   if (shift.status !== "FILLED") return false;
-  const end = new Date(shift.endDate);
-  const [h, m] = shift.dailyEndTime.split(":").map(Number);
-  end.setHours(h ?? 0, m ?? 0, 0, 0);
-  return end.getTime() <= now.getTime();
+  return hasShiftEnded(shift, now);
+}
+
+export function hasShiftEnded(
+  shift: Pick<CompletableShift, "endDate" | "dailyEndTime">,
+  now: Date = new Date(),
+): boolean {
+  return shiftDateTime(shift.endDate, shift.dailyEndTime).getTime() <= now.getTime();
+}
+
+function shiftDateTime(date: Date, time: string): Date {
+  const result = new Date(date);
+  const [h, m] = time.split(":").map(Number);
+  result.setHours(h ?? 0, m ?? 0, 0, 0);
+  return result;
 }
 
 /**
@@ -82,10 +93,7 @@ export function canCompleteShift(
  * that OPEN means "live, actionable, and safe to apply to" breaks otherwise.
  */
 export function shiftStartDateTime(startDate: Date, dailyStartTime: string): Date {
-  const start = new Date(startDate);
-  const [h, m] = dailyStartTime.split(":").map(Number);
-  start.setHours(h ?? 0, m ?? 0, 0, 0);
-  return start;
+  return shiftDateTime(startDate, dailyStartTime);
 }
 
 /**

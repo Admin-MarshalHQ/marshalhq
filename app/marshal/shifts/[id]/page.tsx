@@ -10,16 +10,13 @@ import {
   Card,
   ContactCard,
   DL,
-  Kicker,
+  DateBlock,
   PageHeader,
   ShiftStatusBadge,
 } from "@/components/ui";
-import {
-  formatRate,
-  formatShiftBlock,
-  shiftBlockLengthLabel,
-} from "@/lib/format";
-import { canMarshalApply, isLimitedAvailability } from "@/lib/state";
+import { shiftBlockLengthLabel } from "@/lib/format";
+import { ShiftFacts } from "@/components/ShiftFacts";
+import { canMarshalApply, isLimitedAvailability, shiftStartDateTime } from "@/lib/state";
 import { shiftConflicts, type ConflictReason } from "@/lib/availability";
 import { StarRatingDisplay } from "@/components/StarRating";
 import { ratingSummary } from "@/lib/reviews";
@@ -63,6 +60,7 @@ export default async function MarshalShiftDetailPage({
 
   const yourApp = shift.applications[0];
   const acceptedCount = shift._count.applications;
+  const started = shiftStartDateTime(shift.startDate, shift.dailyStartTime).getTime() <= Date.now();
   const profile = await prisma.marshalProfile.findUnique({
     where: { userId: user.id },
     select: { id: true, availability: true, paused: true },
@@ -109,7 +107,6 @@ export default async function MarshalShiftDetailPage({
   return (
     <div>
       <PageHeader
-        kicker="Open shift"
         back={{ href: "/marshal/shifts", label: "Back to open shifts" }}
         title={shift.productionName}
         subtitle={`Posted by ${shift.manager.managerProfile?.companyName ?? "Manager"}`}
@@ -125,40 +122,16 @@ export default async function MarshalShiftDetailPage({
         </div>
       )}
 
-      <div className="grid gap-4 md:grid-cols-[2fr,1fr]">
-        <Card className="md:order-1">
-          <DL
-            items={[
-              {
-                label: "When",
-                value: formatShiftBlock(
-                  shift.startDate,
-                  shift.endDate,
-                  shift.dailyStartTime,
-                  shift.dailyEndTime,
-                ),
-              },
-              { label: "Rate", value: formatRate(shift.rate, shift.rateUnit) },
-              {
-                label: "Marshals",
-                value: (
-                  <CapacityMeter
-                    booked={acceptedCount}
-                    needed={shift.marshalsNeeded}
-                  />
-                ),
-              },
-              { label: "Location", value: shift.location },
-              {
-                label: "Parking / travel",
-                value: shift.parkingTravel ?? "\u2014",
-              },
-              {
-                label: "Manager rating",
-                value: <StarRatingDisplay summary={managerRating} />,
-              },
-            ]}
-          />
+      <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1.65fr)_minmax(0,1fr)]">
+        <Card>
+          <div className="mb-4 flex flex-wrap items-center gap-3">
+            <DateBlock date={shift.startDate} />
+            <div>
+              <h2 className="text-lg font-bold">Shift details</h2>
+              <CapacityMeter booked={acceptedCount} needed={shift.marshalsNeeded} />
+            </div>
+          </div>
+          <ShiftFacts shift={shift} />
           {(() => {
             const length = shiftBlockLengthLabel(
               shift.startDate,
@@ -169,31 +142,37 @@ export default async function MarshalShiftDetailPage({
             ) : null;
           })()}
           <div className="mt-4 border-t border-line pt-3">
-            <Kicker className="mb-1">Duties</Kicker>
+            <h2 className="mb-2 font-bold">Duties</h2>
             <p className="whitespace-pre-wrap text-sm text-ink">
               {shift.duties}
             </p>
           </div>
           {shift.experienceNotes && (
             <div className="mt-4 border-t border-line pt-3">
-              <Kicker className="mb-1">Experience / notes</Kicker>
+              <h2 className="mb-2 font-bold">Experience / notes</h2>
               <p className="whitespace-pre-wrap text-sm text-ink">
                 {shift.experienceNotes}
               </p>
             </div>
           )}
+          {shift.parkingTravel && (
+            <div className="mt-4 border-t border-line pt-3">
+              <h2 className="mb-2 font-bold">Parking / travel</h2>
+              <p className="whitespace-pre-wrap text-sm">{shift.parkingTravel}</p>
+            </div>
+          )}
+          <div className="mt-4 border-t border-line pt-3">
+            <DL items={[{ label: "Manager rating", value: <StarRatingDisplay summary={managerRating} /> }]} />
+          </div>
         </Card>
 
-        {/* Apply column: first in DOM so a marshal on a phone sees the apply
-            state before the long duties text; md:order-2 restores the
-            desktop sidebar position. */}
-        <div className="order-first space-y-3 md:order-2">
+        <div className="min-w-0 space-y-3">
           <Card
             variant={
               !yourApp && shift.status === "OPEN" ? "highlight" : "default"
             }
           >
-            <Kicker className="mb-2">Apply</Kicker>
+            <h2 className="mb-2 text-lg font-bold">Apply for this shift</h2>
             {yourApp ? (
               <div className="space-y-2">
                 <ApplicationStatusBadge status={yourApp.status} />
@@ -215,6 +194,8 @@ export default async function MarshalShiftDetailPage({
               </div>
             ) : shift.status !== "OPEN" ? (
               <Alert tone="warn">This shift is no longer open.</Alert>
+            ) : started ? (
+              <Alert tone="warn">Applications have closed because the shift has already started.</Alert>
             ) : !profile ? (
               <Alert tone="warn">
                 You need a marshal profile to apply.{" "}

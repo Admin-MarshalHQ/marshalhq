@@ -4,13 +4,13 @@ import { requireRole } from "@/lib/access";
 import { prisma } from "@/lib/db";
 import {
   Alert,
-  ApplicationStatusBadge,
+  ButtonLink,
   Card,
   ContactCard,
   DL,
   Kicker,
   PageHeader,
-  ShiftStatusBadge,
+  StatusBadge,
 } from "@/components/ui";
 import ConfirmButton from "@/components/ConfirmButton";
 import {
@@ -33,6 +33,8 @@ import {
 import ReviewForm from "@/components/ReviewForm";
 import { StarRatingDisplay } from "@/components/StarRating";
 import { ratingSummary } from "@/lib/reviews";
+import { marshalApplicationOutcome } from "@/lib/application-outcome";
+import { shiftStartDateTime } from "@/lib/state";
 
 export default async function MyApplicationDetail({
   params,
@@ -53,24 +55,11 @@ export default async function MyApplicationDetail({
   });
   if (!app || app.marshalId !== user.id) notFound();
 
-  // Contact release invariant: contact is visible only to the accepted pair,
-  // and only while the booking is in a valid post-acceptance state. Every
-  // element of the invariant is re-checked here so a URL that deep-links to
-  // an old application can't surface contact that has since been revoked.
-  //
-  //   1. Application must be ACCEPTED (not APPLIED/REJECTED/WITHDRAWN).
-  //   2. Shift must pin this application as its accepted one. This is the
-  //      source of truth — a sibling applicant on the same shift never
-  //      matches, so contact cannot leak across the sibling chain.
-  //   3. Shift must be in a post-filled booking state where contact is still
-  //      appropriate: FILLED (active) or COMPLETED (historical trust).
-  //      CLOSED means the booking was cancelled — contact comes down.
-  //   4. The marshal's own profile must not be paused. A paused marshal is
-  //      off-rotation and must route through support to see their booking.
-  //
-  // Contact is looked up only when every guard passes, so a query that
-  // doesn't need it never pulls the manager's phone/email into memory.
+  // Only the application owner on an accepted booking can see contact.
+  // A booking may be on an open, filled or completed shift. Closure or a
+  // paused marshal profile takes contact down, including on old URLs.
   const shift = app.shift;
+  const outcome = marshalApplicationOutcome(app.status, shift);
   const isAcceptedPair =
     app.status === "ACCEPTED" &&
     (shift.status === "OPEN" ||
@@ -109,19 +98,14 @@ export default async function MyApplicationDetail({
   // is refused because of the committed-stage or stale-state guards. We keep
   // the copy calm and operational: after operational commitment has passed,
   // users route through support rather than self-service.
-  const shiftStart = (() => {
-    const d = new Date(shift.startDate);
-    const [h, m] = shift.dailyStartTime.split(":").map(Number);
-    d.setHours(h ?? 0, m ?? 0, 0, 0);
-    return d;
-  })();
+  const shiftStart = shiftStartDateTime(shift.startDate, shift.dailyStartTime);
   const shiftStarted = shiftStart.getTime() <= Date.now();
   const canWithdrawApplied =
     app.status === "APPLIED" && shift.status === "OPEN";
-  const canWithdrawAccepted =
+  const isBooked =
     app.status === "ACCEPTED" &&
-    (shift.status === "OPEN" || shift.status === "FILLED") &&
-    !shiftStarted;
+    (shift.status === "OPEN" || shift.status === "FILLED");
+  const canWithdrawAccepted = isBooked && !shiftStarted;
 
   // Two-way reviews: an accepted marshal can review the manager once the shift
   // is COMPLETED.
@@ -154,9 +138,11 @@ export default async function MyApplicationDetail({
           shift.dailyEndTime,
         )}`}
         action={
-          <div className="flex flex-wrap gap-2">
-            <ApplicationStatusBadge status={app.status} />
-            <ShiftStatusBadge status={shift.status} />
+          <div className="flex flex-wrap items-center gap-2">
+            <StatusBadge label={outcome.label} tone={outcome.tone} />
+            {showContact && isBooked && (
+              <ButtonLink href="#manager-contact" variant="secondary">View manager contact</ButtonLink>
+            )}
           </div>
         }
       />
@@ -166,6 +152,8 @@ export default async function MyApplicationDetail({
           <p className="-mt-3 mb-3 text-xs text-ink-soft">{length}</p>
         ) : null;
       })()}
+
+      <p className="mb-4 text-sm text-ink-muted">{outcome.detail}</p>
 
       {withdrawFlash === "committed" && (
         <div className="mb-4">
@@ -223,32 +211,28 @@ export default async function MyApplicationDetail({
         </Card>
 
         <div className="space-y-3">
-          {showContact && contactManager ? (
-            <ContactCard
-              released
-              title={CONTACT_RELEASED_HEADING}
-              body={CONTACT_RELEASED_BODY_MARSHAL}
-              items={[
-                {
-                  label: "Name",
-                  value:
-                    contactManager.managerProfile?.displayName ?? "Manager",
-                },
-                {
-                  label: "Company",
-                  value:
-                    contactManager.managerProfile?.companyName ?? "\u2014",
-                },
-                { label: "Email", value: contactManager.email },
-                { label: "Phone", value: formatPhone(contactManager.phone) },
-              ]}
-            />
-          ) : (
-            <ContactCard
-              released={false}
-              title="Contact"
-              body="Contact details will be released here if the manager accepts your application."
-            />
+          {showContact && contactManager && (
+            <div id="manager-contact" tabIndex={-1} role="region" aria-label="Manager contact">
+              <ContactCard
+                released
+                title={CONTACT_RELEASED_HEADING}
+                body={CONTACT_RELEASED_BODY_MARSHAL}
+                items={[
+                  {
+                    label: "Name",
+                    value:
+                      contactManager.managerProfile?.displayName ?? "Manager",
+                  },
+                  {
+                    label: "Company",
+                    value:
+                      contactManager.managerProfile?.companyName ?? "\u2014",
+                  },
+                  { label: "Email", value: contactManager.email },
+                  { label: "Phone", value: formatPhone(contactManager.phone) },
+                ]}
+              />
+            </div>
           )}
 
           {(canWithdrawApplied || canWithdrawAccepted) && (
@@ -289,7 +273,7 @@ export default async function MyApplicationDetail({
               </div>
             </Card>
           )}
-          {app.status === "ACCEPTED" && !canWithdrawAccepted && !canReviewManager && (
+          {isBooked && !canWithdrawAccepted && (
             <Card variant="sunken">
               <Kicker className="mb-1">Need to change this?</Kicker>
               <p className="text-xs text-ink-soft">

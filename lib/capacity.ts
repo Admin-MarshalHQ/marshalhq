@@ -8,7 +8,7 @@ export function acceptedCount(shift: CapacityShift): number {
 }
 
 export function capacityLabel(accepted: number, needed: number): string {
-  return `${accepted}/${needed} booked`;
+  return `${accepted} of ${needed} booked`;
 }
 
 export function hasOpenSlot(accepted: number, needed: number): boolean {

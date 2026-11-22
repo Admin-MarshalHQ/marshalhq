@@ -205,10 +205,10 @@ export default function ShiftForm({
             onChange={(e) => setDutiesLen(e.target.value.length)}
             placeholder="Holding traffic at unit base and maintaining a clear path for cast and crew."
           />
+        </Field>
           <div className="mt-1 text-right">
             <Counter value={dutiesLen} max={2000} />
           </div>
-        </Field>
         <Field
           label="Parking or travel details"
           hint="Optional"
@@ -233,13 +233,13 @@ export default function ShiftForm({
             onChange={(e) => setNotesLen(e.target.value.length)}
             placeholder="Prior traffic management ticket preferred"
           />
+        </Field>
           <div className="mt-1 text-right">
             <Counter value={notesLen} max={500} />
           </div>
-        </Field>
       </FormSection>
 
-      <div className="flex items-center gap-3 border-t border-line pt-4">
+      <div className="flex flex-wrap items-center gap-3 border-t border-line pt-4">
         <Submit label={submitLabel} />
         <span className="text-xs text-ink-soft">
           Saves as a draft — marshals see nothing until you publish in the

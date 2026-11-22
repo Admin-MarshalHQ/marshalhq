@@ -1,15 +1,11 @@
-import Link from "next/link";
 import { requireRole } from "@/lib/access";
 import { prisma } from "@/lib/db";
 import {
-  ApplicationStatusBadge,
   ButtonLink,
-  DateBlock,
   EmptyState,
   PageHeader,
-  ShiftStatusBadge,
 } from "@/components/ui";
-import { formatShiftBlock } from "@/lib/format";
+import { MarshalApplicationRow } from "@/components/MarshalApplicationRow";
 
 export default async function MyApplicationsPage() {
   const user = await requireRole("MARSHAL");
@@ -22,9 +18,8 @@ export default async function MyApplicationsPage() {
   return (
     <div>
       <PageHeader
-        kicker="Applications"
         title="My applications"
-        subtitle="Every shift you've applied to and its current state. Accepted means you're booked and contact details are available."
+        subtitle="Track applications and open each record for its latest booking and contact status."
         action={<ButtonLink href="/marshal/shifts">Browse shifts</ButtonLink>}
       />
       {apps.length === 0 ? (
@@ -35,34 +30,8 @@ export default async function MyApplicationsPage() {
         />
       ) : (
         <div className="space-y-2">
-          {apps.map((a) => (
-            <Link
-              key={a.id}
-              href={`/marshal/applications/${a.id}`}
-              className="block rounded-md border border-line bg-white p-4 shadow-[0_1px_0_rgba(28,25,21,0.03)] hover:bg-surface-subtle"
-            >
-              <div className="flex items-start gap-3">
-                <DateBlock date={a.shift.startDate} />
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className="truncate font-serif text-lg leading-snug text-ink">
-                      {a.shift.productionName}
-                    </p>
-                    <ApplicationStatusBadge status={a.status} />
-                    <ShiftStatusBadge status={a.shift.status} />
-                  </div>
-                  <p className="mt-0.5 text-sm text-ink-muted">
-                    {a.shift.location} ·{" "}
-                    {formatShiftBlock(
-                      a.shift.startDate,
-                      a.shift.endDate,
-                      a.shift.dailyStartTime,
-                      a.shift.dailyEndTime,
-                    )}
-                  </p>
-                </div>
-              </div>
-            </Link>
+          {apps.map((application) => (
+            <MarshalApplicationRow key={application.id} application={application} />
           ))}
         </div>
       )}
