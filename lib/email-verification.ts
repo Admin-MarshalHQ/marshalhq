@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { sendEmail } from "@/lib/mail";
+import { verificationEmail } from "@/lib/auth-emails";
 import {
   buildEmailVerificationUrl,
   emailVerificationExpiry,
@@ -21,12 +22,7 @@ export async function issueEmailVerification(userId: string, email: string) {
   const url = buildEmailVerificationUrl(raw);
   const result = await sendEmail({
     to: email,
-    subject: "Verify your Setru email",
-    body:
-      `Thanks for joining the Setru private pilot.\n\n` +
-      `Use this link to verify your email address. The link expires in 24 hours and can only be used once.\n\n` +
-      `${url}\n\n` +
-      `If you did not create this account, you can ignore this email.`,
+    ...verificationEmail(url),
   });
   if (!result.ok) {
     console.error("[verification] email failed to send", {
