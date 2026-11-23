@@ -46,7 +46,7 @@ export function MarshalDashboard({ shifts, applications }: ListProps) {
     <h2 className={`mt-6 ${sectionTitle}`}>Recent applications</h2>
     <div className="space-y-2">{mine.map(a => {
       const s = shifts.find(s => s.id === a.shift)!;
-      const outcome = marshalApplicationOutcome(a.status, roster(s, applications));
+      const outcome = marshalApplicationOutcome(a.status, { ...s, ...roster(s, applications) });
       return <a key={s.id} href={`#marshal/applications/${s.id}`} className="card-link !flex items-start gap-3">
         <DateBlock date={s.startDate} /><div>
           <div className="flex flex-wrap items-center gap-2"><h3 className="text-lg font-bold">{s.productionName}</h3><StatusBadge label={outcome.label} tone={outcome.tone} /></div>
@@ -161,7 +161,7 @@ export function MarshalShift({ shift, applications, act, fromDashboard }: Detail
   const r = roster(shift, applications);
   const own = r.entries.find(a => a.marshal === viewerMarshal);
   if (own?.status === "ACCEPTED") return <Booking shift={shift} application={own} applications={applications} fromDashboard={fromDashboard} />;
-  const outcome = own && marshalApplicationOutcome(own.status, r);
+  const outcome = own && marshalApplicationOutcome(own.status, { ...shift, ...r });
   const back = marshalBack(fromDashboard);
   return <>
     <Back href={back.href}>{back.label}</Back>
@@ -192,7 +192,7 @@ export function ManagerShift({ shift, applications }: Omit<DetailProps, "act">) 
         {r.entries.length === 0 && <p className="text-sm text-ink-muted">No one has applied for this shift yet.</p>}
         {r.entries.map(a => {
           const person = profiles[a.marshal];
-          const outcome = marshalApplicationOutcome(a.status, r);
+          const outcome = marshalApplicationOutcome(a.status, { ...shift, ...r });
           return <a key={a.marshal} href={`#manager/${shift.id}/${a.marshal}`} className="block border-t border-line py-3 last:pb-0 hover:text-coral-ink">
             <div className="flex items-center justify-between gap-2"><strong>{person.name}</strong><Icon name="chevron" className="size-4 shrink-0 text-coral-ink" /></div>
             <p className="mt-0.5 text-sm text-ink-muted">{person.base} · {person.transport}</p>
@@ -213,7 +213,7 @@ export function Applicant({ shift, application, applications, act }: DetailProps
   const r = roster(shift, applications);
   const person = profiles[application.marshal];
   if (application.status === "ACCEPTED") return <Booking shift={shift} application={application} applications={applications} managerView />;
-  const outcome = marshalApplicationOutcome(application.status, r);
+  const outcome = marshalApplicationOutcome(application.status, { ...shift, ...r });
   return <>
     <Back href={`#manager/${shift.id}`}>Back to applicants</Back>
     <PageHeader kicker="Applicant" title={person.name} subtitle={`${shift.productionName} · ${shift.dailyStartTime} call`}

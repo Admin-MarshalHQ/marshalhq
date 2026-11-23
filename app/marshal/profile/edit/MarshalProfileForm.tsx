@@ -23,10 +23,8 @@ function boolDefault(v: boolean | null | undefined) {
 
 export default function MarshalProfileForm({
   profile,
-  phone,
 }: {
   profile: MarshalProfile | null;
-  phone: string | null;
 }) {
   const [state, action] = useFormState(saveMarshalProfileAction, null);
   const [summaryLen, setSummaryLen] = useState(
@@ -48,18 +46,7 @@ export default function MarshalProfileForm({
             defaultValue={profile?.fullName ?? ""}
           />
         </Field>
-        <Field
-          label="Phone"
-          hint="Released only after a booking is confirmed"
-        >
-          <input
-            type="tel"
-            name="phone"
-            defaultValue={phone ?? ""}
-            autoComplete="tel"
-            placeholder="07911 123456"
-          />
-        </Field>
+        <a href="/settings" className="text-sm underline">Edit your booking phone in Settings</a>
       </FormSection>
 
       <FormSection title="Where you work">
@@ -164,7 +151,7 @@ export default function MarshalProfileForm({
         </div>
         <Field
           label="Photo URL"
-          hint="Optional. Paste a link to a simple headshot."
+          hint="Optional. This photo is private to your own profile."
           error={state?.fieldErrors?.photoUrl}
         >
           <input

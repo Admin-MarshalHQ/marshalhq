@@ -1,3 +1,4 @@
+import { validPilotWindow } from "./state";
 import { z } from "zod";
 import { normalisePhone, PHONE_INVALID_MESSAGE } from "./phone";
 import { CONTACT_LEAK_MESSAGE, detectContactLeak } from "./contact-detect";
@@ -73,7 +74,7 @@ export const ShiftDraftSchema = z
       .number()
       .int("Enter a whole number")
       .min(1, "At least one marshal is required"),
-    rate: z.coerce.number().positive("Rate must be positive"),
+    rate: z.coerce.number().min(0.01, "Enter at least £0.01").multipleOf(0.01, "Enter a rate in pounds and pence"),
     rateUnit: z.enum(["HOUR", "DAY"]),
     duties: noContactLeak(
       z.string().trim().min(1, "Describe the duties").max(2000),
@@ -95,6 +96,12 @@ export const ShiftDraftSchema = z
         message: "End date can’t be before start date",
       });
     }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(v.startDate) || !Number.isFinite(+start) ||
+        start.toISOString().slice(0, 10) !== v.startDate || v.endDate !== v.startDate) {
+      ctx.addIssue({ code: "custom", path: ["startDate"], message: "Post one valid shoot date per pilot shift." });
+    } else if (!validPilotWindow(start, end, v.dailyStartTime, v.dailyEndTime)) {
+      ctx.addIssue({ code: "custom", path: ["dailyEndTime"], message: "Choose valid London times with wrap after call on the same day." });
+    }
     if (v.dailyEndTime <= v.dailyStartTime) {
       ctx.addIssue({
         code: "custom",
@@ -105,9 +112,6 @@ export const ShiftDraftSchema = z
   });
 
 export const MarshalProfileSchema = z.object({
-  phone: z
-    .union([phoneField, z.literal("")])
-    .transform((v) => (v === "" ? null : v)),
   fullName: noContactLeak(z.string().trim().min(1, "Required").max(120)),
   baseLocation: noContactLeak(z.string().trim().min(1, "Required").max(120)),
   travelRadiusMiles: z.coerce.number().int().min(0).max(500),
@@ -144,9 +148,6 @@ export const PhoneSchema = z.object({
 export const ManagerProfileSchema = z.object({
   companyName: noContactLeak(z.string().trim().min(1, "Required").max(120)),
   displayName: noContactLeak(z.string().trim().min(1, "Required").max(120)),
-  phone: z
-    .union([phoneField, z.literal("")])
-    .transform((v) => (v === "" ? null : v)),
 });
 
 export const ApplySchema = z.object({

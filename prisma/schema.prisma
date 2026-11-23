@@ -111,6 +111,7 @@ model Application {
   shiftId    String
   marshalId  String
   attendance String?   // Null preserves the historical shift-level completion record.
+  attendanceChanges AttendanceChange[]
   coverNote  String?
   status     String    @default("APPLIED") // ApplicationStatus
   appliedAt  DateTime  @default(now())
@@ -123,7 +124,23 @@ model Application {
   @@index([shiftId, status])
 }
 
+// Private correction record. Reasons and reviewer identity stay out of notifications.
+model AttendanceChange {
+  id            String   @id @default(cuid())
+  applicationId String
+  reviewerId    String
+  previous      String?
+  outcome       String
+  reason        String
+  createdAt     DateTime @default(now())
+  application   Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@index([applicationId, createdAt])
+}
+
 model Notification {
+  link String?
+  delivery MailDelivery?
   id        String    @id @default(cuid())
   userId    String
   kind      String // NotificationKind
@@ -182,6 +199,7 @@ model FounderLoginPasscode {
 // the founder has a single place to review access, privacy, deletion, and
 // trust requests. Never used for automated action — all handling is manual.
 model SupportRequest {
+  revision Int @default(0)
   id          String    @id @default(cuid())
   userId      String?
   email       String
@@ -199,7 +217,23 @@ model SupportRequest {
 // Early access waitlist. Demand capture only — not an account. Submissions
 // never create a User; the founder reviews entries manually and follows up
 // out of band. Status changes are out of scope for v1.
+model MailDelivery {
+  id             String @id @default(cuid())
+  notificationId String? @unique
+  waitlistId     String? @unique
+  shiftId        String?
+  retryAt        DateTime @default(now())
+  sentAt         DateTime?
+  attempts       Int @default(0)
+  lease          String?
+  notification   Notification? @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+  waitlist       WaitlistEntry? @relation(fields: [waitlistId], references: [id], onDelete: Cascade)
+  @@index([sentAt, retryAt])
+  @@index([shiftId])
+}
+
 model WaitlistEntry {
+  delivery MailDelivery?
   id                String   @id @default(cuid())
   createdAt         DateTime @default(now())
   name              String

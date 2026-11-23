@@ -1,6 +1,8 @@
+import { hiringOpen } from "@/lib/workspace-shifts";
+import { ShiftEmailStatus } from "@/components/ShiftEmailStatus";
 import { attendanceLabels, isAttendance } from "@/lib/attendance";
 import { AttendanceForm } from "@/components/AttendanceForm";
-import { hasShiftEnded, isShiftSchedulable } from "@/lib/state";
+import { beforeCall, hasShiftEnded } from "@/lib/state";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireRole } from "@/lib/access";
@@ -32,7 +34,6 @@ import { SHIFT_STATUS_LABEL } from "@/lib/state";
 import type { ShiftStatus } from "@/lib/types";
 import {
   CONFIRM_CANCEL_FILLED_ACTION,
-  CONFIRM_CANCEL_FILLED_BODY,
   CONFIRM_CANCEL_FILLED_TITLE,
   CONFIRM_CLOSE_DRAFT_ACTION,
   CONFIRM_CLOSE_DRAFT_BODY,
@@ -55,12 +56,13 @@ export default async function ManagerShiftDetailPage({
   searchParams,
 }: {
   params: { id: string };
-  searchParams: { close?: string; attendance?: string; revertBlocked?: string; publishBlocked?: string };
+  searchParams: { dropout?: string; close?: string; attendance?: string; revertBlocked?: string; publishBlocked?: string };
 }) {
   const user = await requireRole("MANAGER");
   const shift = await prisma.shift.findUnique({
     where: { id: params.id },
     include: {
+      _count: { select: { applications: true } },
       applications: {
         where: { status: { in: ["APPLIED", "ACCEPTED"] } },
         include: {
@@ -75,21 +77,21 @@ export default async function ManagerShiftDetailPage({
   // sees and acts on — accepting a paused marshal should never happen through
   // the normal flow.
   const pending = shift.applications.filter(
-    (a) => a.status === "APPLIED" && !a.marshal.marshalProfile?.paused,
+    (a) => hiringOpen(shift) && a.status === "APPLIED" && !a.marshal.marshalProfile?.paused,
   );
   const acceptedApps = shift.applications.filter((a) => a.status === "ACCEPTED");
   const bookedCount = acceptedApps.length;
-  const hasActiveApplicants = shift.applications.length > 0;
+  const hasActiveApplicants = shift._count.applications > 0;
 
   const active = shift.status === "OPEN" || shift.status === "FILLED";
   const canComplete = active && bookedCount > 0 && hasShiftEnded(shift);
-  const canRecordDropout = active && bookedCount > 0 && isShiftSchedulable(shift);
+  const canRecordDropout = active && bookedCount > 0 && beforeCall(shift);
 
   // Server action wrappers — each captures shift.id so the client ConfirmButton
   // can invoke the action with no arguments.
   const publish = async () => {
     "use server";
-    await publishShiftAction(shift.id);
+    await publishShiftAction(shift.id, shift.updatedAt.toISOString());
   };
   const revert = async () => {
     "use server";
@@ -111,6 +113,11 @@ export default async function ManagerShiftDetailPage({
         action={<ShiftStatusBadge status={shift.status} />}
       />
 
+      <ShiftEmailStatus shiftId={shift.id} />
+      {searchParams.dropout === "saved" && <Alert tone="success">Withdrawal recorded. The place is open again.</Alert>}
+      {searchParams.dropout === "stale" && <Alert tone="warn">The roster changed. Review the current bookings before continuing.</Alert>}
+      {searchParams.dropout === "started" && <Alert tone="warn">Call time has passed. Record attendance after wrap or contact support about the booking.</Alert>}
+      {searchParams.close === "attendance" && <Alert tone="warn">This booked shift has ended. Record attendance instead of cancelling.</Alert>}
       {searchParams.close === "stale" && <Alert tone="warn">The shift or its bookings changed. Review the current roster before cancelling.</Alert>}
       {searchParams.attendance === "stale" && <Alert tone="warn">The roster changed or an outcome was missing. Review the current bookings.</Alert>}
       {searchParams.revertBlocked === "1" && (
@@ -126,13 +133,12 @@ export default async function ManagerShiftDetailPage({
         <div className="mb-4">
           <Alert tone="warn">
             <strong className="mr-1">Can&rsquo;t publish this shift.</strong>
-            The first day&rsquo;s start time must be in the future, the end
-            date can&rsquo;t be before the start date, and the daily end time
-            must be after the daily start time. Edit the draft and try again.
+            Choose one future shoot date with valid London call and wrap times on the same day.
           </Alert>
         </div>
       )}
 
+      {searchParams.publishBlocked === "changed" && <Alert tone="warn">This draft changed or already has an application history. Review the current shift or post a new listing.</Alert>}
       {searchParams.publishBlocked === "contact" && (
         <div className="mb-4">
           <Alert tone="warn">
@@ -275,7 +281,7 @@ export default async function ManagerShiftDetailPage({
                   )}
                 </>
               )}
-              {shift.status === "FILLED" && (
+              {active && bookedCount > 0 && (
                 <>
                   <ButtonLink href={`/manager/shifts/${shift.id}/booking`}>
                     Open booking &amp; contact details
@@ -287,7 +293,7 @@ export default async function ManagerShiftDetailPage({
                 const name = app.marshal.marshalProfile?.fullName ?? "Booked marshal";
                 return <ConfirmButton key={app.id} action={reopenAfterDropoutAction.bind(null, shift.id, app.id)}
                   triggerLabel={`Record dropout · ${name}`} title={`Record dropout for ${name}?`}
-                  description="This frees their place and notifies them. Other bookings stay confirmed."
+                  description="Use this only if the marshal told you they cannot attend. This frees their place. If production cancelled, use Cancel shift."
                   confirmLabel="Record dropout" variant="secondary" />;
               })}
               {(shift.status === "COMPLETED" || shift.status === "CLOSED") && (
@@ -324,12 +330,13 @@ export default async function ManagerShiftDetailPage({
                       variant="danger"
                     />
                   )}
-                  {active && bookedCount > 0 && (
+                  {canComplete && <p className="text-sm text-ink-muted">This booked shift has ended. Record attendance above instead of cancelling.</p>}
+                  {active && bookedCount > 0 && !canComplete && (
                     <ConfirmButton
                       action={close}
                       triggerLabel="Cancel shift"
                       title={CONFIRM_CANCEL_FILLED_TITLE}
-                      description={CONFIRM_CANCEL_FILLED_BODY}
+                      description={`This cancels ${bookedCount} ${bookedCount === 1 ? "booking" : "bookings"} and closes remaining places. Each affected applicant will be notified.`}
                       confirmLabel={CONFIRM_CANCEL_FILLED_ACTION}
                       variant="danger"
                     />
@@ -357,12 +364,12 @@ export default async function ManagerShiftDetailPage({
             </Card>
           )}
 
-          {(shift.status === "FILLED" || shift.status === "COMPLETED") && bookedCount > 0 && (
+          {bookedCount > 0 && (
             <Card>
-              <Kicker className="mb-2">Booked</Kicker>
+              <Kicker className="mb-2">{shift.status === "COMPLETED" ? "Final attendance" : "Booked"}</Kicker>
               <ul className="text-sm text-ink">{acceptedApps.map(app => (
                 <li key={app.id}>{app.marshal.marshalProfile?.fullName ?? "Marshal"}
-                  {isAttendance(app.attendance) && ` · ${attendanceLabels[app.attendance]}`}
+                  {isAttendance(app.attendance) ? ` · ${attendanceLabels[app.attendance]}` : shift.status === "COMPLETED" ? " · Individual attendance unconfirmed" : ""}
                 </li>
               ))}</ul>
               <ButtonLink

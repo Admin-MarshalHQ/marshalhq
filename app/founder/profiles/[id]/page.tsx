@@ -1,3 +1,4 @@
+import { confirmedCount } from "@/lib/attendance";
 import { requireFounder } from "@/lib/access";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -21,6 +22,7 @@ export default async function FounderMarshalProfileDetailPage({
     include: {
       user: {
         select: {
+          _count: confirmedCount,
           email: true,
           phone: true,
           createdAt: true,
@@ -91,7 +93,7 @@ export default async function FounderMarshalProfileDetailPage({
               },
               {
                 label: "Completed",
-                value: `${profile.reliableCount} reliable / ${profile.completedCount} total`,
+                value: `${profile.user._count.applications} recorded as worked`,
               },
               {
                 label: "Joined",

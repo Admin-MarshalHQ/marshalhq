@@ -1,13 +1,18 @@
+import { Pagination, pageNumber, pageSize } from "@/components/Pagination";
 import { requireFounder } from "@/lib/access";
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { Card, PageHeader, ShiftStatusBadge } from "@/components/ui";
 import { formatRate, formatShiftBlock } from "@/lib/format";
 
-export default async function FounderShiftsPage() {
+export default async function FounderShiftsPage({ searchParams }: { searchParams: { page?: string; filter?: string } }) {
   await requireFounder();
+  const disputes = searchParams.filter === "disputes";
+  const where = disputes ? { applications: { some: { status: "ACCEPTED", attendance: { in: ["UNRESOLVED", "WORKED_FLAGGED"] } } } } : {};
+  const total = await prisma.shift.count({ where: where });
+  const page = pageNumber(searchParams.page, total);
   const shifts = await prisma.shift.findMany({
-    orderBy: [{ paused: "desc" }, { createdAt: "desc" }],
+    where, orderBy: [{ paused: "desc" }, { createdAt: "desc" }, { id: "desc" }],
     include: {
       manager: {
         select: {
@@ -17,15 +22,16 @@ export default async function FounderShiftsPage() {
       },
       _count: { select: { applications: true } },
     },
-    take: 200,
+    take: pageSize, skip: (page - 1) * pageSize,
   });
 
   return (
     <div>
       <PageHeader
         title="Shifts"
-        subtitle={`${shifts.length} shifts \u2014 paused shifts are hidden from marshal browsing and reject new applications at the server-action level.`}
+        subtitle={`${total} shifts \u2014 paused shifts are hidden from marshal browsing and reject new applications at the server-action level.`}
       />
+      <Link className="underline" href={disputes ? "/founder/shifts" : "/founder/shifts?filter=disputes"}>{disputes ? "Show all shifts" : "Show attendance disputes"}</Link>
       <Card>
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm">
@@ -87,6 +93,7 @@ export default async function FounderShiftsPage() {
           </table>
         </div>
       </Card>
+      <Pagination page={page} total={total} base={disputes ? "/founder/shifts?filter=disputes" : "/founder/shifts"} />
     </div>
   );
 }

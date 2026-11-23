@@ -1,3 +1,4 @@
+import { currentBookings } from "@/lib/workspace-shifts";
 import { requireRole } from "@/lib/access";
 import { prisma } from "@/lib/db";
 import { Card, EmptyState, Kicker, PageHeader } from "@/components/ui";
@@ -8,7 +9,7 @@ import AvailabilityForm from "./AvailabilityForm";
 export default async function AvailabilityPage() {
   const user = await requireRole("MARSHAL");
 
-  const [blocks, bookedShifts] = await Promise.all([
+  const [blocks, bookings] = await Promise.all([
     prisma.availabilityBlock.findMany({
       where: { marshalId: user.id },
       orderBy: { startDate: "asc" },
@@ -26,6 +27,7 @@ export default async function AvailabilityPage() {
     }),
   ]);
 
+  const bookedShifts = currentBookings(bookings, new Date());
   return (
     <div className="mx-auto max-w-2xl">
       <PageHeader
@@ -84,7 +86,7 @@ export default async function AvailabilityPage() {
                   </div>
                   <form action={remove}>
                     <button
-                      type="submit"
+                      type="submit" aria-label={`Remove unavailable dates ${formatDate(b.startDate)} to ${formatDate(b.endDate)}`}
                       className="text-xs text-danger underline"
                     >
                       Remove

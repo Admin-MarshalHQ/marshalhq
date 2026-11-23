@@ -13,6 +13,7 @@ const accountMiddleware = auth((req) => {
 
   const isPublic =
     path === "/" ||
+    path === "/api/cron/mail" ||
     path === "/login" ||
     path === "/login/founder" ||
     path === "/signup" ||

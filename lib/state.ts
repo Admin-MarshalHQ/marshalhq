@@ -17,7 +17,8 @@ export const APPLICATION_TRANSITIONS: Record<
   ApplicationStatus[]
 > = {
   APPLIED: ["ACCEPTED", "REJECTED", "WITHDRAWN"],
-  ACCEPTED: ["WITHDRAWN"],
+  ACCEPTED: ["WITHDRAWN", "PRODUCTION_CANCELLED"],
+  PRODUCTION_CANCELLED: [],
   REJECTED: [],
   WITHDRAWN: [],
 };
@@ -92,6 +93,22 @@ function shiftDateTime(date: Date, time: string): Date {
   return Number(londonHour.format(summer)) === hour ? summer : new Date(utc);
 }
 
+// New pilot bookings cover one London calendar day. Existing bookings still
+// use their recorded dates for wrap, cancellation and attendance.
+export function validPilotWindow(start: Date, end: Date, call: string, wrap: string) {
+  if (!Number.isFinite(+start) || +start !== +end || wrap <= call) return false;
+  const clock = /^(?:[01]\d|2[0-3]):[0-5]\d$/;
+  if (!clock.test(call) || !clock.test(wrap)) return false;
+  const first = shiftDateTime(start, call);
+  const last = shiftDateTime(end, wrap);
+  return londonHour.format(first) === call.slice(0, 2) &&
+    londonHour.format(last) === wrap.slice(0, 2) && first < last;
+}
+
+export function beforeCall(shift: { startDate: Date; dailyStartTime: string }, now = new Date()) {
+  return shiftStartDateTime(shift.startDate, shift.dailyStartTime) > now;
+}
+
 /**
  * Combine a shift's `startDate` (date-only) with its `dailyStartTime` ("HH:MM")
  * into a real Date for day 1 of the block. Used by the publish and apply
@@ -118,10 +135,8 @@ export function isShiftSchedulable(
   },
   now: Date = new Date(),
 ): boolean {
-  if (shift.endDate.getTime() < shift.startDate.getTime()) return false;
-  if (shift.dailyEndTime <= shift.dailyStartTime) return false;
-  const start = shiftStartDateTime(shift.startDate, shift.dailyStartTime);
-  return start.getTime() > now.getTime();
+  return validPilotWindow(shift.startDate, shift.endDate, shift.dailyStartTime, shift.dailyEndTime) &&
+    beforeCall(shift, now);
 }
 
 export const SHIFT_STATUS_LABEL: Record<ShiftStatus, string> = {
@@ -136,7 +151,8 @@ export const APPLICATION_STATUS_LABEL: Record<ApplicationStatus, string> = {
   APPLIED: "Applied",
   ACCEPTED: "Accepted",
   REJECTED: "Rejected",
-  WITHDRAWN: "Withdrawn",
+  WITHDRAWN: "No longer active",
+  PRODUCTION_CANCELLED: "Cancelled by production",
 };
 
 // Availability gating for the apply flow.
@@ -205,17 +221,7 @@ export function classifyWithdraw(
   if (shift.status === "COMPLETED" || shift.status === "CLOSED") {
     return "committed";
   }
-  if (app.status === "APPLIED") {
-    // APPLIED is only withdrawable while the shift is still OPEN. Anything
-    // else means the shift moved on (FILLED, paused, etc.) without this row
-    // catching the update — surface as stale and let the page refresh.
-    return shift.status === "OPEN" ? "allowed" : "stale";
-  }
-  // ACCEPTED branch: the shift must still be in an active booking state. On a
-  // multi-marshal shift that can be OPEN (part-filled) or FILLED (at quota).
-  // The first day of the block must not have started yet.
-  if (shift.status !== "FILLED" && shift.status !== "OPEN") return "stale";
-  const start = shiftStartDateTime(shift.startDate, shift.dailyStartTime);
-  if (start.getTime() <= now.getTime()) return "committed";
+  if (!["OPEN", "FILLED"].includes(shift.status)) return "stale";
+  if (!beforeCall(shift, now)) return app.status === "ACCEPTED" ? "committed" : "stale";
   return "allowed";
 }

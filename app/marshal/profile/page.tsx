@@ -1,3 +1,5 @@
+import { confirmedWork } from "@/lib/attendance";
+import { recordedReviews } from "@/lib/recorded-reviews";
 import { requireRole } from "@/lib/access";
 import { prisma } from "@/lib/db";
 import {
@@ -22,13 +24,8 @@ export default async function MarshalProfilePage() {
   const p = await prisma.marshalProfile.findUnique({
     where: { userId: user.id },
   });
-  const reviews = await prisma.review.findMany({
-    where: { subjectId: user.id, direction: "MANAGER_ON_MARSHAL" },
-    orderBy: { createdAt: "desc" },
-    include: {
-      shift: { select: { productionName: true } },
-    },
-  });
+  const reviews = await recordedReviews(user.id, "MANAGER_ON_MARSHAL");
+  const count = await prisma.application.count({ where: { marshalId: user.id, ...confirmedWork } });
   const summary = ratingSummary(reviews);
 
   if (!p) {
@@ -51,7 +48,7 @@ export default async function MarshalProfilePage() {
   return (
     <div className="mx-auto max-w-2xl">
       <PageHeader
-        kicker="Your profile — as managers see it"
+        kicker="Your marshal profile"
         title={p.fullName}
         subtitle="Managers review this when you apply. It never shows your contact details — those release only after you're accepted."
         action={
@@ -63,19 +60,6 @@ export default async function MarshalProfilePage() {
 
       <Card>
         <div className="flex items-start gap-4">
-          {p.photoUrl && (
-            // Plain <img> on purpose: photo URLs are user-supplied, and
-            // routing them through next/image would let the optimizer fetch
-            // arbitrary third-party hosts.
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={p.photoUrl}
-              alt={p.fullName}
-              width={80}
-              height={80}
-              className="h-20 w-20 rounded-md object-cover"
-            />
-          )}
           <div className="flex-1">
             <DL
               items={[
@@ -111,11 +95,7 @@ export default async function MarshalProfilePage() {
                   value: p.training || "\u2014",
                 },
                 {
-                  label: "Reliability",
-                  value:
-                    p.completedCount > 0
-                      ? `${p.reliableCount}/${p.completedCount} reliable`
-                      : "No completed shifts yet",
+                  label: "Shifts recorded as worked", value: count,
                 },
                 {
                   label: "Manager rating",
@@ -137,10 +117,8 @@ export default async function MarshalProfilePage() {
         <Card className="mt-4">
           <Kicker className="mb-3">Reviews from managers</Kicker>
           <div className="space-y-3">
-            {reviews
-              .filter((r) => r.comment)
-              .map((r) => (
-                <div key={r.id} className="border-b border-line pb-3 last:border-0 last:pb-0">
+            {reviews.map((r) => (
+                <div id={`review-${r.id}`} key={r.id} className="border-b border-line pb-3 last:border-0 last:pb-0">
                   <StarRatingDisplay
                     summary={{ average: r.rating, count: 1 }}
                     emptyLabel=""
@@ -149,16 +127,10 @@ export default async function MarshalProfilePage() {
                     {r.comment}
                   </p>
                   <p className="mt-1 text-xs text-ink-soft">
-                    {r.shift.productionName}
+                    {r.shift.productionName} · {r.createdAt.toLocaleDateString("en-GB", { timeZone: "Europe/London" })}
                   </p>
                 </div>
               ))}
-            {reviews.every((r) => !r.comment) && (
-              <p className="text-sm text-ink-muted">
-                No written comments yet, but your rating reflects {summary.count}{" "}
-                completed {summary.count === 1 ? "review" : "reviews"}.
-              </p>
-            )}
           </div>
         </Card>
       )}

@@ -81,6 +81,7 @@ export default async function ManagerDashboard() {
           <AttentionList>
             {attention.map(({ shift, kind, count, callTime }) => {
               const callDay = callTime.toLocaleDateString("en-GB", {
+                timeZone: "Europe/London",
                 weekday: "short", day: "numeric", month: "short",
               });
               const cue = {

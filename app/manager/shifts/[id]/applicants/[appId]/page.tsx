@@ -1,3 +1,5 @@
+import { confirmedCount } from "@/lib/attendance";
+import { recordedReviews } from "@/lib/recorded-reviews";
 import { notFound } from "next/navigation";
 import { requireRole } from "@/lib/access";
 import { prisma } from "@/lib/db";
@@ -36,7 +38,7 @@ export default async function ApplicantDetailPage({
   searchParams,
 }: {
   params: { id: string; appId: string };
-  searchParams: { stale?: string };
+  searchParams: { stale?: string; conflict?: string };
 }) {
   const user = await requireRole("MANAGER");
   const shift = await prisma.shift.findUnique({ where: { id: params.id } });
@@ -59,6 +61,7 @@ export default async function ApplicantDetailPage({
       coverNote: true,
       marshal: {
         select: {
+          _count: confirmedCount,
           marshalProfile: {
             select: {
               fullName: true,
@@ -69,8 +72,7 @@ export default async function ApplicantDetailPage({
               hasDriversLicence: true,
               training: true,
               experienceSummary: true,
-              completedCount: true,
-              reliableCount: true,
+
               paused: true,
             },
           },
@@ -82,15 +84,14 @@ export default async function ApplicantDetailPage({
   const p = app.marshal.marshalProfile;
   if (!p) notFound();
 
-  const reliabilityLabel =
-    p.completedCount > 0
-      ? `${p.reliableCount} of ${p.completedCount} shifts rated reliable`
-      : "No completed shifts on Setru yet";
-
-  const marshalReviews = await prisma.review.findMany({
-    where: { subjectId: app.marshalId, direction: "MANAGER_ON_MARSHAL" },
-    select: { rating: true },
+  const conflict = app.status === "APPLIED" && await prisma.application.findFirst({
+    where: { marshalId: app.marshalId, status: "ACCEPTED", shiftId: { not: shift.id },
+      shift: { status: { in: ["OPEN", "FILLED"] }, startDate: { lte: shift.endDate }, endDate: { gte: shift.startDate } } },
+    select: { id: true },
   });
+  const workCount = app.marshal._count.applications;
+
+  const marshalReviews = await recordedReviews(app.marshalId, "MANAGER_ON_MARSHAL");
   const marshalRating = ratingSummary(marshalReviews);
 
   const availabilityLabel =
@@ -118,6 +119,7 @@ export default async function ApplicantDetailPage({
         action={<ApplicationStatusBadge status={app.status} />}
       />
 
+      {searchParams.conflict === "1" && !conflict && <Alert tone="warn">The booking previously conflicted. Review the current dates before trying again.</Alert>}
       {searchParams.stale === "1" && (
         <div className="mb-4">
           <Alert tone="warn">{FLASH_APPLICATION_NO_LONGER_ACTIONABLE}</Alert>
@@ -176,7 +178,7 @@ export default async function ApplicantDetailPage({
           )}
           <Card variant="sunken">
             <Kicker className="mb-1.5">Setru record</Kicker>
-            <p className="text-sm text-ink">{reliabilityLabel}.</p>
+            <p className="text-sm text-ink">Shifts recorded as worked: {workCount}</p>
             <div className="mt-2 flex items-center gap-2">
               <span className="text-sm text-ink-muted">Manager rating:</span>
               <StarRatingDisplay summary={marshalRating} />
@@ -192,10 +194,12 @@ export default async function ApplicantDetailPage({
               <Alert tone="info">
                 This application is {APPLICATION_STATUS_LABEL[app.status as ApplicationStatus].toLowerCase()}.
               </Alert>
-            ) : shift.status !== "OPEN" || !hasCapacity || !isShiftSchedulable(shift) ? (
+            ) : shift.paused || shift.status !== "OPEN" || !hasCapacity || !isShiftSchedulable(shift) ? (
               <Alert tone="warn">
                 Booking requires a future call time and an open place.
               </Alert>
+            ) : conflict ? (
+              <Alert tone="warn">The marshal has a conflicting booking on these dates.</Alert>
             ) : p.paused || p.availability === "UNAVAILABLE" ? (
               <Alert tone="warn">
                 This applicant is currently unavailable. They cannot be
@@ -211,6 +215,9 @@ export default async function ApplicantDetailPage({
                   confirmLabel={CONFIRM_ACCEPT_ACTION}
                   variant="primary"
                 />
+              </div>
+            )}
+            {app.status === "APPLIED" && ["OPEN", "FILLED"].includes(shift.status) && (
                 <ConfirmButton
                   action={reject}
                   triggerLabel="Reject"
@@ -219,7 +226,6 @@ export default async function ApplicantDetailPage({
                   confirmLabel={CONFIRM_REJECT_ACTION}
                   variant="secondary"
                 />
-              </div>
             )}
           </Card>
           <Card>

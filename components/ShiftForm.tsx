@@ -65,9 +65,7 @@ export default function ShiftForm({
   const startDateValue = shift?.startDate
     ? new Date(shift.startDate).toISOString().slice(0, 10)
     : "";
-  const endDateValue = shift?.endDate
-    ? new Date(shift.endDate).toISOString().slice(0, 10)
-    : "";
+  const [shootDate, setShootDate] = useState(startDateValue);
 
   return (
     <form action={a} className="space-y-6">
@@ -100,28 +98,17 @@ export default function ShiftForm({
         </Field>
       </FormSection>
 
-      <FormSection title="Schedule">
+      <FormSection title="Schedule" description="Pilot shifts cover one shoot day. Call and wrap must fall on that day in London time. When clocks go back, a repeated time means its first occurrence.">
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Start date" error={state?.fieldErrors?.startDate}>
+          <Field label="Shoot date" error={state?.fieldErrors?.startDate}>
             <input
               type="date"
               name="startDate"
               required
-              defaultValue={startDateValue}
+              value={shootDate} onChange={(e) => setShootDate(e.target.value)}
             />
           </Field>
-          <Field
-            label="End date"
-            hint="Same as start date for a one-day shift"
-            error={state?.fieldErrors?.endDate}
-          >
-            <input
-              type="date"
-              name="endDate"
-              required
-              defaultValue={endDateValue}
-            />
-          </Field>
+          <input type="hidden" name="endDate" value={shootDate} />
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
           <Field
@@ -164,12 +151,12 @@ export default function ShiftForm({
               defaultValue={shift?.marshalsNeeded ?? 1}
             />
           </Field>
-          <Field label="Rate" error={state?.fieldErrors?.rate}>
+          <Field label="Rate (GBP)" error={state?.fieldErrors?.rate}>
             <input
               type="number"
               name="rate"
               step="0.01"
-              min="0"
+              min="0.01"
               required
               defaultValue={shift?.rate ?? ""}
               placeholder="15"

@@ -1,8 +1,23 @@
 import { isFounderEmail } from "@/lib/founder-identity";
 
-export function isPilotParticipant(email: string | null | undefined): boolean {
-  const normalised = email?.trim().toLowerCase();
-  if (!normalised) return false;
-  return isFounderEmail(normalised) || (process.env.PILOT_PARTICIPANT_EMAILS ?? "")
-    .split(",").some(entry => entry.trim().toLowerCase() === normalised);
+function listed(email: string, list?: string) {
+  return (list ?? "").split(",").some(entry => entry.trim().toLowerCase() === email);
+}
+
+export function invitedRole(address?: string | null) {
+  const email = address?.trim().toLowerCase();
+  if (!email) return null;
+  const manager = listed(email, process.env.PILOT_MANAGER_EMAILS);
+  const marshal = listed(email, process.env.PILOT_MARSHAL_EMAILS);
+  if (manager && marshal) return "CONFLICT";
+  return manager ? "MANAGER" : marshal ? "MARSHAL" : null;
+}
+
+export function isPilotParticipant(address?: string | null, role?: string | null): boolean {
+  const email = address?.trim().toLowerCase();
+  if (!email) return false;
+  if (isFounderEmail(email)) return true;
+  const intended = invitedRole(email);
+  if (intended) return intended !== "CONFLICT" && intended === role;
+  return listed(email, process.env.PILOT_PARTICIPANT_EMAILS);
 }

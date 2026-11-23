@@ -1,5 +1,5 @@
 import { hasOpenSlot } from "@/lib/capacity";
-import { canCompleteShift, hasShiftEnded, shiftStartDateTime } from "@/lib/state";
+import { isShiftSchedulable, canCompleteShift, hasShiftEnded, shiftStartDateTime } from "@/lib/state";
 
 type ScheduledShift = {
   startDate: Date;
@@ -16,10 +16,12 @@ type ManagerShift = ScheduledShift & {
   pendingCount: number;
 };
 
-export function actionableApplicantCount(shift: ManagerShift): number {
-  return shift.status === "OPEN" && !shift.paused && hasOpenSlot(shift.bookedCount, shift.marshalsNeeded)
-    ? shift.pendingCount
-    : 0;
+export function hiringOpen(shift: ScheduledShift & { paused: boolean }, now = new Date()) {
+  return shift.status === "OPEN" && !shift.paused && isShiftSchedulable(shift, now);
+}
+
+export function actionableApplicantCount(shift: ManagerShift, now = new Date()): number {
+  return hiringOpen(shift, now) && hasOpenSlot(shift.bookedCount, shift.marshalsNeeded) ? shift.pendingCount : 0;
 }
 
 export function managerAttention<T extends ManagerShift>(shifts: T[], now: Date) {
@@ -31,7 +33,7 @@ export function managerAttention<T extends ManagerShift>(shifts: T[], now: Date)
 
   for (const entry of ordered) {
     const { shift, callTime } = entry;
-    const count = actionableApplicantCount(shift);
+    const count = actionableApplicantCount(shift, now);
     if (canCompleteShift(shift, now)) {
       closeouts.push({ ...entry, count, kind: "completion" as const });
     } else if (shift.status === "OPEN" && callTime <= now) {

@@ -28,7 +28,7 @@ test("HTML attributes escape special characters while plain text keeps the origi
 });
 
 test("real verification and reset entry points retain token destinations and lifetimes in both email formats", async (t) => {
-  const keys = ["RESEND_API_KEY", "APP_BASE_URL", "EMAIL_FROM"] as const;
+  const keys = ["RESEND_API_KEY", "APP_BASE_URL", "EMAIL_FROM", "AUTH_SECRET", "VERCEL"] as const;
   const saved = keys.map((key) => process.env[key]);
   const savedPrisma = globalThis.__prisma;
   t.after(() => {
@@ -40,6 +40,8 @@ test("real verification and reset entry points retain token destinations and lif
     globalThis.__prisma = savedPrisma;
   });
   process.env.RESEND_API_KEY = "test-only";
+  process.env.AUTH_SECRET = "test-only";
+  delete process.env.VERCEL;
   process.env.APP_BASE_URL = "https://setru.example/";
   process.env.EMAIL_FROM = "configured@example.com";
 
@@ -47,13 +49,16 @@ test("real verification and reset entry points retain token destinations and lif
   const savedTokens: Array<{ kind: "verify-email" | "reset"; data: Token }> = [];
   const requested = "person@example.com";
   globalThis.__prisma = {
+    $transaction: async (reserve: (tx: unknown) => Promise<void>) => reserve({ $executeRaw: async () => 1 }),
+    requestBudget: { deleteMany: async () => ({ count: 0 }) },
     user: { findUnique: async ({ where: { email } }: { where: { email: string } }) =>
       email === requested ? { id: "test-user", email } : null },
     emailVerificationToken: {
       create: async ({ data }: { data: Token }) => {
         savedTokens.push({ kind: "verify-email", data });
-        return { id: "verification-id" };
+        return { id: "verification-id", createdAt: new Date() };
       },
+      updateMany: async () => ({ count: 0 }),
     },
     passwordResetToken: {
       create: async ({ data }: { data: Token }) => {
@@ -73,7 +78,7 @@ test("real verification and reset entry points retain token destinations and lif
   const { issueEmailVerification } = await import("../lib/email-verification");
   const { requestPasswordResetAction } = await import("../app/actions/recovery");
   const started = Date.now();
-  assert.deepEqual(await issueEmailVerification("test-user", requested), { ok: true });
+  assert.equal(await issueEmailVerification("test-user", requested), "sent");
   const resetForm = new FormData();
   resetForm.set("email", requested);
   await assert.rejects(requestPasswordResetAction(null, resetForm), (error: Error & { digest?: string }) =>

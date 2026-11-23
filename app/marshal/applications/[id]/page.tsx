@@ -1,6 +1,6 @@
+import { classifyWithdraw } from "@/lib/state";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { worked } from "@/lib/attendance";
 import { requireRole } from "@/lib/access";
 import { prisma } from "@/lib/db";
 import {
@@ -105,7 +105,7 @@ export default async function MyApplicationDetail({
   const shiftStart = shiftStartDateTime(shift.startDate, shift.dailyStartTime);
   const shiftStarted = shiftStart.getTime() <= Date.now();
   const canWithdrawApplied =
-    app.status === "APPLIED" && shift.status === "OPEN";
+    app.status === "APPLIED" && classifyWithdraw(app, shift) === "allowed";
   const isBooked =
     app.status === "ACCEPTED" &&
     (shift.status === "OPEN" || shift.status === "FILLED");
@@ -114,7 +114,7 @@ export default async function MyApplicationDetail({
   // Two-way reviews: an accepted marshal can review the manager once the shift
   // is COMPLETED.
   const canReviewManager =
-    app.status === "ACCEPTED" && shift.status === "COMPLETED" && worked(app.attendance);
+    app.status === "ACCEPTED" && shift.status === "COMPLETED" && app.attendance === "WORKED";
   const existingReview = canReviewManager
     ? await prisma.review.findFirst({
         where: {
@@ -235,8 +235,8 @@ export default async function MyApplicationDetail({
                     value:
                       contactManager.managerProfile?.companyName ?? "\u2014",
                   },
-                  { label: "Email", value: contactManager.email },
-                  { label: "Phone", value: formatPhone(contactManager.phone) },
+                  { label: "Email", value: <a className="underline" href={`mailto:${contactManager.email}`}>{contactManager.email}</a> },
+                  { label: "Phone", value: contactManager.phone ? <a className="underline" href={`tel:${contactManager.phone}`}>{formatPhone(contactManager.phone)}</a> : "No phone number provided" },
                 ]}
               />
             </div>

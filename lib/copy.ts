@@ -90,7 +90,7 @@ export const CONFIRM_PUBLISH_ACTION = "Publish";
 
 export const CONFIRM_WITHDRAW_TITLE = "Withdraw this application?";
 export const CONFIRM_WITHDRAW_BODY =
-  "Your application will be pulled. You can apply again while the shift is still Open.";
+  "The manager will no longer be able to book you from this application.";
 export const CONFIRM_WITHDRAW_ACTION = "Withdraw";
 
 export const CONFIRM_DROPOUT_TITLE = "Drop out of this booking?";
@@ -104,7 +104,7 @@ export const CONFIRM_DROPOUT_ACTION = "Drop out";
 // scenes. The copy tells the manager what to do instead.
 export const REVERT_BLOCKED_TITLE = "Can\u2019t revert this shift to Draft";
 export const REVERT_BLOCKED_BODY =
-  "This shift has active applicants. Reverting would silently reject them. If you no longer want to hire, close the shift instead so applicants receive a proper outcome.";
+  "Applications already refer to these terms. Close this listing and post a new shift for revised dates, location or pay.";
 
 // --- Apply gating ----------------------------------------------------------
 // A marshal marked Unavailable can't apply until they update their profile.
@@ -132,14 +132,14 @@ export const APPLY_UNAVAILABLE_DATES_REMINDER =
   "You’ve marked yourself unavailable during these dates. You can still apply, but only do so if you’re genuinely free — the manager is relying on you to show up.";
 
 export const WAITLIST_NEXT_STEP =
-  "We’ll email you as private beta places open for your role.";
+  "We’ll send one update when private beta places open for your role.";
 
 // Previously stored messages keep their original content in the database.
 export function notificationDisplayBody(kind: string, body: string) {
+  if (kind === "REVIEW_RECEIVED") return "A review was submitted for this shift.";
+  if (kind === "SHIFT_STATUS_CHANGED" && body.startsWith("Recorded outcome:")) return "An attendance update was recorded. Open your booking for the current outcome.";
   const legacyEnding =
-    kind === "REVIEW_RECEIVED"
-      ? "See it on your MarshalHQ profile."
-      : kind === "SHIFT_STATUS_CHANGED"
+    kind === "SHIFT_STATUS_CHANGED"
         ? "If you have questions about this cancellation, contact MarshalHQ support and we’ll follow up."
         : undefined;
 

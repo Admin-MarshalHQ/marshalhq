@@ -1,14 +1,18 @@
+import { correctPilotRoleAction } from "@/app/actions/founder";
+import { isFounderEmail } from "@/lib/founder-identity";
+import { isPilotParticipant, invitedRole } from "@/lib/pilot-participant";
 import { requireFounder } from "@/lib/access";
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { Card, PageHeader } from "@/components/ui";
 
-export default async function FounderUsersPage() {
+export default async function FounderUsersPage({searchParams}: {searchParams:{role?:string}}) {
   await requireFounder();
   const users = await prisma.user.findMany({
     take: 200,
     orderBy: { createdAt: "desc" },
     include: {
+      _count: { select: { applications: true, shifts: true } },
       managerProfile: { select: { id: true, companyName: true, displayName: true, founderNote: true } },
       marshalProfile: { select: { id: true, fullName: true, paused: true } },
     },
@@ -20,6 +24,8 @@ export default async function FounderUsersPage() {
         title="Users"
         subtitle={`${users.length} accounts \u2014 managers, marshals, and any unset.`}
       />
+      {searchParams.role && <p role="status">{searchParams.role === "saved" ? "Account role corrected. The user can sign in again." : "Correction unavailable. Check the invitation, existing hiring activity and required manager details."}</p>}
+      <p className="my-3 text-sm">Invitation sign-up links: <Link className="underline" href="/signup?role=MANAGER">Production manager</Link> · <Link className="underline" href="/signup?role=MARSHAL">Location marshal</Link></p>
       <Card>
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm">
@@ -68,12 +74,19 @@ export default async function FounderUsersPage() {
                       {u.createdAt.toLocaleDateString("en-GB")}
                     </td>
                     <td className="py-2">
-                      {paused ? (
-                        <span className="rounded-full bg-warn-soft px-2 py-0.5 text-xs text-warn">
-                          Paused
-                        </span>
-                      ) : (
-                        <span className="text-xs text-ink-soft">Active</span>
+                      <p>{u.disabledAt ? "Account disabled" : "Account enabled"}{paused && " · Profile paused"}</p>
+                      <p>{u.emailVerifiedAt ? "Email verified" : "Email unverified"}</p>
+                      <p>{isPilotParticipant(u.email, u.role) ? "Pilot invited" : "Pilot access pending"}{invitedRole(u.email) && ` · Invitation: ${invitedRole(u.email)}`}</p>
+                      {!isFounderEmail(u.email) && !u._count.applications && !u._count.shifts && (
+                        <details><summary>Correct role</summary>
+                          <form action={correctPilotRoleAction.bind(null, u.id, u.role)} className="space-y-2">
+                            {u.role !== "MANAGER" && <>
+                              <label>Company <input name="companyName" required maxLength={120} /></label>
+                              <label>Manager name <input name="displayName" required maxLength={120} /></label>
+                            </>}
+                            <button type="submit" className="underline">Change to {u.role === "MANAGER" ? "location marshal" : "production manager"}</button>
+                          </form>
+                        </details>
                       )}
                     </td>
                   </tr>

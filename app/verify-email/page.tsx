@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { auth, signOut } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { redirect } from "next/navigation";
@@ -7,7 +8,7 @@ import { resendVerificationAction } from "@/app/actions/verification";
 export default async function VerifyEmailPage({
   searchParams,
 }: {
-  searchParams: { resent?: string };
+  searchParams: { delivery?: string };
 }) {
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
@@ -50,14 +51,19 @@ export default async function VerifyEmailPage({
       />
       <Card>
         <p className="text-sm text-ink-muted">
-          We sent a verification link to <strong>{user.email}</strong>. Open
-          the link in that email to activate your account.
+          Use the verification link for <strong>{user.email}</strong>, then select
+          “Verify email address”.
         </p>
-        {searchParams.resent === "1" && (
+        {searchParams.delivery === "sent" && (
           <div className="mt-3">
-            <Alert tone="success">
-              If the address is still active, a fresh verification email has
-              been sent.
+            <Alert tone="success">Verification email sent. Check your inbox and junk folder.</Alert>
+          </div>
+        )}
+        {searchParams.delivery === "failed" && (
+          <div className="mt-3">
+            <Alert tone="warn">
+              We couldn’t send your verification email. If you already have a working link,
+              you can still use it. Try again below or <Link href="/support" className="underline">contact support</Link>.
             </Alert>
           </div>
         )}

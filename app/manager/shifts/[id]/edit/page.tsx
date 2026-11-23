@@ -15,7 +15,7 @@ export default async function EditShiftPage({
   if (!shift || shift.managerId !== user.id) notFound();
   if (shift.status !== "DRAFT") redirect(`/manager/shifts/${shift.id}`);
 
-  const bound = updateDraftShiftAction.bind(null, shift.id);
+  const bound = updateDraftShiftAction.bind(null, shift.id, shift.updatedAt.toISOString());
 
   return (
     <div className="mx-auto max-w-2xl">

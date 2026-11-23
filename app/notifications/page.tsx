@@ -1,3 +1,4 @@
+import { Pagination, pageNumber, pageSize } from "@/components/Pagination";
 import type { Metadata } from "next";
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
@@ -8,13 +9,15 @@ import { markNotificationRead } from "@/app/actions/auth";
 
 export const metadata: Metadata = { title: "Inbox" };
 
-export default async function NotificationsPage() {
+export default async function NotificationsPage({ searchParams }: { searchParams: { page?: string; filter?: string } }) {
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
+  const total = await prisma.notification.count({ where: { userId: session.user.id } });
+  const page = pageNumber(searchParams.page, total);
   const items = await prisma.notification.findMany({
     where: { userId: session.user.id },
-    orderBy: { createdAt: "desc" },
-    take: 100,
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    take: pageSize, skip: (page - 1) * pageSize,
   });
 
   return (
@@ -51,8 +54,9 @@ export default async function NotificationsPage() {
                   <p className="mt-1 whitespace-pre-wrap text-sm text-ink-muted">
                     {notificationDisplayBody(n.kind, n.body)}
                   </p>
+                  {n.link && <a href={n.link} className="text-sm underline">Open record</a>}
                   <p className="mt-2 font-mono text-[11px] uppercase tracking-[0.04em] text-ink-soft">
-                    {n.createdAt.toLocaleString("en-GB")}
+                    {n.createdAt.toLocaleString("en-GB", {timeZone: "Europe/London", timeZoneName: "short"})}
                   </p>
                 </div>
                 {!n.readAt && (
@@ -75,6 +79,7 @@ export default async function NotificationsPage() {
           ))}
         </div>
       )}
+      <Pagination page={page} total={total} base={"/notifications"} />
     </div>
   );
 }

@@ -1,3 +1,4 @@
+import { isFounderEmail } from "@/lib/founder-identity";
 import Link from "next/link";
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
@@ -56,12 +57,12 @@ export default async function SettingsPage() {
       <Card className="mt-4">
         <Kicker className="mb-3">Contact phone</Kicker>
         <PhoneForm phone={user.phone} />
+        {user.role === "MANAGER" && <Link href="/manager/reviews" className="underline">Reviews from marshals</Link>}
       </Card>
       <Card className="mt-4" variant="sunken">
         <Kicker className="mb-1">Help, privacy, and deletion</Kicker>
         <p className="text-sm text-ink-muted">
-          To reset your password, change contact details, or request account
-          deletion, use{" "}
+          {isFounderEmail(user.email) ? <Link href="/login/founder" className="underline">Founder sign-in</Link> : <Link href="/forgot" className="underline">Reset your password</Link>}. For account changes or deletion, contact{" "}
           <Link href="/support" className="text-accent underline">
             support
           </Link>

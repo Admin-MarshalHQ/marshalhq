@@ -1,5 +1,6 @@
+import { ShiftEmailStatus } from "@/components/ShiftEmailStatus";
+import { marshalApplicationOutcome } from "@/lib/application-outcome";
 import { notFound } from "next/navigation";
-import { worked } from "@/lib/attendance";
 import { requireRole } from "@/lib/access";
 import { prisma } from "@/lib/db";
 import {
@@ -50,7 +51,7 @@ export default async function BookingPage({
         <Alert tone="warn">
           {shift.status === "CLOSED"
             ? "This shift has been cancelled. Contact details are no longer shown here."
-            : "Contact details are visible once the shift reaches its marshal quota."}
+            : "Contact details appear for each marshal you accept."}
         </Alert>
       </div>
     );
@@ -89,7 +90,7 @@ export default async function BookingPage({
         },
       })
     : null;
-  const reviewSubjects = accepted.filter(a => worked(a.attendance)).map((a) => ({
+  const reviewSubjects = accepted.filter(a => a.attendance === "WORKED").map((a) => ({
     id: a.marshalId,
     label: a.marshal.marshalProfile?.fullName ?? "Marshal",
   }));
@@ -102,7 +103,7 @@ export default async function BookingPage({
   return (
     <div>
       <PageHeader
-        kicker="Booking confirmed"
+        kicker={isCompleted ? "Attendance record" : "Booking confirmed"}
         back={{ href: `/manager/shifts/${shift.id}`, label: "Back to shift" }}
         title={shift.productionName}
         subtitle={formatShiftBlock(
@@ -114,25 +115,27 @@ export default async function BookingPage({
         action={<ShiftStatusBadge status={shift.status} />}
       />
 
+      <ShiftEmailStatus shiftId={shift.id} />
       <div className="grid gap-4 md:grid-cols-2">
         {accepted.map((app) => {
           const p = app.marshal.marshalProfile;
           const contact = contactByMarshal.get(app.marshalId);
-          if (!contact) return <Alert key={app.id} tone="warn">Contact details for {p?.fullName ?? "this marshal"} are unavailable. <a href="/support">Contact Setru support about this booking.</a></Alert>;
+          if (!contact) return <Alert key={app.id} tone="warn">{isCompleted && <p>{marshalApplicationOutcome(app.status, shift, app.attendance).label}</p>}Contact details for {p?.fullName ?? "this marshal"} are unavailable. <a href="/support">Contact Setru support about this booking.</a></Alert>;
           return (
             <ContactCard
               key={app.id}
               released
-              title={CONTACT_RELEASED_HEADING}
-              body={CONTACT_RELEASED_BODY_MANAGER}
+              title={isCompleted ? "Completed booking" : CONTACT_RELEASED_HEADING}
+              body={isCompleted ? "Attendance is recorded individually for this shift." : CONTACT_RELEASED_BODY_MANAGER}
               items={[
-                { label: "Booked marshal", value: p?.fullName ?? "Marshal" },
+                ...(isCompleted ? [{ label: "Attendance", value: marshalApplicationOutcome(app.status, shift, app.attendance).label }] : []),
+                { label: isCompleted ? "Marshal" : "Booked marshal", value: p?.fullName ?? "Marshal" },
                 {
                   label: "Based",
                   value: `${p?.baseLocation ?? "—"} · travels up to ${p?.travelRadiusMiles ?? 0} miles`,
                 },
-                { label: "Email", value: contact.email },
-                { label: "Phone", value: formatPhone(contact.phone) },
+                { label: "Email", value: <a className="underline" href={`mailto:${contact.email}`}>{contact.email}</a> },
+                { label: "Phone", value: contact.phone ? <a className="underline" href={`tel:${contact.phone}`}>{formatPhone(contact.phone)}</a> : "No phone number provided" },
               ]}
             >
               {p?.training && (
@@ -155,7 +158,9 @@ export default async function BookingPage({
                 <Alert tone="success">Thanks — your review has been saved.</Alert>
               </div>
             )}
-            {existingReview ? (
+            {existingReview && !reviewSubjects.some(s => s.id === existingReview.subjectId) ? (
+              <p>The earlier review is withheld.</p>
+            ) : existingReview ? (
               <div className="mt-2 space-y-2">
                 <StarRatingDisplay
                   summary={ratingSummary([{ rating: existingReview.rating }])}

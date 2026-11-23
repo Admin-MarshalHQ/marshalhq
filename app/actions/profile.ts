@@ -29,7 +29,6 @@ export async function saveMarshalProfileAction(
   const { id: userId } = await requireRole("MARSHAL");
 
   const parsed = MarshalProfileSchema.safeParse({
-    phone: formData.get("phone") ?? "",
     fullName: formData.get("fullName"),
     baseLocation: formData.get("baseLocation"),
     travelRadiusMiles: formData.get("travelRadiusMiles"),
@@ -53,10 +52,6 @@ export async function saveMarshalProfileAction(
     };
   }
   const d = parsed.data;
-  await prisma.user.update({
-    where: { id: userId },
-    data: { phone: d.phone },
-  });
   await prisma.marshalProfile.upsert({
     where: { userId },
     create: {
@@ -97,7 +92,6 @@ export async function saveManagerProfileAction(
   const parsed = ManagerProfileSchema.safeParse({
     companyName: formData.get("companyName"),
     displayName: formData.get("displayName"),
-    phone: formData.get("phone") ?? "",
   });
   if (!parsed.success) {
     return {
@@ -112,10 +106,6 @@ export async function saveManagerProfileAction(
     };
   }
   const d = parsed.data;
-  await prisma.user.update({
-    where: { id: userId },
-    data: { phone: d.phone },
-  });
   await prisma.managerProfile.update({
     where: { userId },
     data: {

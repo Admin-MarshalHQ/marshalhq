@@ -8,11 +8,6 @@ export default async function EditMarshalProfilePage() {
   const profile = await prisma.marshalProfile.findUnique({
     where: { userId: user.id },
   });
-  const account = await prisma.user.findUnique({
-    where: { id: user.id },
-    select: { phone: true },
-  });
-
   return (
     <div className="mx-auto max-w-2xl">
       <PageHeader
@@ -22,7 +17,7 @@ export default async function EditMarshalProfilePage() {
         subtitle="Visible to managers when you apply. Contact details are never shown here — they release only after a booking is confirmed."
       />
       <Card>
-        <MarshalProfileForm profile={profile} phone={account?.phone ?? null} />
+        <MarshalProfileForm profile={profile} />
       </Card>
     </div>
   );

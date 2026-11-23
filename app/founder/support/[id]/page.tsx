@@ -9,9 +9,9 @@ import { SUPPORT_CATEGORY_LABEL, type SupportCategory } from "@/lib/types";
 import SupportNoteForm from "./SupportNoteForm";
 
 export default async function FounderSupportDetailPage({
-  params,
+  params, searchParams,
 }: {
-  params: { id: string };
+  params: { id: string }; searchParams: { triage?: string };
 }) {
   await requireFounder();
   const request = await prisma.supportRequest.findUnique({
@@ -32,11 +32,11 @@ export default async function FounderSupportDetailPage({
 
   const resolve = async () => {
     "use server";
-    await setSupportRequestResolvedAction(request.id, true);
+    await setSupportRequestResolvedAction(request.id, true, request.revision);
   };
   const reopen = async () => {
     "use server";
-    await setSupportRequestResolvedAction(request.id, false);
+    await setSupportRequestResolvedAction(request.id, false, request.revision);
   };
 
   const categoryLabel =
@@ -58,6 +58,7 @@ export default async function FounderSupportDetailPage({
         </Link>
       </div>
 
+      {searchParams.triage === "conflict" && <Alert tone="warn">The case changed. Review its current status and note before retrying.</Alert>}
       {request.category === "PRIVACY_DELETION" && (
         <Alert tone="warn">
           Deletion requests are handled manually. Do not hard-delete records
@@ -103,7 +104,7 @@ export default async function FounderSupportDetailPage({
                           </Link>
                         )
                       : request.user.email
-                  : "Logged-out submitter",
+                  : "No linked account",
               },
               { label: "Category", value: categoryLabel },
               {
@@ -159,6 +160,7 @@ export default async function FounderSupportDetailPage({
             </p>
             <SupportNoteForm
               requestId={request.id}
+              initialRevision={request.revision}
               initialNote={request.founderNote ?? ""}
             />
           </Card>

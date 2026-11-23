@@ -301,8 +301,8 @@ check(
     classifyWithdraw(
       { status: "APPLIED" },
       { status: "FILLED", startDate: futureDate, dailyStartTime: "07:00" },
-    ) === "stale",
-    "D: APPLIED on a FILLED shift is stale (manager already accepted someone)",
+    ) === "allowed",
+    "D: pending applicant can withdraw before call even when the shift is filled",
   );
   check(
     classifyWithdraw(

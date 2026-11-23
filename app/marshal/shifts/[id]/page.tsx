@@ -1,10 +1,13 @@
+import { validPilotWindow } from "@/lib/state";
+import { marshalApplicationOutcome } from "@/lib/application-outcome";
+import { recordedReviews } from "@/lib/recorded-reviews";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireRole } from "@/lib/access";
 import { prisma } from "@/lib/db";
 import {
   Alert,
-  ApplicationStatusBadge,
+  StatusBadge,
   ButtonLink,
   CapacityMeter,
   Card,
@@ -46,7 +49,7 @@ export default async function MarshalShiftDetailPage({
       },
       applications: {
         where: { marshalId: user.id },
-        select: { id: true, status: true },
+        select: { id: true, status: true, attendance: true },
       },
       _count: {
         select: { applications: { where: { status: "ACCEPTED" } } },
@@ -59,16 +62,14 @@ export default async function MarshalShiftDetailPage({
   if (!shift || shift.status === "DRAFT" || shift.paused) notFound();
 
   const yourApp = shift.applications[0];
+  const outcome = yourApp && marshalApplicationOutcome(yourApp.status, shift, yourApp.attendance);
   const acceptedCount = shift._count.applications;
   const started = shiftStartDateTime(shift.startDate, shift.dailyStartTime).getTime() <= Date.now();
   const profile = await prisma.marshalProfile.findUnique({
     where: { userId: user.id },
     select: { id: true, availability: true, paused: true },
   });
-  const managerReviews = await prisma.review.findMany({
-    where: { subjectId: shift.managerId, direction: "MARSHAL_ON_MANAGER" },
-    select: { rating: true },
-  });
+  const managerReviews = await recordedReviews(shift.managerId, "MARSHAL_ON_MANAGER");
   const managerRating = ratingSummary(managerReviews);
 
   // Booking-conflict check, run only when the apply form could render. A
@@ -173,16 +174,10 @@ export default async function MarshalShiftDetailPage({
             }
           >
             <h2 className="mb-2 text-lg font-bold">Apply for this shift</h2>
-            {yourApp ? (
+            {yourApp && outcome ? (
               <div className="space-y-2">
-                <ApplicationStatusBadge status={yourApp.status} />
-                <p className="text-sm text-ink-muted">
-                  {yourApp.status === "ACCEPTED"
-                    ? "You're booked on this shift."
-                    : yourApp.status === "APPLIED"
-                      ? "Your application is with the manager."
-                      : "You applied to this shift previously."}
-                </p>
+                <StatusBadge label={outcome.label} tone={outcome.tone} />
+                <p className="text-sm text-ink-muted">{outcome.detail}</p>
                 <p className="text-xs text-ink-soft">
                   <Link
                     href={`/marshal/applications/${yourApp.id}`}
@@ -194,6 +189,8 @@ export default async function MarshalShiftDetailPage({
               </div>
             ) : shift.status !== "OPEN" ? (
               <Alert tone="warn">This shift is no longer open.</Alert>
+            ) : !validPilotWindow(shift.startDate, shift.endDate, shift.dailyStartTime, shift.dailyEndTime) ? (
+              <Alert tone="warn">New pilot bookings require one shoot day with same-day wrap.</Alert>
             ) : started ? (
               <Alert tone="warn">Applications have closed because the shift has already started.</Alert>
             ) : !profile ? (

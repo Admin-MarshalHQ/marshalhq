@@ -1,3 +1,4 @@
+import { Pagination, pageNumber, pageSize } from "@/components/Pagination";
 import { requireFounder } from "@/lib/access";
 import { prisma } from "@/lib/db";
 import { Card, PageHeader } from "@/components/ui";
@@ -14,20 +15,22 @@ import {
   type WaitlistStatus,
 } from "@/lib/types";
 
-export default async function FounderWaitlistPage() {
+export default async function FounderWaitlistPage({ searchParams }: { searchParams: { page?: string; filter?: string } }) {
   await requireFounder();
+  const total = await prisma.waitlistEntry.count();
+  const page = pageNumber(searchParams.page, total);
   const entries = await prisma.waitlistEntry.findMany({
-    orderBy: { createdAt: "desc" },
-    take: 200,
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    take: pageSize, skip: (page - 1) * pageSize,
   });
 
-  const newCount = entries.filter((e) => e.status === "NEW").length;
+  const newCount = await prisma.waitlistEntry.count({ where: { status: "NEW" } });
 
   return (
     <div>
       <PageHeader
         title="Early access waitlist"
-        subtitle={`${newCount} new / ${entries.length} total. Demand capture only - no automated approval.`}
+        subtitle={`${newCount} new / ${total} total. Demand capture only - no automated approval.`}
       />
       <Card>
         <div className="overflow-x-auto">
@@ -123,6 +126,7 @@ export default async function FounderWaitlistPage() {
           </table>
         </div>
       </Card>
+      <Pagination page={page} total={total} base={"/founder/waitlist"} />
     </div>
   );
 }

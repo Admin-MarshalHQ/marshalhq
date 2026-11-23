@@ -1,3 +1,4 @@
+import { isPilotParticipant } from "@/lib/pilot-participant";
 import "./globals.css";
 import type { Metadata, Viewport } from "next";
 import Link from "next/link";
@@ -59,8 +60,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const unread = userId
     ? await prisma.notification.count({ where: { userId, readAt: null } })
     : 0;
-  const items = userId && role === "MANAGER" ? managerNav : userId && role === "MARSHAL" ? marshalNav : [];
-  const home = items[0]?.href ?? "/";
+  const pilot = session?.user?.emailVerifiedAt && isPilotParticipant(session.user.email, role);
+  const items = pilot && role === "MANAGER" ? managerNav : pilot && role === "MARSHAL" ? marshalNav : [];
+  const home = items[0]?.href ?? (userId ? (session?.user?.emailVerifiedAt ? "/pilot-access" : "/verify-email") : "/");
 
   return (
     <html lang="en-GB">
