@@ -10,10 +10,10 @@ body:has(.setru-demo) .mhq-main { max-width: none; padding: 0; }
 .demo-sample { @apply border-l border-line-strong pl-3 text-xs font-medium text-ink-muted; }
 .demo-waitlist { @apply inline-flex min-h-11 shrink-0 items-center rounded-md px-1 text-sm font-bold text-coral-ink underline decoration-line-strong underline-offset-4 hover:decoration-coral-ink; }
 .demo-toolbar { @apply sticky top-0 z-20 border-b border-line bg-white; }
-.demo-roles { @apply inline-flex rounded-md border border-line bg-surface-sunken p-0.5; }
-.demo-roles a { @apply inline-flex min-h-11 items-center justify-center rounded-[10px] px-3 text-sm font-bold text-ink-muted sm:px-5; }
+.demo-roles { @apply inline-flex shrink-0 rounded-md border border-line bg-surface-sunken p-0.5; }
+.demo-roles a { @apply inline-flex min-h-11 items-center justify-center whitespace-nowrap rounded-[10px] px-3 text-sm font-bold text-ink-muted sm:px-5; }
 .demo-roles a[aria-current] { @apply bg-ink text-white shadow-card; }
-.demo-reset { @apply min-h-11 rounded-md px-1 text-xs font-semibold text-ink-muted underline decoration-line-strong underline-offset-4 hover:text-coral-ink sm:text-sm; }
+.demo-reset { @apply min-h-11 whitespace-nowrap rounded-md px-1 text-xs font-semibold text-ink-muted underline decoration-line-strong underline-offset-4 hover:text-coral-ink sm:text-sm; }
 .demo-nav { @apply mb-5 flex gap-4 border-b border-line sm:mb-7; }
 .demo-nav a { @apply inline-flex min-h-11 items-center gap-2 border-b-2 border-transparent text-sm font-semibold text-ink-muted; }
 .demo-nav a[aria-current] { @apply border-coral-action text-coral-ink; }
@@ -23,5 +23,5 @@ body:has(.setru-demo) .mhq-main { max-width: none; padding: 0; }
 @media (max-width: 359px) {
   .demo-sample { @apply border-0 pl-0; }
   .demo-masthead .brand-link { min-height: 2rem; }
-  .demo-roles a { padding-inline: 0.625rem; }
+  .demo-roles a { padding-inline: 0.5rem; font-size: 0.8125rem; }
 }

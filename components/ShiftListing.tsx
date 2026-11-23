@@ -20,12 +20,12 @@ export function ShiftListing({ shift, byline, booked, status, href, featured }: 
           <h2 className="text-xl font-bold leading-snug tracking-tight">
             {href.startsWith("#") ? <a href={href} className={linkClass}>{title}</a> : <Link href={href} className={linkClass}>{title}</Link>}
           </h2>
-          <p className="mt-0.5 text-sm text-ink-muted max-sm:truncate">{byline}</p>
+          <p className={`mt-0.5 text-sm text-ink-muted ${featured ? "" : "max-sm:truncate"}`}>{byline}</p>
         </div>
         <Icon name="chevron" className="shrink-0 text-coral-ink" />
       </div>
       <ShiftFacts shift={shift} />
-      <p className="mt-3 line-clamp-2 text-sm text-ink">{shift.duties}</p>
+      <p className={`mt-3 text-sm text-ink ${featured ? "" : "line-clamp-2"}`}>{shift.duties}</p>
       <div className="mt-3 flex flex-wrap items-center gap-3 border-t border-line pt-3">
         <CapacityMeter booked={booked} needed={shift.marshalsNeeded} />
         {status && <ApplicationStatusBadge status={status} />}
