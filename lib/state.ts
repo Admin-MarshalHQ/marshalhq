@@ -6,7 +6,7 @@ import type {
 
 export const SHIFT_TRANSITIONS: Record<ShiftStatus, ShiftStatus[]> = {
   DRAFT: ["OPEN", "CLOSED"],
-  OPEN: ["DRAFT", "FILLED", "CLOSED"],
+  OPEN: ["DRAFT", "FILLED", "CLOSED", "COMPLETED"],
   FILLED: ["COMPLETED", "OPEN", "CLOSED"],
   CLOSED: [],
   COMPLETED: [],
@@ -58,6 +58,7 @@ export function assertApplicationTransition(
 // pure so the UI can disable the "Complete" control ahead of time and tests
 // can assert without touching the DB.
 export type CompletableShift = {
+  bookedCount?: number;
   endDate: Date;
   dailyEndTime: string; // "HH:MM"
   status: string;
@@ -67,7 +68,7 @@ export function canCompleteShift(
   shift: CompletableShift,
   now: Date = new Date(),
 ): boolean {
-  if (shift.status !== "FILLED") return false;
+  if (shift.status !== "FILLED" && !(shift.status === "OPEN" && (shift.bookedCount ?? 0) > 0)) return false;
   return hasShiftEnded(shift, now);
 }
 
@@ -78,11 +79,17 @@ export function hasShiftEnded(
   return shiftDateTime(shift.endDate, shift.dailyEndTime).getTime() <= now.getTime();
 }
 
+const londonHour = new Intl.DateTimeFormat("en-GB", {
+  timeZone: "Europe/London", hour: "2-digit", hourCycle: "h23",
+});
+
 function shiftDateTime(date: Date, time: string): Date {
-  const result = new Date(date);
-  const [h, m] = time.split(":").map(Number);
-  result.setHours(h ?? 0, m ?? 0, 0, 0);
-  return result;
+  const [hour, minute] = time.split(":").map(Number);
+  const utc = Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate(), hour, minute);
+  // UK clocks are UTC or UTC+1. Prefer the first occurrence at the autumn
+  // change and roll a nonexistent spring hour forward.
+  const summer = new Date(utc - 3_600_000);
+  return Number(londonHour.format(summer)) === hour ? summer : new Date(utc);
 }
 
 /**

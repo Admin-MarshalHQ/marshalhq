@@ -28,6 +28,10 @@ Send this as a plain message — email, voice note, or in person. Do not build i
 > 6. What felt clearer than WhatsApp?
 > 7. Would you apply again?
 
+## First real shift record
+
+Record the shift reference, date, number needed and number available. The founder records posting time, time to first credible application, fill time, attendance confirmed by both sides, and any intervention. Ask the manager for a specific next shift and their decision on a priced pilot. Record the price discussed and their words. Keep synthetic rehearsals separate.
+
 ## Classifying answers
 
 Every answer goes into one of four buckets. Do not auto-convert any of them into product work.

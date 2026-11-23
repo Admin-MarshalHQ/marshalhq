@@ -6,11 +6,14 @@ The DB-layer invariants are already covered by `npm run db:smoke`. This check is
 
 ## Setup
 
-1. Live URL: [confirm with founder] — every step below uses this URL.
-2. Two real test emails the founder controls (e.g. one inbox + one alias). Do **not** use Accenture work email.
+1. Live URL: https://setru.co.uk — every step below uses this URL.
+2. Three distinct test emails the founder controls (e.g. one inbox + one alias). Do **not** use Accenture work email.
 3. Two browser profiles (or one normal + one incognito) so the manager and marshal sessions stay separate.
-4. The contamination scan has been run with `--fix`: `npm run qa:scan -- --fix` against the production database, and the report shows zero remaining hits.
+4. Run the read-only contamination scan. Identify and isolate any fixtures before inviting real users.
 5. The schema drift check passes: `npm run db:drift` reports PASS against the production database. A FAIL here means shipped code queries tables the database doesn't have — stop and see [schema-drift-check.md](schema-drift-check.md) before continuing.
+
+6. Apply the reviewed additive schema change before deploying this version. Configure production `PILOT_PARTICIPANT_EMAILS` as comma-separated invited account addresses. An empty list permits founder access only. Use separate addresses in preview. Test an email-verified outsider against discovery, direct shift links and booking actions. They must see the pilot access page.
+7. Record the live SHA and deployment, database target, test owner, date and outcome for each step. Record receipt and destination hostname for verification, reset, waitlist, cancellation and support emails. Use controlled inboxes.
 
 ## Step 1 — Signup
 
@@ -27,7 +30,7 @@ The DB-layer invariants are already covered by `npm run db:smoke`. This check is
 
 - [ ] Sign out the marshal. Hit `/forgot`. Enter the marshal's real email.
 - [ ] The reset email arrives at the inbox within ~30 seconds.
-- [ ] Sender appears as `MarshalHQ <admin@marshalhq.com>` (per `EMAIL_FROM`).
+- [ ] Sender appears as `Setru <configured sender address>` (per `EMAIL_FROM`).
 - [ ] Email is in the inbox, not spam/junk. (If in spam, mark as a hardening item before inviting and check DMARC/SPF/DKIM.)
 - [ ] The link in the email points to the **live URL** (not localhost).
 - [ ] Click the link, set a new password, log back in successfully.
@@ -94,10 +97,10 @@ The DB-layer invariants are already covered by `npm run db:smoke`. This check is
 
 ## Step 13 — Completion and trust signal
 
-- [ ] If the shift's end time has not passed, advance the shift in the founder/admin tool or skip with a note. (For a real beta, completion happens organically after the shift ends.)
-- [ ] When the end time has passed, manager marks the shift `COMPLETED` from the booking page.
+- [ ] Use a short controlled rehearsal shift and wait for its scheduled wrap.
+- [ ] When the end time has passed, manager records an attendance outcome per booking on the shift detail page.
 - [ ] Marshal's profile `completedCount` increments by 1.
-- [ ] If `reliabilityFlag` was set, `reliableCount` increments by 1.
+- [ ] Only worked outcomes earn completion credit. Only work confirmed reliable earns reliability credit. An unresolved outcome stays pending until founder review.
 - [ ] Shift appears in the marshal's history.
 
 ## Step 14 — Wrap-up

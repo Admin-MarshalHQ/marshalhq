@@ -1,3 +1,6 @@
+import { AttendanceForm } from "@/components/AttendanceForm";
+import { resolveAttendanceAction } from "@/app/actions/shifts";
+import { attendanceLabels, isAttendance } from "@/lib/attendance";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
@@ -57,6 +60,7 @@ export default async function FounderShiftDetailPage({
     await setShiftPausedAction(shift.id, false);
   };
 
+  const unresolved = shift.applications.filter(app => app.attendance === "UNRESOLVED");
   const acceptedApp = shift.applications.find((a) => a.status === "ACCEPTED");
   const contactReleased = Boolean(acceptedApp);
 
@@ -124,7 +128,7 @@ export default async function FounderShiftDetailPage({
                 label: "Completion",
                 value: shift.completedAt
                   ? `${shift.completedAt.toLocaleDateString("en-GB")} \u00b7 ${
-                      shift.reliabilityFlag ? "reliable" : "flagged"
+                      shift.reliabilityFlag === null ? "see individual outcomes" : shift.reliabilityFlag ? "reliable" : "flagged"
                     }`
                   : "\u2014",
               },
@@ -186,6 +190,7 @@ export default async function FounderShiftDetailPage({
         </div>
       </div>
 
+      {unresolved.map(app => <AttendanceForm key={app.id} resolving roster={[app]} action={resolveAttendanceAction.bind(null, shift.id)} />)}
       <h2 className="mt-6 mb-2 text-sm font-semibold uppercase tracking-wide text-ink-soft">
         Applications ({shift.applications.length})
       </h2>
@@ -217,6 +222,7 @@ export default async function FounderShiftDetailPage({
                       Marshal paused
                     </span>
                   )}
+                  {isAttendance(a.attendance) && <span>{attendanceLabels[a.attendance]}</span>}
                   <ApplicationStatusBadge status={a.status} />
                 </div>
               </li>

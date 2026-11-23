@@ -32,10 +32,10 @@ export function managerAttention<T extends ManagerShift>(shifts: T[], now: Date)
   for (const entry of ordered) {
     const { shift, callTime } = entry;
     const count = actionableApplicantCount(shift);
-    if (shift.status === "OPEN" && callTime <= now) {
-      closeouts.push({ ...entry, count, kind: "elapsed" as const });
-    } else if (canCompleteShift(shift, now)) {
+    if (canCompleteShift(shift, now)) {
       closeouts.push({ ...entry, count, kind: "completion" as const });
+    } else if (shift.status === "OPEN" && callTime <= now) {
+      closeouts.push({ ...entry, count, kind: "elapsed" as const });
     } else if (count > 0) {
       reviews.push({ ...entry, count, kind: "review" as const });
     }

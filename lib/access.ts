@@ -1,6 +1,7 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { isFounderEmail, isFounderSession } from "@/lib/founder-identity";
+import { isPilotParticipant } from "@/lib/pilot-participant";
 import type { Role } from "@/lib/types";
 
 export { isFounderEmail } from "@/lib/founder-identity";
@@ -11,8 +12,16 @@ export async function requireUser() {
   return session.user;
 }
 
-export async function requireRole(role: Role) {
+export async function requirePilotUser() {
   const user = await requireUser();
+  if (!user.emailVerifiedAt) redirect("/verify-email");
+  if (isFounderEmail(user.email) && !isFounderSession(user)) redirect("/login/founder");
+  if (!isPilotParticipant(user.email)) redirect("/pilot-access");
+  return user;
+}
+
+export async function requireRole(role: Role) {
+  const user = await requirePilotUser();
   if (user.role !== role) redirect("/");
   return user;
 }

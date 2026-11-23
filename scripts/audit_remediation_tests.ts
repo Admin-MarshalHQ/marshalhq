@@ -315,15 +315,12 @@ check(
   // Edge: shift starts exactly at "now" — the temporal guard treats it as
   // committed (start.getTime() <= now). A marshal cannot drop out at the
   // exact moment the manager expects them on site.
-  const now = new Date();
-  const justStartedDate = new Date(now);
-  justStartedDate.setHours(0, 0, 0, 0);
-  const hh = String(now.getHours()).padStart(2, "0");
-  const mm = String(now.getMinutes()).padStart(2, "0");
+  const now = new Date("2026-07-01T06:00:00Z");
+  const justStartedDate = new Date("2026-07-01T00:00:00Z");
   check(
     classifyWithdraw(
       { status: "ACCEPTED" },
-      { status: "FILLED", startDate: justStartedDate, dailyStartTime: `${hh}:${mm}` },
+      { status: "FILLED", startDate: justStartedDate, dailyStartTime: "07:00" },
       now,
     ) === "committed",
     "D: ACCEPTED + FILLED at the exact start moment is committed (no last-second drop)",

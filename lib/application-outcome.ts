@@ -59,6 +59,7 @@ const outcomes = {
 export function marshalApplicationOutcome(
   status: string,
   shift: { status: string; paused: boolean },
+  attendance?: string | null,
 ) {
   // Closing a shift stores cancellations as WITHDRAWN and pending closures
   // as REJECTED. Those same states can predate a closure, so use the known
@@ -69,6 +70,8 @@ export function marshalApplicationOutcome(
   if (status === "REJECTED") return outcomes.rejected;
   if (status === "WITHDRAWN") return outcomes.withdrawn;
   if (shift.status === "COMPLETED") {
+    if (attendance === "UNRESOLVED") return { label: "Attendance under review", tone: "neutral", detail: "Contact support about your booking. Work history is pending." } as const;
+    if (attendance === "NOT_WORKED") return { label: "Did not work", tone: "neutral", detail: "This booking has no completion credit. Contact support if this is incorrect." } as const;
     return status === "ACCEPTED" ? outcomes.completed : outcomes.shiftCompleted;
   }
   if (shift.status === "OPEN" || shift.status === "FILLED") {

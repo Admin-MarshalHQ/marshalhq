@@ -3,7 +3,8 @@
 import { prisma } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { auth } from "@/lib/auth";
+import { requirePilotUser } from "@/lib/access";
+import { workedFilter } from "@/lib/attendance";
 import { ReviewSchema } from "@/lib/zod";
 import { reviewDirectionFor } from "@/lib/reviews";
 import { flushNotificationEmails, type NotifyParams } from "@/lib/notify";
@@ -19,10 +20,7 @@ export async function submitReviewAction(
   _prev: ReviewActionState,
   formData: FormData,
 ): Promise<ReviewActionState> {
-  const session = await auth();
-  if (!session?.user?.id) redirect("/login");
-  const userId = session.user.id;
-  const role = session.user.role;
+  const { id: userId, role } = await requirePilotUser();
 
   const parsed = ReviewSchema.safeParse({
     shiftId: formData.get("shiftId"),
@@ -50,7 +48,7 @@ export async function submitReviewAction(
     // form sends marshalId; with several booked marshals and no explicit
     // choice we refuse rather than guess.
     const acceptedApps = await prisma.application.findMany({
-      where: { shiftId, status: "ACCEPTED" },
+      where: { shiftId, status: "ACCEPTED", ...workedFilter },
       select: { id: true, status: true, marshalId: true },
       orderBy: { decidedAt: "asc" },
     });
@@ -75,8 +73,8 @@ export async function submitReviewAction(
     }
     subjectId = application?.marshalId ?? "";
   } else {
-    application = await prisma.application.findUnique({
-      where: { shiftId_marshalId: { shiftId, marshalId: userId } },
+    application = await prisma.application.findFirst({
+      where: { shiftId, marshalId: userId, ...workedFilter },
       select: { id: true, status: true, marshalId: true },
     });
     subjectId = shift.managerId;

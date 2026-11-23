@@ -21,7 +21,7 @@ export default function Rules() {
             if circumstances change.
           </li>
           <li>
-            One accepted marshal per shift. Don’t bypass the platform to
+            Book up to the number of places posted. Each accepted marshal receives the manager’s contact details. Don’t bypass the platform to
             hire someone you’ve not accepted.
           </li>
           <li>

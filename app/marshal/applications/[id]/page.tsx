@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { worked } from "@/lib/attendance";
 import { requireRole } from "@/lib/access";
 import { prisma } from "@/lib/db";
 import {
@@ -59,7 +60,7 @@ export default async function MyApplicationDetail({
   // A booking may be on an open, filled or completed shift. Closure or a
   // paused marshal profile takes contact down, including on old URLs.
   const shift = app.shift;
-  const outcome = marshalApplicationOutcome(app.status, shift);
+  const outcome = marshalApplicationOutcome(app.status, shift, app.attendance);
   const isAcceptedPair =
     app.status === "ACCEPTED" &&
     (shift.status === "OPEN" ||
@@ -110,7 +111,7 @@ export default async function MyApplicationDetail({
   // Two-way reviews: an accepted marshal can review the manager once the shift
   // is COMPLETED.
   const canReviewManager =
-    app.status === "ACCEPTED" && shift.status === "COMPLETED";
+    app.status === "ACCEPTED" && shift.status === "COMPLETED" && worked(app.attendance);
   const existingReview = canReviewManager
     ? await prisma.review.findFirst({
         where: {

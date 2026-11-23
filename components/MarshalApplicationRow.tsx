@@ -5,10 +5,10 @@ import { marshalApplicationOutcome } from "@/lib/application-outcome";
 import { formatShiftBlock } from "@/lib/format";
 
 export function MarshalApplicationRow({ application }: {
-  application: Pick<Application, "id" | "status"> & { shift: Shift };
+  application: Pick<Application, "id" | "status" | "attendance"> & { shift: Shift };
 }) {
   const { id, status, shift } = application;
-  const outcome = marshalApplicationOutcome(status, shift);
+  const outcome = marshalApplicationOutcome(status, shift, application.attendance);
 
   return (
     <Link href={`/marshal/applications/${id}`} className="card-link">

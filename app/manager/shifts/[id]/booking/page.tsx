@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { worked } from "@/lib/attendance";
 import { requireRole } from "@/lib/access";
 import { prisma } from "@/lib/db";
 import {
@@ -80,7 +81,7 @@ export default async function BookingPage({
         },
       })
     : null;
-  const reviewSubjects = accepted.map((a) => ({
+  const reviewSubjects = accepted.filter(a => worked(a.attendance)).map((a) => ({
     id: a.marshalId,
     label: a.marshal.marshalProfile?.fullName ?? "Marshal",
   }));
@@ -135,7 +136,7 @@ export default async function BookingPage({
         })}
       </div>
 
-      {isCompleted && (
+      {isCompleted && reviewSubjects.length > 0 && (
         <div className="mt-6 max-w-xl">
           <Card>
             <Kicker className="mb-1">Review the marshal</Kicker>

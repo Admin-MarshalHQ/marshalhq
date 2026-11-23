@@ -3,7 +3,7 @@
 import { prisma } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { auth } from "@/lib/auth";
+import { requireRole } from "@/lib/access";
 import { AvailabilityBlockSchema } from "@/lib/zod";
 
 export type AvailabilityActionState = {
@@ -12,11 +12,8 @@ export type AvailabilityActionState = {
 } | null;
 
 async function requireMarshalId() {
-  const session = await auth();
-  if (!session?.user?.id || session.user.role !== "MARSHAL") {
-    redirect("/login");
-  }
-  return session.user.id as string;
+  const user = await requireRole("MARSHAL");
+  return user.id;
 }
 
 export async function addAvailabilityBlockAction(
