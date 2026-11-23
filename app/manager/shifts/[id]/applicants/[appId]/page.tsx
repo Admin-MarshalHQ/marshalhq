@@ -1,3 +1,5 @@
+import { confirmedCount } from "@/lib/attendance";
+import { recordedReviews } from "@/lib/recorded-reviews";
 import { notFound } from "next/navigation";
 import { requireRole } from "@/lib/access";
 import { prisma } from "@/lib/db";
@@ -59,6 +61,7 @@ export default async function ApplicantDetailPage({
       coverNote: true,
       marshal: {
         select: {
+          _count: confirmedCount,
           marshalProfile: {
             select: {
               fullName: true,
@@ -69,8 +72,7 @@ export default async function ApplicantDetailPage({
               hasDriversLicence: true,
               training: true,
               experienceSummary: true,
-              completedCount: true,
-              reliableCount: true,
+
               paused: true,
             },
           },
@@ -82,15 +84,9 @@ export default async function ApplicantDetailPage({
   const p = app.marshal.marshalProfile;
   if (!p) notFound();
 
-  const reliabilityLabel =
-    p.completedCount > 0
-      ? `${p.reliableCount} of ${p.completedCount} shifts rated reliable`
-      : "No completed shifts on Setru yet";
+  const workCount = app.marshal._count.applications;
 
-  const marshalReviews = await prisma.review.findMany({
-    where: { subjectId: app.marshalId, direction: "MANAGER_ON_MARSHAL" },
-    select: { rating: true },
-  });
+  const marshalReviews = await recordedReviews(app.marshalId, "MANAGER_ON_MARSHAL");
   const marshalRating = ratingSummary(marshalReviews);
 
   const availabilityLabel =
@@ -176,7 +172,7 @@ export default async function ApplicantDetailPage({
           )}
           <Card variant="sunken">
             <Kicker className="mb-1.5">Setru record</Kicker>
-            <p className="text-sm text-ink">{reliabilityLabel}.</p>
+            <p className="text-sm text-ink">Shifts recorded as worked: {workCount}</p>
             <div className="mt-2 flex items-center gap-2">
               <span className="text-sm text-ink-muted">Manager rating:</span>
               <StarRatingDisplay summary={marshalRating} />

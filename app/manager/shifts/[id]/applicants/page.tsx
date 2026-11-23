@@ -1,3 +1,4 @@
+import { confirmedCount } from "@/lib/attendance";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireRole } from "@/lib/access";
@@ -33,6 +34,7 @@ export default async function ApplicantReviewPage({
           status: true,
           marshal: {
             select: {
+              _count: confirmedCount,
               marshalProfile: {
                 select: {
                   fullName: true,
@@ -43,7 +45,6 @@ export default async function ApplicantReviewPage({
                   hasDriversLicence: true,
                   hasTransport: true,
                   training: true,
-                  completedCount: true,
                   paused: true,
                 },
               },
@@ -117,9 +118,7 @@ export default async function ApplicantReviewPage({
                   <p className="mt-2 line-clamp-2 text-sm">{profile.experienceSummary}</p>
                   {profile.training && <p className="mt-1 line-clamp-2 text-sm text-ink-muted"><span className="font-semibold">Training reported </span>{profile.training}</p>}
                   <p className="mt-2 text-sm font-medium text-ink-muted">
-                    {profile.completedCount > 0
-                      ? `${profile.completedCount} ${profile.completedCount === 1 ? "shift" : "shifts"} completed through Setru`
-                      : "No completed Setru shifts yet"}
+                    Shifts recorded as worked: {a.marshal._count.applications}
                   </p>
                 </div>
                 <Link

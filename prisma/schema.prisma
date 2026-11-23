@@ -111,6 +111,7 @@ model Application {
   shiftId    String
   marshalId  String
   attendance String?   // Null preserves the historical shift-level completion record.
+  attendanceChanges AttendanceChange[]
   coverNote  String?
   status     String    @default("APPLIED") // ApplicationStatus
   appliedAt  DateTime  @default(now())
@@ -121,6 +122,20 @@ model Application {
 
   @@unique([shiftId, marshalId])
   @@index([shiftId, status])
+}
+
+// Private correction record. Reasons and reviewer identity stay out of notifications.
+model AttendanceChange {
+  id            String   @id @default(cuid())
+  applicationId String
+  reviewerId    String
+  previous      String?
+  outcome       String
+  reason        String
+  createdAt     DateTime @default(now())
+  application   Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@index([applicationId, createdAt])
 }
 
 model Notification {

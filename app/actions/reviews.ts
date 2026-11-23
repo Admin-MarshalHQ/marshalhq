@@ -4,7 +4,7 @@ import { prisma } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requirePilotUser } from "@/lib/access";
-import { workedFilter } from "@/lib/attendance";
+import { lockShift } from "@/lib/booking-lock";
 import { ReviewSchema } from "@/lib/zod";
 import { reviewDirectionFor } from "@/lib/reviews";
 import { flushNotificationEmails, type NotifyParams } from "@/lib/notify";
@@ -48,7 +48,7 @@ export async function submitReviewAction(
     // form sends marshalId; with several booked marshals and no explicit
     // choice we refuse rather than guess.
     const acceptedApps = await prisma.application.findMany({
-      where: { shiftId, status: "ACCEPTED", ...workedFilter },
+      where: { shiftId, status: "ACCEPTED", attendance: "WORKED" },
       select: { id: true, status: true, marshalId: true },
       orderBy: { decidedAt: "asc" },
     });
@@ -74,7 +74,7 @@ export async function submitReviewAction(
     subjectId = application?.marshalId ?? "";
   } else {
     application = await prisma.application.findFirst({
-      where: { shiftId, marshalId: userId, ...workedFilter },
+      where: { shiftId, marshalId: userId, attendance: "WORKED" },
       select: { id: true, status: true, marshalId: true },
     });
     subjectId = shift.managerId;
@@ -86,16 +86,17 @@ export async function submitReviewAction(
   }
 
   try {
-    await prisma.review.create({
-      data: {
-        shiftId,
-        authorId: userId,
-        subjectId,
-        direction,
-        rating,
-        comment: comment || null,
-      },
+    const saved = await prisma.$transaction(async tx => {
+      await lockShift(tx, shiftId);
+      const eligible = await tx.application.findFirst({
+        where: { id: application!.id, shiftId, status: "ACCEPTED", attendance: "WORKED", shift: { status: "COMPLETED" } },
+        select: { id: true },
+      });
+      if (!eligible) return false;
+      await tx.review.create({ data: { shiftId, authorId: userId, subjectId, direction, rating, comment: comment || null } });
+      return true;
     });
+    if (!saved) return { error: "This booking is no longer eligible for a review." };
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : "";
     if (msg.includes("Unique constraint")) {
@@ -108,7 +109,7 @@ export async function submitReviewAction(
     userId: subjectId,
     kind: "REVIEW_RECEIVED",
     subject: `New review: ${shift.productionName}`,
-    body: `You received a ${rating}-star review for ${shift.productionName}. See it on your Setru profile.`,
+    body: `A review was submitted for ${shift.productionName}. Check the current booking record.`,
   };
   await prisma.notification.create({ data: note });
   await flushNotificationEmails([note]);

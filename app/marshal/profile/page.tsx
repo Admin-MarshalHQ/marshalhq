@@ -1,3 +1,5 @@
+import { confirmedWork } from "@/lib/attendance";
+import { recordedReviews } from "@/lib/recorded-reviews";
 import { requireRole } from "@/lib/access";
 import { prisma } from "@/lib/db";
 import {
@@ -22,13 +24,8 @@ export default async function MarshalProfilePage() {
   const p = await prisma.marshalProfile.findUnique({
     where: { userId: user.id },
   });
-  const reviews = await prisma.review.findMany({
-    where: { subjectId: user.id, direction: "MANAGER_ON_MARSHAL" },
-    orderBy: { createdAt: "desc" },
-    include: {
-      shift: { select: { productionName: true } },
-    },
-  });
+  const reviews = await recordedReviews(user.id, "MANAGER_ON_MARSHAL");
+  const count = await prisma.application.count({ where: { marshalId: user.id, ...confirmedWork } });
   const summary = ratingSummary(reviews);
 
   if (!p) {
@@ -111,11 +108,7 @@ export default async function MarshalProfilePage() {
                   value: p.training || "\u2014",
                 },
                 {
-                  label: "Reliability",
-                  value:
-                    p.completedCount > 0
-                      ? `${p.reliableCount}/${p.completedCount} reliable`
-                      : "No completed shifts yet",
+                  label: "Shifts recorded as worked", value: count,
                 },
                 {
                   label: "Manager rating",

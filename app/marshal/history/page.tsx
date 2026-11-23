@@ -1,3 +1,4 @@
+import { recordedReviews } from "@/lib/recorded-reviews";
 import { workedFilter } from "@/lib/attendance";
 import { requireRole } from "@/lib/access";
 import { prisma } from "@/lib/db";
@@ -13,13 +14,7 @@ import { ratingSummary } from "@/lib/reviews";
 
 export default async function CompletionHistoryPage() {
   const user = await requireRole("MARSHAL");
-  const profile = await prisma.marshalProfile.findUnique({
-    where: { userId: user.id },
-  });
-  const reviews = await prisma.review.findMany({
-    where: { subjectId: user.id, direction: "MANAGER_ON_MARSHAL" },
-    select: { rating: true },
-  });
+  const reviews = await recordedReviews(user.id, "MANAGER_ON_MARSHAL");
   const ratingSummaryValue = ratingSummary(reviews);
   const completed = await prisma.application.findMany({
     where: {
@@ -40,37 +35,29 @@ export default async function CompletionHistoryPage() {
     },
   });
 
-  const reliability =
-    profile && profile.completedCount > 0
-      ? `${profile.reliableCount}/${profile.completedCount} rated reliable`
-      : "No completed shifts yet";
 
   return (
     <div>
       <PageHeader
         kicker="Completion history"
         title="Your record"
-        subtitle="Completed Setru shifts, as confirmed by the managers who booked you. Managers see this alongside your applications."
+        subtitle="Bookings with an individual record of work. Use Support to ask for a correction."
       />
 
       <Card className="mb-4">
-        <Kicker>Reliability</Kicker>
-        <p className="mt-1 font-serif text-2xl text-ink">{reliability}</p>
+        <Kicker>Shifts recorded as worked</Kicker>
+        <p className="mt-1 font-serif text-2xl text-ink">{completed.length}</p>
         <div className="mt-2 flex items-center gap-2">
           <span className="text-xs text-ink-muted">Manager rating:</span>
           <StarRatingDisplay summary={ratingSummaryValue} />
         </div>
-        <p className="mt-2 border-t border-line pt-2 text-xs text-ink-soft">
-          A shift counts as reliable when the manager confirms you turned up
-          and did the job. A flagged shift stays on the record without a
-          reliability credit.
-        </p>
+
       </Card>
 
       {completed.length === 0 ? (
         <EmptyState
           title="No completed shifts yet"
-          body="Once a manager marks a booked shift complete, it will appear here."
+          body="A booking appears here once your individual attendance is recorded as worked."
         />
       ) : (
         <div className="space-y-2">
@@ -92,16 +79,7 @@ export default async function CompletionHistoryPage() {
                     )}
                   </p>
                 </div>
-                {(a.attendance === "WORKED" || (a.attendance === null && a.shift.reliabilityFlag === true)) && (
-                  <span className="rounded-full bg-ok-soft px-2 py-0.5 font-mono text-[11px] font-medium uppercase tracking-[0.04em] text-ok">
-                    Reliable
-                  </span>
-                )}
-                {(a.attendance === "WORKED_FLAGGED" || (a.attendance === null && a.shift.reliabilityFlag === false)) && (
-                  <span className="rounded-full bg-danger-soft px-2 py-0.5 font-mono text-[11px] font-medium uppercase tracking-[0.04em] text-danger">
-                    Issue flagged
-                  </span>
-                )}
+
               </div>
             </Card>
           ))}

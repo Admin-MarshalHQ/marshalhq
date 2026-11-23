@@ -271,6 +271,7 @@ const APPLICATION_STATUS_TONE: Record<ApplicationStatus, BadgeTone> = {
   ACCEPTED: "ok",
   REJECTED: "danger",
   WITHDRAWN: "neutral",
+  PRODUCTION_CANCELLED: "neutral",
 };
 
 export function ApplicationStatusBadge({

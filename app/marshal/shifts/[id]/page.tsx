@@ -1,3 +1,4 @@
+import { recordedReviews } from "@/lib/recorded-reviews";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireRole } from "@/lib/access";
@@ -65,10 +66,7 @@ export default async function MarshalShiftDetailPage({
     where: { userId: user.id },
     select: { id: true, availability: true, paused: true },
   });
-  const managerReviews = await prisma.review.findMany({
-    where: { subjectId: shift.managerId, direction: "MARSHAL_ON_MANAGER" },
-    select: { rating: true },
-  });
+  const managerReviews = await recordedReviews(shift.managerId, "MARSHAL_ON_MANAGER");
   const managerRating = ratingSummary(managerReviews);
 
   // Booking-conflict check, run only when the apply form could render. A

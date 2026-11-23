@@ -32,7 +32,6 @@ import { SHIFT_STATUS_LABEL } from "@/lib/state";
 import type { ShiftStatus } from "@/lib/types";
 import {
   CONFIRM_CANCEL_FILLED_ACTION,
-  CONFIRM_CANCEL_FILLED_BODY,
   CONFIRM_CANCEL_FILLED_TITLE,
   CONFIRM_CLOSE_DRAFT_ACTION,
   CONFIRM_CLOSE_DRAFT_BODY,
@@ -275,7 +274,7 @@ export default async function ManagerShiftDetailPage({
                   )}
                 </>
               )}
-              {shift.status === "FILLED" && (
+              {active && bookedCount > 0 && (
                 <>
                   <ButtonLink href={`/manager/shifts/${shift.id}/booking`}>
                     Open booking &amp; contact details
@@ -287,7 +286,7 @@ export default async function ManagerShiftDetailPage({
                 const name = app.marshal.marshalProfile?.fullName ?? "Booked marshal";
                 return <ConfirmButton key={app.id} action={reopenAfterDropoutAction.bind(null, shift.id, app.id)}
                   triggerLabel={`Record dropout · ${name}`} title={`Record dropout for ${name}?`}
-                  description="This frees their place and notifies them. Other bookings stay confirmed."
+                  description="Use this only if the marshal told you they cannot attend. This frees their place. If production cancelled, use Cancel shift."
                   confirmLabel="Record dropout" variant="secondary" />;
               })}
               {(shift.status === "COMPLETED" || shift.status === "CLOSED") && (
@@ -329,7 +328,7 @@ export default async function ManagerShiftDetailPage({
                       action={close}
                       triggerLabel="Cancel shift"
                       title={CONFIRM_CANCEL_FILLED_TITLE}
-                      description={CONFIRM_CANCEL_FILLED_BODY}
+                      description={`This cancels ${bookedCount} ${bookedCount === 1 ? "booking" : "bookings"} and closes remaining places. Each affected applicant will be notified.`}
                       confirmLabel={CONFIRM_CANCEL_FILLED_ACTION}
                       variant="danger"
                     />
@@ -357,12 +356,12 @@ export default async function ManagerShiftDetailPage({
             </Card>
           )}
 
-          {(shift.status === "FILLED" || shift.status === "COMPLETED") && bookedCount > 0 && (
+          {bookedCount > 0 && (
             <Card>
               <Kicker className="mb-2">Booked</Kicker>
               <ul className="text-sm text-ink">{acceptedApps.map(app => (
                 <li key={app.id}>{app.marshal.marshalProfile?.fullName ?? "Marshal"}
-                  {isAttendance(app.attendance) && ` · ${attendanceLabels[app.attendance]}`}
+                  {isAttendance(app.attendance) ? ` · ${attendanceLabels[app.attendance]}` : shift.status === "COMPLETED" ? " · Individual attendance unconfirmed" : ""}
                 </li>
               ))}</ul>
               <ButtonLink

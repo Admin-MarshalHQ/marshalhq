@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { worked } from "@/lib/attendance";
 import { requireRole } from "@/lib/access";
 import { prisma } from "@/lib/db";
 import {
@@ -114,7 +113,7 @@ export default async function MyApplicationDetail({
   // Two-way reviews: an accepted marshal can review the manager once the shift
   // is COMPLETED.
   const canReviewManager =
-    app.status === "ACCEPTED" && shift.status === "COMPLETED" && worked(app.attendance);
+    app.status === "ACCEPTED" && shift.status === "COMPLETED" && app.attendance === "WORKED";
   const existingReview = canReviewManager
     ? await prisma.review.findFirst({
         where: {

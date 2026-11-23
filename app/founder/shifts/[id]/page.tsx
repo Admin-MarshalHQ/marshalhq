@@ -23,9 +23,10 @@ import ConfirmButton from "@/components/ConfirmButton";
 import ShiftNoteForm from "./ShiftNoteForm";
 
 export default async function FounderShiftDetailPage({
-  params,
+  params, searchParams,
 }: {
   params: { id: string };
+  searchParams: { attendance?: string };
 }) {
   await requireFounder();
   const shift = await prisma.shift.findUnique({
@@ -62,7 +63,7 @@ export default async function FounderShiftDetailPage({
     await setShiftPausedAction(shift.id, false);
   };
 
-  const unresolved = shift.applications.filter(app => app.attendance === "UNRESOLVED");
+  const reviewable = shift.applications.filter(app => shift.status === "COMPLETED" && app.status === "ACCEPTED");
   const acceptedApp = shift.applications.find((a) => a.status === "ACCEPTED");
   const contactReleased = Boolean(acceptedApp);
 
@@ -192,7 +193,8 @@ export default async function FounderShiftDetailPage({
         </div>
       </div>
 
-      {unresolved.map(app => <AttendanceForm key={app.id} resolving roster={[app]} action={resolveAttendanceAction.bind(null, shift.id)} />)}
+      {searchParams.attendance === "stale" && <Alert tone="warn">The record was not changed. Check the current outcome and enter a reason before saving a different outcome.</Alert>}
+      {reviewable.map(app => <AttendanceForm key={app.id} resolving roster={[app]} action={resolveAttendanceAction.bind(null, shift.id)} />)}
       <h2 className="mt-6 mb-2 text-sm font-semibold uppercase tracking-wide text-ink-soft">
         Applications ({shift.applications.length})
       </h2>

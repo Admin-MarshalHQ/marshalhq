@@ -90,7 +90,7 @@ export const CONFIRM_PUBLISH_ACTION = "Publish";
 
 export const CONFIRM_WITHDRAW_TITLE = "Withdraw this application?";
 export const CONFIRM_WITHDRAW_BODY =
-  "Your application will be pulled. You can apply again while the shift is still Open.";
+  "The manager will no longer be able to book you from this application.";
 export const CONFIRM_WITHDRAW_ACTION = "Withdraw";
 
 export const CONFIRM_DROPOUT_TITLE = "Drop out of this booking?";
@@ -132,14 +132,14 @@ export const APPLY_UNAVAILABLE_DATES_REMINDER =
   "You’ve marked yourself unavailable during these dates. You can still apply, but only do so if you’re genuinely free — the manager is relying on you to show up.";
 
 export const WAITLIST_NEXT_STEP =
-  "We’ll email you as private beta places open for your role.";
+  "We’ll send one update when private beta places open for your role.";
 
 // Previously stored messages keep their original content in the database.
 export function notificationDisplayBody(kind: string, body: string) {
+  if (kind === "REVIEW_RECEIVED") return "A review was submitted. Check the current booking record.";
+  if (kind === "SHIFT_STATUS_CHANGED" && body.startsWith("Recorded outcome:")) return "An attendance update was recorded. Open your booking for the current outcome.";
   const legacyEnding =
-    kind === "REVIEW_RECEIVED"
-      ? "See it on your MarshalHQ profile."
-      : kind === "SHIFT_STATUS_CHANGED"
+    kind === "SHIFT_STATUS_CHANGED"
         ? "If you have questions about this cancellation, contact MarshalHQ support and we’ll follow up."
         : undefined;
 

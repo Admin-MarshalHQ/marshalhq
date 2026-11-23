@@ -75,6 +75,8 @@ test("real booking actions serialise decisions and credit each worker once", asy
   const profile = () => db.marshalProfile.findUniqueOrThrow({where:{userId:booked[1].marshalId}});
   assert.equal((await profile()).completedCount,0);
   attendance.set(booked[1].id,"WORKED");
+  attendance.set("previous","UNRESOLVED");
+  attendance.set("reason","Synthetic confirmation");
   attendance.set("applicationId",booked[1].id);
   await Promise.all([invoke(founder,resolve,first.id,attendance),invoke(founder,resolve,first.id,attendance)]);
   assert.equal((await profile()).completedCount,1);
@@ -88,6 +90,45 @@ test("real booking actions serialise decisions and credit each worker once", asy
   const after = await Promise.all([a,b].map(p=>db.marshalProfile.findUniqueOrThrow({where:{userId:p.id}})));
   assert.deepEqual(after.map((p,i)=>p.completedCount-before[i].completedCount),[1,0]);
   assert.deepEqual(after.map((p,i)=>p.reliableCount-before[i].reliableCount),[0,0]);
+  // A challenge may concern attendance or feedback alone. Preserve the sibling
+  // and any historical rows; derive visibility from the booked individual's state.
+  const { recordedReviews } = require("../lib/recorded-reviews.ts");
+  const { confirmedWork } = require("../lib/attendance.ts");
+  const pair = await shift(2, [a, b], past);
+  await db.application.updateMany({ where: { shiftId: pair.id }, data: { status: "ACCEPTED" } });
+  await db.shift.update({ where: { id: pair.id }, data: { status: "COMPLETED" } });
+  const count = who => db.application.count({ where: { marshalId: who.id, ...confirmedWork } });
+  const beforePair = await Promise.all([count(a), count(b)]);
+  assert.equal(await db.application.count({ where: { ...confirmedWork, shiftId: pair.id } }), 0);
+  await db.application.updateMany({ where: { shiftId: pair.id }, data: { attendance: "WORKED" } });
+  for (const person of [a, b]) {
+    await db.review.create({ data: { shiftId: pair.id, authorId: person.id, subjectId: manager.id,
+      direction: "MARSHAL_ON_MANAGER", rating: person.id === a.id ? 2 : 5 } });
+  }
+  const correction = new FormData();
+  correction.set("applicationId", pair.apps[0].id);
+  correction.set("reason", "Synthetic correction case");
+  for (const [previous, next, credit] of [["WORKED", "WORKED_FLAGGED", 1],
+    ["WORKED_FLAGGED", "UNRESOLVED", 0], ["UNRESOLVED", "NOT_WORKED", 0]]) {
+    correction.set("previous", previous);
+    correction.set(pair.apps[0].id, next);
+    await invoke(founder, resolve, pair.id, correction);
+    assert.match(await invoke(founder, resolve, pair.id, correction), /attendance=stale/);
+    assert.equal(await count(a), beforePair[0] + credit);
+    assert.equal(await count(b), beforePair[1] + 1);
+    const visible = (await recordedReviews(manager.id, "MARSHAL_ON_MANAGER")).filter(review => review.shiftId === pair.id);
+    assert.deepEqual(visible.map(review => review.authorId), [b.id]);
+  }
+  assert.equal(await db.review.count({ where: { shiftId: pair.id } }), 2);
+  assert.equal(await db.attendanceChange.count({ where: { applicationId: pair.apps[0].id } }), 3);
+
+  const cancelled = await shift(2, [a, b]);
+  await invoke(manager, accept, cancelled.apps[0].id);
+  await invoke(manager, close, cancelled.id, "OPEN", [cancelled.apps[0].id]);
+  const closed = await db.application.findMany({ where: { shiftId: cancelled.id }, orderBy: { marshalId: "asc" } });
+  assert.equal(closed.find(row => row.marshalId === a.id).status, "PRODUCTION_CANCELLED");
+  assert.equal(closed.find(row => row.marshalId === b.id).status, "REJECTED");
+  assert.ok(closed.every(row => row.attendance === null));
   const sameMarshal = await Promise.all([shift(1,[a]),shift(1,[a])]);
   const simultaneous = await Promise.all(sameMarshal.map(s => invoke(manager,accept,s.apps[0].id)));
   assert.equal(simultaneous.filter(result => result.includes("/booking;")).length,1);

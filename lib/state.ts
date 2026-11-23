@@ -17,7 +17,8 @@ export const APPLICATION_TRANSITIONS: Record<
   ApplicationStatus[]
 > = {
   APPLIED: ["ACCEPTED", "REJECTED", "WITHDRAWN"],
-  ACCEPTED: ["WITHDRAWN"],
+  ACCEPTED: ["WITHDRAWN", "PRODUCTION_CANCELLED"],
+  PRODUCTION_CANCELLED: [],
   REJECTED: [],
   WITHDRAWN: [],
 };
@@ -136,7 +137,8 @@ export const APPLICATION_STATUS_LABEL: Record<ApplicationStatus, string> = {
   APPLIED: "Applied",
   ACCEPTED: "Accepted",
   REJECTED: "Rejected",
-  WITHDRAWN: "Withdrawn",
+  WITHDRAWN: "No longer active",
+  PRODUCTION_CANCELLED: "Cancelled by production",
 };
 
 // Availability gating for the apply flow.

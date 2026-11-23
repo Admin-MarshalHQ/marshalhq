@@ -12,7 +12,7 @@ import {
 } from "@/lib/state";
 import { flushNotificationEmails, type NotifyParams } from "@/lib/notify";
 import { lockShift } from "@/lib/booking-lock";
-import { attendanceLabels, isAttendance, worked } from "@/lib/attendance";
+import { attendanceLabels, isAttendance, confirmedWork } from "@/lib/attendance";
 import { hasContactLeak } from "@/lib/contact-detect";
 
 async function requireManagerId() {
@@ -209,7 +209,7 @@ export async function closeShiftAction(id: string, expectedStatus: string, expec
     if (accepted.length) {
       await tx.application.updateMany({
         where: { shiftId: id, status: "ACCEPTED" },
-        data: { status: "WITHDRAWN", decidedAt: new Date() },
+        data: { status: "PRODUCTION_CANCELLED", decidedAt: new Date() },
       });
       cancelledAcceptedMarshalIds.push(...accepted.map((a) => a.marshalId));
     }
@@ -223,7 +223,7 @@ export async function closeShiftAction(id: string, expectedStatus: string, expec
         userId: app.marshalId,
         kind: "APPLICATION_REJECTED",
         subject: `Shift closed: ${shift.productionName}`,
-        body: `The manager closed this shift without hiring. Your application was not accepted.`,
+        body: `The manager closed this shift. Your application was not accepted.`,
       };
       await tx.notification.create({ data: note });
       emailQueue.push(note);
@@ -238,7 +238,7 @@ export async function closeShiftAction(id: string, expectedStatus: string, expec
         kind: "SHIFT_STATUS_CHANGED",
         subject: `Shift cancelled: ${shift.productionName}`,
         body:
-          `The manager has cancelled this shift. The booking is closed and the shift will not be marked as completed.\n\n` +
+          `Production cancelled your booking. This has no attendance or reliability effect. Check your engagement terms with the hirer for any payment due.\n\n` +
           `If you have questions about this cancellation, contact Setru support and we\u2019ll follow up.`,
       };
       await tx.notification.create({ data: cancelNote });
@@ -259,15 +259,15 @@ export async function closeShiftAction(id: string, expectedStatus: string, expec
 
 export async function completeShiftAction(id: string, form: FormData) {
   const managerId = await requireManagerId();
-  await settleAttendance(id, form, managerId);
+  await settleAttendance(id, form, managerId, null);
 }
 
 export async function resolveAttendanceAction(id: string, form: FormData) {
-  await requireFounder(true);
-  await settleAttendance(id, form, null);
+  const reviewer = await requireFounder(true);
+  await settleAttendance(id, form, null, reviewer.id);
 }
 
-async function settleAttendance(id: string, form: FormData, managerId: string | null) {
+async function settleAttendance(id: string, form: FormData, managerId: string | null, reviewerId: string | null) {
   const queue: NotifyParams[] = [];
   const saved = await prisma.$transaction(async (tx) => {
     await lockShift(tx, id);
@@ -279,7 +279,7 @@ async function settleAttendance(id: string, form: FormData, managerId: string | 
     const applicationId = form.get("applicationId");
     if (!managerId && typeof applicationId !== "string") return false;
     const roster = await tx.application.findMany({
-      where: { shiftId: id, status: "ACCEPTED", attendance: managerId ? null : "UNRESOLVED",
+      where: { shiftId: id, status: "ACCEPTED", ...(managerId && { attendance: null }),
         ...(!managerId && typeof applicationId === "string" ? { id: applicationId } : {}),
       },
     });
@@ -287,15 +287,17 @@ async function settleAttendance(id: string, form: FormData, managerId: string | 
     const decisions = roster.map((application) => ({
       application, outcome: form.get(application.id),
     }));
-    if (decisions.some(({outcome}) => !isAttendance(outcome) || (!managerId && outcome === "UNRESOLVED"))) return false;
+    if (decisions.some(({outcome}) => !isAttendance(outcome))) return false;
+    const reason = String(form.get("reason") ?? "").trim();
+    if (reviewerId && (!reason || reason.length > 500 || form.get("previous") !== (roster[0].attendance ?? "") ||
+        decisions[0].outcome === roster[0].attendance)) return false;
     for (const {application, outcome} of decisions) {
       if (!isAttendance(outcome)) throw new Error("Invalid attendance");
-      await tx.application.update({ where: { id: application.id }, data: { attendance: outcome } });
-      if (worked(outcome)) {
-        await tx.marshalProfile.update({ where: { userId: application.marshalId }, data: {
-          completedCount: { increment: 1 }, reliableCount: { increment: outcome === "WORKED" ? 1 : 0 },
-        } });
+      if (reviewerId) {
+        await tx.attendanceChange.create({ data: { applicationId: application.id, reviewerId,
+          previous: application.attendance, outcome, reason } });
       }
+      await tx.application.update({ where: { id: application.id }, data: { attendance: outcome } });
       const note: NotifyParams = {
         userId: application.marshalId, kind: "SHIFT_STATUS_CHANGED",
         subject: `Attendance update: ${shift.productionName}`,
@@ -303,8 +305,14 @@ async function settleAttendance(id: string, form: FormData, managerId: string | 
       };
       await tx.notification.create({ data: note });
       queue.push(note);
+      if (reviewerId) {
+        const update = { ...note, userId: shift.managerId,
+          body: "A booking attendance record changed after review. Open the shift to see the current individual outcomes." };
+        await tx.notification.create({ data: update });
+        queue.push(update);
+      }
     }
-    if (decisions.some(({outcome}) => outcome === "UNRESOLVED")) {
+    if (decisions.some(({outcome}) => outcome === "UNRESOLVED" || outcome === "WORKED_FLAGGED")) {
       const founders = (process.env.FOUNDER_EMAILS ?? "").split(",").map(email => email.trim().toLowerCase()).filter(Boolean);
       const recipients = await tx.user.findMany({ where: { email: { in: founders, mode: "insensitive" } }, select: { id: true } });
       for (const founder of recipients) {
@@ -325,6 +333,14 @@ async function settleAttendance(id: string, form: FormData, managerId: string | 
       if (notices.length) await tx.notification.createMany({ data: notices });
       queue.push(...notices);
       await tx.shift.update({ where: { id }, data: { status: "COMPLETED", completedAt: new Date() } });
+    }
+    // Refresh only affected cached counts. Lock in stable order across shifts.
+    for (const marshalId of roster.map(app => app.marshalId).sort()) {
+      await tx.$queryRaw`SELECT id FROM "MarshalProfile" WHERE "userId" = ${marshalId} FOR UPDATE`;
+      const where = { marshalId, ...confirmedWork };
+      const completedCount = await tx.application.count({ where });
+      const reliableCount = await tx.application.count({ where: { ...where, attendance: "WORKED" } });
+      await tx.marshalProfile.update({ where: { userId: marshalId }, data: { completedCount, reliableCount } });
     }
     return true;
   });

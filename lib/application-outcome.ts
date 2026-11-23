@@ -22,7 +22,7 @@ const outcomes = {
   completed: {
     label: "Completed",
     tone: "ok",
-    detail: "The manager marked your shift complete. It appears in your work history.",
+    detail: "Your booking was recorded as worked. Contact Support if this needs correcting.",
   },
   shiftCompleted: {
     label: "Shift completed",
@@ -64,6 +64,7 @@ export function marshalApplicationOutcome(
   // Closing a shift stores cancellations as WITHDRAWN and pending closures
   // as REJECTED. Those same states can predate a closure, so use the known
   // shift outcome without attributing an action to the marshal or manager.
+  if (status === "PRODUCTION_CANCELLED") return { label: "Cancelled by production", tone: "neutral", detail: "Production cancelled your booking. This has no attendance or reliability effect." } as const;
   if (shift.status === "CLOSED") {
     return status === "ACCEPTED" ? outcomes.cancelled : outcomes.closed;
   }
@@ -72,7 +73,9 @@ export function marshalApplicationOutcome(
   if (shift.status === "COMPLETED") {
     if (attendance === "UNRESOLVED") return { label: "Attendance under review", tone: "neutral", detail: "Contact support about your booking. Work history is pending." } as const;
     if (attendance === "NOT_WORKED") return { label: "Did not work", tone: "neutral", detail: "This booking has no completion credit. Contact support if this is incorrect." } as const;
-    return status === "ACCEPTED" ? outcomes.completed : outcomes.shiftCompleted;
+    if (status !== "ACCEPTED") return outcomes.shiftCompleted;
+    if (attendance === "WORKED" || attendance === "WORKED_FLAGGED") return outcomes.completed;
+    return { label: "Attendance unconfirmed", tone: "neutral", detail: "The shift ended. Individual attendance was not confirmed. This booking has no work-history credit." } as const;
   }
   if (shift.status === "OPEN" || shift.status === "FILLED") {
     if (status === "ACCEPTED") return outcomes.booked;

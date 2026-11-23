@@ -105,7 +105,7 @@ export function Audience() {
               <div className="home-marshal-ticket">
                 <div>
                   <Icon name="check" className="size-4 shrink-0 text-coral-ink" />
-                  <p><strong>Work history</strong><span>See manager-confirmed shifts</span></p>
+                  <p><strong>Work history</strong><span>See individually recorded work</span></p>
                 </div>
                 <ShiftStatusBadge status="COMPLETED" />
               </div>
@@ -122,7 +122,7 @@ const steps = [
   { title: "Receive applications", body: "Marshals send their working profile and can add a note." },
   { title: "Review applicants", body: "Compare experience, availability and travel in one place." },
   { title: "Accept and connect", body: "Book up to the shift’s capacity. Only the manager and each accepted marshal see each other’s contact details.", contact: true },
-  { title: "Complete the shift", body: "Confirm the work so it counts towards the marshal’s record." },
+  { title: "Complete the shift", body: "Record attendance for each booked marshal after wrap. Either side can ask Setru to correct an outcome." },
 ];
 
 export function HiringProcess() {

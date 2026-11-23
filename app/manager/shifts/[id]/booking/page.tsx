@@ -1,5 +1,4 @@
 import { notFound } from "next/navigation";
-import { worked } from "@/lib/attendance";
 import { requireRole } from "@/lib/access";
 import { prisma } from "@/lib/db";
 import {
@@ -50,7 +49,7 @@ export default async function BookingPage({
         <Alert tone="warn">
           {shift.status === "CLOSED"
             ? "This shift has been cancelled. Contact details are no longer shown here."
-            : "Contact details are visible once the shift reaches its marshal quota."}
+            : "Contact details appear for each marshal you accept."}
         </Alert>
       </div>
     );
@@ -89,7 +88,7 @@ export default async function BookingPage({
         },
       })
     : null;
-  const reviewSubjects = accepted.filter(a => worked(a.attendance)).map((a) => ({
+  const reviewSubjects = accepted.filter(a => a.attendance === "WORKED").map((a) => ({
     id: a.marshalId,
     label: a.marshal.marshalProfile?.fullName ?? "Marshal",
   }));
@@ -155,7 +154,9 @@ export default async function BookingPage({
                 <Alert tone="success">Thanks — your review has been saved.</Alert>
               </div>
             )}
-            {existingReview ? (
+            {existingReview && !reviewSubjects.some(s => s.id === existingReview.subjectId) ? (
+              <p>The earlier review is withheld.</p>
+            ) : existingReview ? (
               <div className="mt-2 space-y-2">
                 <StarRatingDisplay
                   summary={ratingSummary([{ rating: existingReview.rating }])}

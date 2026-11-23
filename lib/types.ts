@@ -17,7 +17,8 @@ export type ApplicationStatus =
   | "APPLIED"
   | "ACCEPTED"
   | "REJECTED"
-  | "WITHDRAWN";
+  | "WITHDRAWN"
+  | "PRODUCTION_CANCELLED";
 export type NotificationKind =
   | "APPLICATION_SUBMITTED"
   | "APPLICATION_ACCEPTED"

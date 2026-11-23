@@ -1,3 +1,4 @@
+import { worked } from "@/lib/attendance";
 import type { Metadata } from "next";
 import { requireRole } from "@/lib/access";
 import { prisma } from "@/lib/db";
@@ -74,7 +75,7 @@ export default async function MarshalHome() {
       <div className="summary-grid">
         <StatCard label="Awaiting a decision" value={awaitingDecision.length} />
         <StatCard label="Current and upcoming bookings" value={booked.length} icon="check" tone="ok" />
-        <StatCard label="Completed shifts" value={profile?.completedCount ?? 0} href="/marshal/history" icon="calendar" tone="neutral" />
+        <StatCard label="Completed shifts" value={apps.filter(a => a.status === "ACCEPTED" && a.shift.status === "COMPLETED" && worked(a.attendance)).length} href="/marshal/history" icon="calendar" tone="neutral" />
       </div>
 
       <div className="mb-2 mt-6 flex flex-wrap items-center justify-between gap-2">

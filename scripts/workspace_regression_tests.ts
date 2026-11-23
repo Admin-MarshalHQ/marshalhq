@@ -90,7 +90,8 @@ test("application outcomes reflect the marshal's place, independent of other boo
     ["ACCEPTED", "OPEN", "Booked"],
     ["ACCEPTED", "FILLED", "Booked"],
     ["APPLIED", "FILLED", "Shift filled"],
-    ["ACCEPTED", "COMPLETED", "Completed"],
+    ["ACCEPTED", "COMPLETED", "Attendance unconfirmed"],
+    ["PRODUCTION_CANCELLED", "CLOSED", "Cancelled by production"],
     ["APPLIED", "COMPLETED", "Shift completed"],
     ["REJECTED", "OPEN", "Rejected"],
     ["WITHDRAWN", "OPEN", "Withdrawn"],
@@ -111,7 +112,7 @@ test("application outcomes reflect the marshal's place, independent of other boo
 test("historic notifications rebrand the platform reference and retain project names", () => {
   assert.equal(
     notificationDisplayBody("REVIEW_RECEIVED", "Review for MarshalHQ Studios. See it on your MarshalHQ profile."),
-    "Review for MarshalHQ Studios. See it on your Setru profile.",
+    "A review was submitted. Check the current booking record.",
   );
   assert.equal(
     notificationDisplayBody("SHIFT_STATUS_CHANGED", "If you have questions about this cancellation, contact MarshalHQ support and we’ll follow up."),

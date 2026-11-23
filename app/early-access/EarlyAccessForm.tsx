@@ -182,7 +182,7 @@ export default function EarlyAccessForm() {
         <SubmitButton disabled={!canSubmit} />
         <p className="mono form__legal">
           By joining, you agree to a single confirmation email and one update
-          when Setru opens. Nothing else.
+          when beta places open for your role. You can leave through <a href="/support">Support</a>. Read our <a href="/privacy">privacy notice</a>.
         </p>
       </div>
     </form>

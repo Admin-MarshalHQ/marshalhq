@@ -74,7 +74,7 @@ export default function ReviewForm({
         </Field>
       )}
       <StarInput label={hasChoice ? "Your rating" : `Your rating of ${subjectLabel}`} />
-      <Field label="Comment (optional)" hint="Shared on their profile">
+      <Field label="Comment (optional)" hint="Describe your own experience. Report private concerns through Support.">
         <textarea
           name="comment"
           maxLength={1000}

@@ -71,7 +71,7 @@ export async function submitWaitlistEntryAction(
     marshalExperience:
       isMarshal && v.marshalExperience ? v.marshalExperience : null,
     availability: isMarshal && v.availability ? v.availability : null,
-    source: "homepage",
+    source: "homepage:confirmation-and-one-role-update:v1",
   };
 
   let createdId: string;
