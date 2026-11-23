@@ -21,9 +21,9 @@ export async function issueEmailVerification(userId: string, email: string) {
   const url = buildEmailVerificationUrl(raw);
   const result = await sendEmail({
     to: email,
-    subject: "Verify your MarshalHQ email",
+    subject: "Verify your Setru email",
     body:
-      `Thanks for joining the MarshalHQ private pilot.\n\n` +
+      `Thanks for joining the Setru private pilot.\n\n` +
       `Use this link to verify your email address. The link expires in 24 hours and can only be used once.\n\n` +
       `${url}\n\n` +
       `If you did not create this account, you can ignore this email.`,

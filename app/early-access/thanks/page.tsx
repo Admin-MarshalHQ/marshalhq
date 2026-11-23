@@ -4,8 +4,8 @@ import { Icon } from "@/components/Icon";
 import { ButtonLink, Card, PageHeader } from "@/components/ui";
 
 export const metadata: Metadata = {
-  title: "Waitlist request received – MarshalHQ",
-  description: "Your MarshalHQ waitlist request has been received.",
+  title: "Waitlist request received",
+  description: "Your Setru waitlist request has been received.",
 };
 
 export default function EarlyAccessThanksPage() {

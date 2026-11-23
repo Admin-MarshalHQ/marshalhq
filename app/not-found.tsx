@@ -19,7 +19,7 @@ export default function NotFound() {
         for the current state.
       </p>
       <div className="mt-5">
-        <ButtonLink href="/">Go to MarshalHQ</ButtonLink>
+        <ButtonLink href="/">Go to Setru</ButtonLink>
       </div>
     </div>
   );

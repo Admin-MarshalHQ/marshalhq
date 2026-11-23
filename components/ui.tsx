@@ -217,11 +217,11 @@ export function ButtonLink({
   variant?: ButtonVariant;
   className?: string;
 }) {
-  return (
-    <Link href={href} className={clsx(buttonBase, buttonTone[variant], className)}>
-      {children}
-    </Link>
-  );
+  const styles = clsx(buttonBase, buttonTone[variant], className);
+  if (href.startsWith("#")) {
+    return <a href={href} className={styles}>{children}</a>;
+  }
+  return <Link href={href} className={styles}>{children}</Link>;
 }
 
 // One status system for the whole product. Every badge maps a workflow state

@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { requireRole } from "@/lib/access";
@@ -17,6 +18,8 @@ import { formatRate, formatShiftBlock } from "@/lib/format";
 import { shiftStartDateTime } from "@/lib/state";
 import { capacityLabel } from "@/lib/capacity";
 import { actionableApplicantCount, managerAttention } from "@/lib/workspace-shifts";
+
+export const metadata: Metadata = { title: "Production dashboard" };
 
 export default async function ManagerDashboard() {
   const user = await requireRole("MANAGER");

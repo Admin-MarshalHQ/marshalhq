@@ -1,6 +1,9 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { Card, PageHeader } from "@/components/ui";
 import LoginForm from "./LoginForm";
+
+export const metadata: Metadata = { title: "Log in" };
 
 export default function LoginPage({
   searchParams,
@@ -13,7 +16,7 @@ export default function LoginPage({
   return (
     <div className="mx-auto max-w-md">
       <PageHeader
-        kicker="MarshalHQ · private pilot"
+        kicker="Setru · private pilot"
         title="Log in"
       />
       <Card>

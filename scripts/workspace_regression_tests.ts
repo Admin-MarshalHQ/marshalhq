@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { marshalApplicationOutcome } from "../lib/application-outcome";
-import { confirmAcceptBody } from "../lib/copy";
+import { confirmAcceptBody, notificationDisplayBody } from "../lib/copy";
+import { sendEmail } from "../lib/mail";
 import { isShiftSchedulable } from "../lib/state";
 import { currentBookings, managerAttention } from "../lib/workspace-shifts";
 
@@ -105,4 +106,43 @@ test("application outcomes reflect the marshal's place, independent of other boo
     marshalApplicationOutcome("APPLIED", { ...shift, status: "FILLED" }).detail,
     "Your application can be reviewed again if a place reopens.",
   );
+});
+
+test("historic notifications rebrand the platform reference and retain project names", () => {
+  assert.equal(
+    notificationDisplayBody("REVIEW_RECEIVED", "Review for MarshalHQ Studios. See it on your MarshalHQ profile."),
+    "Review for MarshalHQ Studios. See it on your Setru profile.",
+  );
+  assert.equal(
+    notificationDisplayBody("SHIFT_STATUS_CHANGED", "If you have questions about this cancellation, contact MarshalHQ support and we’ll follow up."),
+    "If you have questions about this cancellation, contact Setru support and we’ll follow up.",
+  );
+  assert.equal(
+    notificationDisplayBody("APPLICATION_SUBMITTED", "A marshal applied for MarshalHQ Studios."),
+    "A marshal applied for MarshalHQ Studios.",
+  );
+});
+
+test("transactional email keeps the configured address under the Setru sender name", async (t) => {
+  const saved = { apiKey: process.env.RESEND_API_KEY, from: process.env.EMAIL_FROM };
+  t.after(() => {
+    if (saved.apiKey === undefined) delete process.env.RESEND_API_KEY;
+    else process.env.RESEND_API_KEY = saved.apiKey;
+    if (saved.from === undefined) delete process.env.EMAIL_FROM;
+    else process.env.EMAIL_FROM = saved.from;
+  });
+
+  process.env.RESEND_API_KEY = "test-only";
+  const messages: string[] = [];
+  t.mock.method(globalThis, "fetch", async (_url: string, options: RequestInit) => {
+    messages.push(JSON.parse(String(options.body)).from);
+    return new Response(null, { status: 200 });
+  });
+
+  for (const sender of ["MarshalHQ <admin@marshalhq.com>", "admin@marshalhq.com"]) {
+    process.env.EMAIL_FROM = sender;
+    const result = await sendEmail({ to: "marshal@example.com", subject: "Setru waitlist", body: "Test" });
+    assert.deepEqual(result, { ok: true, channel: "resend" });
+  }
+  assert.deepEqual(messages, ["Setru <admin@marshalhq.com>", "Setru <admin@marshalhq.com>"]);
 });

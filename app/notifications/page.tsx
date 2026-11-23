@@ -1,8 +1,12 @@
+import type { Metadata } from "next";
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { notificationDisplayBody } from "@/lib/copy";
 import { prisma } from "@/lib/db";
 import { Card, EmptyState, PageHeader } from "@/components/ui";
 import { markNotificationRead } from "@/app/actions/auth";
+
+export const metadata: Metadata = { title: "Inbox" };
 
 export default async function NotificationsPage() {
   const session = await auth();
@@ -17,7 +21,7 @@ export default async function NotificationsPage() {
     <div className="mx-auto max-w-2xl">
       <PageHeader
         title="Inbox"
-        subtitle="What's changed on your shifts and applications — the updates MarshalHQ would have emailed you."
+        subtitle="What's changed on your shifts and applications — the updates Setru would have emailed you."
       />
       {items.length === 0 ? (
         <EmptyState
@@ -45,7 +49,7 @@ export default async function NotificationsPage() {
                     </p>
                   </div>
                   <p className="mt-1 whitespace-pre-wrap text-sm text-ink-muted">
-                    {n.body}
+                    {notificationDisplayBody(n.kind, n.body)}
                   </p>
                   <p className="mt-2 font-mono text-[11px] uppercase tracking-[0.04em] text-ink-soft">
                     {n.createdAt.toLocaleString("en-GB")}

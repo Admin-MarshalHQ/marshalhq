@@ -1,7 +1,10 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { auth } from "@/lib/auth";
 import { Card, PageHeader } from "@/components/ui";
 import SupportForm from "./SupportForm";
+
+export const metadata: Metadata = { title: "Support" };
 
 export default async function SupportPage() {
   const session = await auth();
@@ -10,7 +13,7 @@ export default async function SupportPage() {
   return (
     <div className="mx-auto max-w-2xl">
       <PageHeader
-        title="Contact MarshalHQ"
+        title="Contact Setru"
         subtitle="Account help, shift or booking issues, privacy or deletion requests, and trust or safety concerns."
       />
       <Card>

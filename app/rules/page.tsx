@@ -1,4 +1,7 @@
+import type { Metadata } from "next";
 import { PageHeader } from "@/components/ui";
+
+export const metadata: Metadata = { title: "Platform rules" };
 
 export default function Rules() {
   return (
@@ -6,7 +9,7 @@ export default function Rules() {
       <PageHeader title="Platform rules" />
       <div className="prose-plain max-w-none text-[15px]">
         <p>
-          MarshalHQ is deliberately narrow. These rules keep the hiring loop
+          Setru is deliberately narrow. These rules keep the hiring loop
           trustworthy for everyone using it.
         </p>
         <ol className="ml-5 list-decimal space-y-2">

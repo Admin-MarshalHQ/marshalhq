@@ -1,12 +1,15 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { Card, PageHeader } from "@/components/ui";
 import SignupForm from "./SignupForm";
+
+export const metadata: Metadata = { title: "Create an account" };
 
 export default function SignupPage() {
   return (
     <div className="mx-auto max-w-md">
       <PageHeader
-        kicker="MarshalHQ"
+        kicker="Setru"
         title="Sign up"
         subtitle="Create a production manager or location marshal account."
       />

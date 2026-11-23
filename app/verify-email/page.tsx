@@ -46,7 +46,7 @@ export default async function VerifyEmailPage({
     <div className="mx-auto max-w-xl">
       <PageHeader
         title="Verify your email"
-        subtitle="MarshalHQ is still a private pilot. Verify your email before using the product."
+        subtitle="Setru is still a private pilot. Verify your email before using the product."
       />
       <Card>
         <p className="text-sm text-ink-muted">

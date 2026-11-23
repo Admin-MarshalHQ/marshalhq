@@ -48,7 +48,7 @@ export default async function CompletionHistoryPage() {
       <PageHeader
         kicker="Completion history"
         title="Your record"
-        subtitle="Completed MarshalHQ shifts, as confirmed by the managers who booked you. Managers see this alongside your applications."
+        subtitle="Completed Setru shifts, as confirmed by the managers who booked you. Managers see this alongside your applications."
       />
 
       <Card className="mb-4">

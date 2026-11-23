@@ -29,7 +29,10 @@ const fraunces = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "MarshalHQ",
+  metadataBase: new URL("https://marshalhq.com"),
+  title: { default: "Setru", template: "%s | Setru" },
+  applicationName: "Setru",
+  icons: { icon: { url: "/brand/setru-mark.svg", type: "image/svg+xml" } },
   description:
     "A clearer way to hire location marshals for UK film and TV production.",
 };
@@ -62,10 +65,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html lang="en-GB">
       <body className={`${inter.variable} ${fraunces.variable}`}>
-        <a className="skip-link" href="#main-content">Skip to content</a>
+        <a className="skip-link skip-link--app" href="#main-content">Skip to content</a>
+        <a className="skip-link skip-link--home" href="#hero-heading">Skip to content</a>
         <header className="mhq-app-header">
           <div className="shell-width flex min-h-16 flex-wrap items-center justify-between gap-x-2">
-            <Link href={home} className="brand-link" aria-label="MarshalHQ home">
+            <Link href={home} className="brand-link" aria-label="Setru home">
               <BrandLogo alt="" />
             </Link>
             <nav aria-label="Account" className="ml-auto flex max-w-full flex-wrap items-center justify-end gap-1">
@@ -101,12 +105,15 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         </div>
         <footer className="mhq-app-footer">
           <div className="shell-width flex flex-wrap items-center justify-between gap-x-4 gap-y-1 py-3 text-sm text-ink-muted">
-            <nav className="flex flex-wrap gap-x-4" aria-label="Support and legal">
-              <Link className="shell-link" href="/terms">Terms</Link>
-              <Link className="shell-link" href="/privacy">Privacy</Link>
-              <Link className="shell-link" href="/rules">Platform rules</Link>
-              <Link className="shell-link" href="/support">Support</Link>
-            </nav>
+            <div className="flex flex-wrap items-center gap-x-6">
+              <Link href={home} className="shell-link font-bold text-ink" aria-label="Setru home">Setru</Link>
+              <nav className="flex flex-wrap gap-x-4" aria-label="Support and legal">
+                <Link className="shell-link" href="/terms">Terms</Link>
+                <Link className="shell-link" href="/privacy">Privacy</Link>
+                <Link className="shell-link" href="/rules">Platform rules</Link>
+                <Link className="shell-link" href="/support">Support</Link>
+              </nav>
+            </div>
             <div className="flex flex-wrap items-center gap-x-4">
               {userId && (
                 <form action={async () => {

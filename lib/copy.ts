@@ -65,7 +65,7 @@ export const CONFIRM_CANCEL_FILLED_ACTION = "Cancel shift";
 
 export const CONFIRM_COMPLETE_RELIABLE_TITLE = "Mark this shift complete?";
 export const CONFIRM_COMPLETE_RELIABLE_BODY =
-  "The marshal will be credited with a completed, reliable shift on their MarshalHQ history. This cannot be undone.";
+  "The marshal will be credited with a completed, reliable shift on their Setru history. This cannot be undone.";
 export const CONFIRM_COMPLETE_RELIABLE_ACTION = "Confirm complete";
 
 export const CONFIRM_COMPLETE_FLAG_TITLE = "Flag a reliability issue?";
@@ -133,3 +133,16 @@ export const APPLY_UNAVAILABLE_DATES_REMINDER =
 
 export const WAITLIST_NEXT_STEP =
   "We’ll email you as private beta places open for your role.";
+
+// Previously stored messages keep their original content in the database.
+export function notificationDisplayBody(kind: string, body: string) {
+  const legacyEnding =
+    kind === "REVIEW_RECEIVED"
+      ? "See it on your MarshalHQ profile."
+      : kind === "SHIFT_STATUS_CHANGED"
+        ? "If you have questions about this cancellation, contact MarshalHQ support and we’ll follow up."
+        : undefined;
+
+  if (!legacyEnding || !body.endsWith(legacyEnding)) return body;
+  return body.slice(0, -legacyEnding.length) + legacyEnding.replace("MarshalHQ", "Setru");
+}
