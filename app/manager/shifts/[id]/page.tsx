@@ -89,14 +89,8 @@ export default async function ManagerShiftDetailPage({
 
   // Server action wrappers — each captures shift.id so the client ConfirmButton
   // can invoke the action with no arguments.
-  const publish = async () => {
-    "use server";
-    await publishShiftAction(shift.id, shift.updatedAt.toISOString());
-  };
-  const revert = async () => {
-    "use server";
-    await unpublishShiftAction(shift.id);
-  };
+  const publish = publishShiftAction.bind(null, shift.id, shift.updatedAt.toISOString());
+  const revert = unpublishShiftAction.bind(null, shift.id);
   const close = closeShiftAction.bind(null, shift.id, shift.status, acceptedApps.map(app => app.id));
   return (
     <div>
