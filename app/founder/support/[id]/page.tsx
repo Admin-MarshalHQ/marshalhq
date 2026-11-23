@@ -1,3 +1,4 @@
+import { requireFounder } from "@/lib/access";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
@@ -12,6 +13,7 @@ export default async function FounderSupportDetailPage({
 }: {
   params: { id: string };
 }) {
+  await requireFounder();
   const request = await prisma.supportRequest.findUnique({
     where: { id: params.id },
     include: {

@@ -64,7 +64,7 @@ export default async function ManagerShiftDetailPage({
       applications: {
         where: { status: { in: ["APPLIED", "ACCEPTED"] } },
         include: {
-          marshal: { include: { marshalProfile: true } },
+          marshal: { select: { marshalProfile: { select: { fullName: true, paused: true } } } },
         },
       },
     },

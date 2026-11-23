@@ -1,3 +1,4 @@
+import { requireFounder } from "@/lib/access";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
@@ -14,6 +15,7 @@ export default async function FounderMarshalProfileDetailPage({
 }: {
   params: { id: string };
 }) {
+  await requireFounder();
   const profile = await prisma.marshalProfile.findUnique({
     where: { id: params.id },
     include: {

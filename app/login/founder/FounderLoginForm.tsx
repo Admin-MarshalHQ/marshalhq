@@ -62,7 +62,7 @@ export default function FounderLoginForm({ next }: { next: string }) {
       </form>
       {resend?.email && (
         <p className="text-sm text-ink-muted" role="status">
-          Check your inbox. If you requested a code in the past minute, wait before requesting another.
+          Use the most recent code in your inbox. A new code can be sent once the current one expires.
         </p>
       )}
     </div>

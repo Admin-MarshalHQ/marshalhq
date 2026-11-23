@@ -147,8 +147,8 @@ test("transactional email keeps the configured address under the Setru sender na
   assert.deepEqual(messages, ["Setru <admin@marshalhq.com>", "Setru <admin@marshalhq.com>"]);
 });
 
-test("waitlist submissions send matching HTML and plain text after storage without changing the founder email", async (t) => {
-  const keys = ["RESEND_API_KEY", "SUPPORT_NOTIFY_EMAIL"] as const;
+test("waitlist submissions send matching HTML and plain text after storage with a minimal founder alert", async (t) => {
+  const keys = ["RESEND_API_KEY", "SUPPORT_NOTIFY_EMAIL", "AUTH_SECRET"] as const;
   const saved = keys.map((key) => process.env[key]);
   t.after(() => {
     keys.forEach((key, i) => {
@@ -158,13 +158,18 @@ test("waitlist submissions send matching HTML and plain text after storage witho
     });
   });
   process.env.RESEND_API_KEY = "test-only";
+  process.env.AUTH_SECRET = "unit-test-only";
   process.env.SUPPORT_NOTIFY_EMAIL = "founder@example.com";
 
   let storedRole: string | undefined;
   const savedPrisma = globalThis.__prisma;
   t.after(() => { globalThis.__prisma = savedPrisma; });
   globalThis.__prisma = {
+    $transaction: async (run: (tx: unknown) => unknown) => run(globalThis.__prisma),
+    $executeRaw: async () => 1,
+    requestBudget: { deleteMany: async () => ({ count: 0 }) },
     waitlistEntry: {
+      findFirst: async () => null,
       create: async (input: { data: { role: string } }) => {
         storedRole = input.data.role;
         return { id: "test-entry", createdAt: new Date("2026-11-23T00:00:00Z") };
@@ -209,7 +214,8 @@ test("waitlist submissions send matching HTML and plain text after storage witho
       assert.doesNotMatch(content, /Private free text|reply to this email/i);
     }
     assert.equal(founder.to, "founder@example.com");
-    assert.match(founder.subject, /\[Waitlist\]/);
+    assert.equal(founder.subject, "New Setru waitlist entry");
+    assert.doesNotMatch(founder.text, /Private free text|Waitlist QA|example.com/);
     assert.equal(founder.html, undefined);
   }
 });

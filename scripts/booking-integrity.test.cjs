@@ -32,7 +32,7 @@ test("real booking actions serialise decisions and credit each worker once", asy
   const [a,b,c] = await Promise.all(["a","b","c"].map(name => person("MARSHAL",name)));
   const outsider = await person("MANAGER","outside");
   process.env.PILOT_PARTICIPANT_EMAILS = [manager,a,b,c].map(x => x.email).join(",");
-  const founder = { ...await person("MANAGER","founder"), founderPasscode: true };
+  const founder = { ...await person("MANAGER","founder"), founderPasscode: true, founderIssuedAt: Date.now() };
   process.env.FOUNDER_EMAILS = founder.email;
   const future = new Date("2099-04-01"); const past = new Date("2020-04-01");
   async function shift(places, people, day = future) {
@@ -68,6 +68,10 @@ test("real booking actions serialise decisions and credit each worker once", asy
   await db.shift.update({where:{id:first.id},data:{startDate:past,endDate:past}});
   const attendance = new FormData(); attendance.set(booked[1].id,"UNRESOLVED");
   await invoke(manager,finish,first.id,attendance);
+  assert.equal(await db.application.count({ where: { shiftId: first.id, status: "APPLIED" } }), 0);
+  const unsuccessful = await db.application.findFirstOrThrow({ where: { shiftId: first.id, status: "REJECTED" } });
+  assert.ok(unsuccessful.decidedAt);
+  assert.equal(await db.notification.count({ where: { userId: unsuccessful.marshalId, subject: `Shift completed: ${tag}` } }), 1);
   const profile = () => db.marshalProfile.findUniqueOrThrow({where:{userId:booked[1].marshalId}});
   assert.equal((await profile()).completedCount,0);
   attendance.set(booked[1].id,"WORKED");

@@ -1,8 +1,10 @@
+import { requireFounder } from "@/lib/access";
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { Card, PageHeader } from "@/components/ui";
 
 export default async function FounderUsersPage() {
+  await requireFounder();
   const users = await prisma.user.findMany({
     take: 200,
     orderBy: { createdAt: "desc" },

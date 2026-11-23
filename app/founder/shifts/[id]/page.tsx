@@ -1,3 +1,4 @@
+import { requireFounder } from "@/lib/access";
 import { AttendanceForm } from "@/components/AttendanceForm";
 import { resolveAttendanceAction } from "@/app/actions/shifts";
 import { attendanceLabels, isAttendance } from "@/lib/attendance";
@@ -26,6 +27,7 @@ export default async function FounderShiftDetailPage({
 }: {
   params: { id: string };
 }) {
+  await requireFounder();
   const shift = await prisma.shift.findUnique({
     where: { id: params.id },
     include: {

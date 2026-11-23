@@ -66,11 +66,14 @@ export default async function MyApplicationDetail({
     (shift.status === "OPEN" ||
       shift.status === "FILLED" ||
       shift.status === "COMPLETED") &&
-    !app.marshal.marshalProfile?.paused;
+    !shift.paused && app.marshal.marshalProfile?.paused === false;
 
   const contactManager = isAcceptedPair
-    ? await prisma.user.findUnique({
-        where: { id: shift.managerId },
+    ? await prisma.user.findFirst({
+        where: { id: shift.managerId, disabledAt: null, shifts: { some: {
+          id: shift.id, paused: false, status: { in: ["OPEN", "FILLED", "COMPLETED"] },
+          applications: { some: { id: params.id, marshalId: user.id, status: "ACCEPTED", marshal: { disabledAt: null, marshalProfile: { paused: false } } } },
+        } } },
         select: {
           email: true,
           phone: true,
@@ -212,6 +215,9 @@ export default async function MyApplicationDetail({
         </Card>
 
         <div className="space-y-3">
+          {app.status === "ACCEPTED" && !showContact && (
+            <Alert tone="warn">Contact details are unavailable. <Link href="/support">Contact Setru support about this booking.</Link></Alert>
+          )}
           {showContact && contactManager && (
             <div id="manager-contact" tabIndex={-1} role="region" aria-label="Manager contact">
               <ContactCard

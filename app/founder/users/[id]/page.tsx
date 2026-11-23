@@ -1,3 +1,4 @@
+import { requireFounder } from "@/lib/access";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
@@ -10,6 +11,7 @@ export default async function FounderManagerUserPage({
 }: {
   params: { id: string };
 }) {
+  await requireFounder();
   // The id here is the managerProfile id (that's what we link to from the
   // user list). We also load the owning user so the panel can show the login
   // email/phone alongside the company identity.

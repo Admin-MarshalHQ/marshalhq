@@ -18,7 +18,7 @@ import { sendEmail } from "@/lib/mail";
 import { passwordResetEmail } from "@/lib/auth-emails";
 import { auth } from "@/lib/auth";
 import { isFounderEmail } from "@/lib/founder-identity";
-import { SUPPORT_CATEGORY_LABEL, type SupportCategory } from "@/lib/types";
+import { allowRequest } from "@/lib/request-budget";
 
 export type ActionState = { error?: string } | null;
 
@@ -40,7 +40,7 @@ export async function requestPasswordResetAction(
     redirect("/forgot/sent");
   }
   const { email } = parsed.data;
-  if (isFounderEmail(email)) redirect("/forgot/sent");
+  if (isFounderEmail(email) || !(await allowRequest("reset", email))) redirect("/forgot/sent");
 
   const user = await prisma.user.findUnique({ where: { email } });
   if (user) {
@@ -150,7 +150,7 @@ export async function completePasswordResetAction(
       }
       await tx.user.update({
         where: { id: record.userId },
-        data: { passwordHash },
+        data: { passwordHash, sessionVersion: { increment: 1 } },
       });
       // Invalidate any other outstanding tokens for this user so an old link
       // from the same request chain can't be used after the password is reset.
@@ -213,36 +213,31 @@ export async function submitSupportRequestAction(
   }
   const { email, name, category, message } = parsed.data;
 
+  if (!(await allowRequest("support", email))) return { error: "Too many requests. Please try again later." };
   let createdId: string;
   try {
-    const created = await prisma.supportRequest.create({
-      data: {
-        userId,
-        email,
-        name: name || null,
-        category,
-        message,
-      },
-      select: { id: true },
+    const created = await prisma.$transaction(async tx => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${"support:" + email}, 0))`;
+      const existing = await tx.supportRequest.findFirst({
+        where: { email, userId, category, message, createdAt: { gt: new Date(Date.now() - 3600000) } },
+        select: { id: true },
+      });
+      if (existing) return null;
+      return tx.supportRequest.create({ data: { email, userId, category, message, name: name || null }, select: { id: true } });
     });
-    createdId = created.id;
-  } catch (err) {
-    console.error("[support] could not record request", err);
+    createdId = created?.id ?? "";
+  } catch {
+    console.error("[support] could not record request");
     return { error: "Something went wrong saving your request. Try again." };
   }
+  if (!createdId) redirect("/support/thanks");
 
   // Email side-effects are best-effort. If they fail we still want the
   // database record so the founder can follow up.
-  const catLabel =
-    SUPPORT_CATEGORY_LABEL[category as SupportCategory] ?? category;
   const confirmation = sendEmail({
     to: email,
     subject: "We received your Setru request",
-    body:
-      `Thanks for getting in touch.\n\n` +
-      `Category: ${catLabel}\n\n` +
-      `A human at Setru will review your request and reply. Privacy and account deletion requests are handled manually and may take a few working days.\n\n` +
-      `For your records, this is the message we received:\n\n${message}`,
+    body: "Thanks for getting in touch. A member of the Setru team will review your request.",
   }).then((r) => {
     if (!r.ok) {
       console.error("[support] confirmation email failed", {
@@ -256,14 +251,8 @@ export async function submitSupportRequestAction(
   const founderNotify = notifyTo
     ? sendEmail({
         to: notifyTo,
-        subject: `[Support] ${catLabel}`,
-        body:
-          `A new support request has been submitted.\n\n` +
-          `From: ${email}${name ? ` (${name})` : ""}\n` +
-          `Logged-in user: ${userId ? "yes" : "no"}\n` +
-          `Category: ${catLabel}\n\n` +
-          `Message:\n${message}\n\n` +
-          `Review: ${process.env.APP_BASE_URL ?? "http://localhost:3000"}/founder/support`,
+        subject: "New Setru support request",
+        body: "A new request is ready to review in the founder support dashboard.",
       }).then((r) => {
         if (!r.ok) {
           console.error("[support] founder notification failed", {

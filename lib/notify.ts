@@ -54,7 +54,7 @@ export async function emailForNotification(
     console.error("[notify] email dispatch threw", {
       userId: params.userId,
       kind: params.kind,
-      err,
+      errName: err instanceof Error ? err.name : "unknown",
     });
     return { ok: false };
   }

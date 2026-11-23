@@ -1,9 +1,11 @@
+import { requireFounder } from "@/lib/access";
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { Card, PageHeader } from "@/components/ui";
 import { SUPPORT_CATEGORY_LABEL, type SupportCategory } from "@/lib/types";
 
 export default async function FounderSupportListPage() {
+  await requireFounder();
   const requests = await prisma.supportRequest.findMany({
     take: 200,
     orderBy: [{ resolvedAt: "asc" }, { createdAt: "desc" }],

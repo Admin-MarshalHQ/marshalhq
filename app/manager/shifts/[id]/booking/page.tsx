@@ -57,14 +57,22 @@ export default async function BookingPage({
   }
 
   const accepted = await prisma.application.findMany({
-    where: { shiftId: shift.id, status: "ACCEPTED" },
+    where: { shiftId: shift.id, status: "ACCEPTED", shift: { managerId: user.id } },
     orderBy: { decidedAt: "asc" },
     include: {
       marshal: {
-        include: { marshalProfile: true },
+        select: { marshalProfile: { select: { fullName: true, baseLocation: true, travelRadiusMiles: true, training: true } } },
       },
     },
   });
+  const contacts = await prisma.user.findMany({
+    where: { disabledAt: null, marshalProfile: { paused: false }, applications: { some: {
+      status: "ACCEPTED", shiftId: shift.id,
+      shift: { managerId: user.id, manager: { disabledAt: null }, paused: false, status: { in: ["OPEN", "FILLED", "COMPLETED"] } },
+    } } },
+    select: { id: true, email: true, phone: true },
+  });
+  const contactByMarshal = new Map(contacts.map(contact => [contact.id, contact]));
   if (accepted.length === 0) notFound();
 
   // Two-way reviews: once the shift is COMPLETED the manager can leave one
@@ -109,6 +117,8 @@ export default async function BookingPage({
       <div className="grid gap-4 md:grid-cols-2">
         {accepted.map((app) => {
           const p = app.marshal.marshalProfile;
+          const contact = contactByMarshal.get(app.marshalId);
+          if (!contact) return <Alert key={app.id} tone="warn">Contact details for {p?.fullName ?? "this marshal"} are unavailable. <a href="/support">Contact Setru support about this booking.</a></Alert>;
           return (
             <ContactCard
               key={app.id}
@@ -121,8 +131,8 @@ export default async function BookingPage({
                   label: "Based",
                   value: `${p?.baseLocation ?? "—"} · travels up to ${p?.travelRadiusMiles ?? 0} miles`,
                 },
-                { label: "Email", value: app.marshal.email },
-                { label: "Phone", value: formatPhone(app.marshal.phone) },
+                { label: "Email", value: contact.email },
+                { label: "Phone", value: formatPhone(contact.phone) },
               ]}
             >
               {p?.training && (

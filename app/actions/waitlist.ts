@@ -5,7 +5,7 @@ import { prisma } from "@/lib/db";
 import { sendEmail } from "@/lib/mail";
 import { waitlistConfirmationEmail } from "@/lib/waitlist-confirmation";
 import { WaitlistEntrySchema } from "@/lib/zod";
-import { WAITLIST_ROLE_LABEL } from "@/lib/types";
+import { allowRequest } from "@/lib/request-budget";
 
 export type ActionState = { error?: string } | null;
 
@@ -29,7 +29,6 @@ export async function submitWaitlistEntryAction(
     company: get("company"),
     location: get("location"),
     note: get("note"),
-    consentToContact: get("consentToContact"),
     managerRole: get("managerRole"),
     expectedNeed: get("expectedNeed"),
     marshalExperience: get("marshalExperience"),
@@ -66,7 +65,7 @@ export async function submitWaitlistEntryAction(
     role: v.role,
     location,
     note: noteForStorage,
-    consentToContact: true,
+    consentToContact: false,
     managerRole: company || null,
     expectedNeed: isManager && v.expectedNeed ? v.expectedNeed : null,
     marshalExperience:
@@ -76,14 +75,15 @@ export async function submitWaitlistEntryAction(
   };
 
   let createdId: string;
-  let createdAt: Date;
+  if (!(await allowRequest("waitlist", v.email))) return { error: "Too many requests. Please try again later." };
   try {
-    const created = await prisma.waitlistEntry.create({
-      data,
-      select: { id: true, createdAt: true },
+    const created = await prisma.$transaction(async tx => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${"waitlist:" + v.email}, 0))`;
+      const exists = await tx.waitlistEntry.findFirst({ where: { email: v.email, role: v.role }, select: { id: true } });
+      if (exists) return null;
+      return tx.waitlistEntry.create({ data, select: { id: true } });
     });
-    createdId = created.id;
-    createdAt = created.createdAt;
+    createdId = created?.id ?? "";
   } catch (err) {
     console.error("[waitlist] could not record entry", {
       errName: err instanceof Error ? err.name : "unknown",
@@ -91,22 +91,8 @@ export async function submitWaitlistEntryAction(
     return { error: "Something went wrong saving your interest. Try again." };
   }
 
-  // Prepare the founder email summary from the stored request.
-  const notifyTo = (process.env.SUPPORT_NOTIFY_EMAIL ?? "").trim();
-  const roleLabel = WAITLIST_ROLE_LABEL[v.role];
-  const detailLines: string[] = [];
-  if (company) {
-    detailLines.push(`Company or production: ${company}`);
-  }
-  if (location) {
-    detailLines.push(`Region or base: ${location}`);
-  }
-  if (roleOther) {
-    detailLines.push(`Connection to location work: ${roleOther}`);
-  }
-
-  // Email side-effects are best-effort. The database row is the source of
-  // truth, and a mail outage must not drop a valid waitlist request.
+  if (!createdId) redirect("/early-access/thanks");
+  const notifyTo = process.env.SUPPORT_NOTIFY_EMAIL?.trim();
   const confirmation = sendEmail({
     to: v.email,
     ...waitlistConfirmationEmail(v.role),
@@ -122,16 +108,8 @@ export async function submitWaitlistEntryAction(
   const founderNotify = notifyTo
     ? sendEmail({
         to: notifyTo,
-        subject: `[Waitlist] ${roleLabel} - ${v.name}`,
-        body:
-          `A new early access waitlist entry has been submitted.\n\n` +
-          `Name: ${v.name}\n` +
-          `Email: ${v.email}\n` +
-          `Role: ${roleLabel}\n` +
-          `Created: ${createdAt.toISOString()}\n` +
-          (detailLines.length ? `${detailLines.join("\n")}\n` : "") +
-          `\nNote:\n${noteForStorage || "No note supplied."}\n\n` +
-          `Review: ${process.env.APP_BASE_URL ?? "http://localhost:3000"}/founder/waitlist`,
+        subject: "New Setru waitlist entry",
+        body: "A new entry is ready to review in the founder waitlist dashboard.",
       }).then((result) => {
         if (!result.ok) {
           console.error("[waitlist] founder notification failed", {
