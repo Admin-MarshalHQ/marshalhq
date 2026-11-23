@@ -40,3 +40,8 @@ body:has(.setru-demo) .mhq-main { max-width: none; padding: 0; }
 @media (max-width: 767px) {
   .demo-decision { padding-bottom: max(0.75rem, env(safe-area-inset-bottom)); }
 }
+
+/* Leave the full card width for the count and label on small phones. */
+@media (max-width: 479px) {
+  .demo-stats .size-10 { display: none; }
+}

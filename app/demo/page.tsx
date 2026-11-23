@@ -3,7 +3,7 @@ import DemoWorkspace from "./DemoWorkspace";
 import "./demo.css";
 
 const title = "Try the Setru hiring demo";
-const description = "Explore a UK film and TV marshal shift, apply for the dawn call and book the crew as its location manager. Try both roles with sample data.";
+const description = "Start on your marshal dashboard, find a UK film or TV shift and apply. Switch to the location manager’s view to review applicants and book the crew. Demo with sample data.";
 const image = { url: "/brand/setru-social.png", width: 1200, height: 630, alt: "Setru · UK film and TV location marshal hiring" };
 const base = process.env.VERCEL_ENV === "preview" && process.env.VERCEL_URL
   ? new URL(`https://${process.env.VERCEL_URL}`) : new URL("https://setru.co.uk");

@@ -40,12 +40,13 @@ export type ShiftId = typeof productions[number]["id"];
 export type DemoShift = typeof productions[number] & { startDate: Date; endDate: Date; rateUnit: "DAY" };
 export const company = "Kestrel Yard Locations";
 export const manager = { name: "Ellis Wren", email: "ellis@example.invalid", phone: "07700 900142" };
+export const viewerMarshal = "alex";
 export const profiles = {
-  kit: {
-    name: "Kit Mercer", base: "Bow, East London", radius: 35, transport: "Bicycle and public transport",
+  [viewerMarshal]: {
+    name: "Alex Brown", base: "Bow, East London", radius: 35, transport: "Bicycle and public transport",
     availability: "Actively looking", completedCount: 3,
     experience: ["I work pedestrian holds on towpaths and market streets.", "I take my cues over the radio and keep residents moving between takes. On studio days I’ve checked crew against the day list and sent deliveries round to the dock."],
-    email: "kit@example.invalid", phone: "07700 900143",
+    email: "alex@example.invalid", phone: "07700 900143",
   },
   robin: {
     name: "Robin Vale", base: "Fish Island, East London", radius: 10, transport: "On foot or by bus",
@@ -68,7 +69,7 @@ export const initialApplications: Application[] = [
     coverNote: "I live a ten-minute walk from the yard and can be at the gate by 05:10. I can take the first vans, move to the towpath and stay to wrap." },
   { shift: "lockside", marshal: "nell", status: "ACCEPTED",
     coverNote: "I’ll leave the car at home and cycle in for the first vans. I can stay on the gate after the other marshal moves to the towpath." },
-  { shift: "paper-rooms", marshal: "kit", status: "APPLIED", coverNote: productions[1].note },
+  { shift: "paper-rooms", marshal: viewerMarshal, status: "APPLIED", coverNote: productions[1].note },
 ];
 export type Action = { type: "apply" | "accept"; shift: ShiftId; marshal: Marshal };
 
@@ -86,9 +87,11 @@ export function transition(applications: Application[], move: unknown): Applicat
   if (!shift) return applications;
   const { entries, open } = roster(shift, applications);
   if (!open) return applications;
-  const existing = entries.find(a => a.marshal === move.marshal);
-  if (move.type === "apply" && move.marshal === "kit" && !existing) {
-    return [{ shift: shift.id, marshal: "kit", status: "APPLIED", coverNote: shift.note }, ...applications];
+  // Links and saved actions from the first demo used the previous profile ID.
+  const marshal = move.marshal === "kit" ? viewerMarshal : move.marshal;
+  const existing = entries.find(a => a.marshal === marshal);
+  if (move.type === "apply" && marshal === viewerMarshal && !existing) {
+    return [{ shift: shift.id, marshal: viewerMarshal, status: "APPLIED", coverNote: shift.note }, ...applications];
   }
   if (move.type === "accept" && existing?.status === "APPLIED") {
     return applications.map(a => a === existing ? { ...a, status: "ACCEPTED" } : a);
