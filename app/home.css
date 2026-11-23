@@ -190,7 +190,8 @@
 .home-marshal-preview { @apply grid gap-1.5; }
 .home-marshal-preview figcaption { @apply text-xs font-semibold text-coral-ink; }
 .home-marshal-ticket {
-  @apply flex flex-wrap items-center justify-between gap-x-2.5 gap-y-1.5 rounded-[0.625rem] px-3 py-2.5;
+  @apply grid items-center gap-2.5 rounded-[0.625rem] px-3 py-2.5;
+  grid-template-columns: minmax(0, 1fr) auto;
   border: 1px solid #ead1c5;
   background: var(--home-paper);
 }
@@ -252,6 +253,7 @@
 }
 
 .home-compare th, .home-compare td { padding: 0.625rem clamp(0.5rem, 2vw, 1rem); vertical-align: top; }
+.home-compare th { text-align: start; }
 .home-compare th:last-child { border-start-end-radius: 0.8125rem; }
 .home-compare tr:last-child td:last-child { border-end-end-radius: 0.8125rem; }
 .home-compare td { @apply text-ink-muted; border-top: 1px solid #e1d4cc; }
