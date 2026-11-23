@@ -44,7 +44,12 @@ export default function DemoWorkspace({ firstDay }: { firstDay: string }) {
       const current = previous.reduce<Application[]>(transition, initialApplications);
       return transition(current, move) === current ? previous : [...previous, move];
     });
-    if (move.type === "accept") setNotice("Booking confirmed. Switch to Marshal view to see your booking.");
+    if (move.type === "accept") {
+      window.requestAnimationFrame(() => {
+        screen.current?.focus({ preventScroll: true });
+        window.scrollTo(0, 0);
+      });
+    }
   }
 
   function reset() {
@@ -79,12 +84,12 @@ export default function DemoWorkspace({ firstDay }: { firstDay: string }) {
       <button type="button" className="demo-reset" onClick={reset}>Reset demo</button>
     </div></div>
     <div className="demo-width pb-6">
-      <nav aria-label="Demo workspace" className="demo-nav">
+      {!shift && <nav aria-label="Demo workspace" className="demo-nav">
         {managerView ? <a href="#manager" aria-current={!shift ? "page" : undefined}><Icon name="home" />Production dashboard</a> : <>
           <a href="#marshal" aria-current={!dashboard && !shift ? "page" : undefined}><Icon name="calendar" />Find shifts</a>
           <a href="#marshal/dashboard" aria-current={dashboard ? "page" : undefined}><Icon name="home" />My dashboard</a>
         </>}
-      </nav>
+      </nav>}
       <div role="status" aria-live="polite">{(notice || hint) && <p className="demo-notice">{notice || hint}</p>}</div>
       <div ref={screen} tabIndex={-1} className="demo-screen">
         {managerView ? (

@@ -25,3 +25,18 @@ body:has(.setru-demo) .mhq-main { max-width: none; padding: 0; }
   .demo-masthead .brand-link { min-height: 2rem; }
   .demo-roles a { padding-inline: 0.5rem; font-size: 0.8125rem; }
 }
+.demo-brief-section { @apply mt-4 border-t border-line pt-3; }
+.demo-brief-section h3 { @apply text-sm font-bold; }
+.demo-brief-section p { @apply mt-1 text-sm; }
+.demo-profile-facts dl { @apply grid-cols-2; }
+.demo-detail { @apply grid items-start gap-3 md:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] md:gap-4; }
+.demo-decision { @apply sticky bottom-0 z-10 rounded-md border border-line bg-white p-3 shadow-panel md:bottom-auto md:top-20 md:p-5; }
+.demo-decision-context { @apply mb-3 hidden md:block; }
+.demo-decision-context h2 { @apply mb-1 text-lg font-bold; }
+.demo-decision-context p { @apply text-sm text-ink-muted; }
+.demo-more { @apply rounded-md border border-line bg-white px-4 text-sm; }
+.demo-more summary { @apply cursor-pointer py-3 font-bold; }
+.demo-more[open] { @apply pb-4; }
+@media (max-width: 767px) {
+  .demo-decision { padding-bottom: max(0.75rem, env(safe-area-inset-bottom)); }
+}

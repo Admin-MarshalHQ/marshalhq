@@ -8,6 +8,7 @@ import {
 } from "@/components/ui";
 import { marshalApplicationOutcome } from "@/lib/application-outcome";
 import { confirmAcceptBody, CONFIRM_ACCEPT_ACTION, CONFIRM_ACCEPT_TITLE, CONTACT_RELEASED_BODY_MANAGER, CONTACT_RELEASED_BODY_MARSHAL, CONTACT_RELEASED_HEADING } from "@/lib/copy";
+import { formatDate, formatRate } from "@/lib/format";
 import { company, manager, profiles, roster, type Action, type Application, type DemoShift } from "./model";
 
 type ListProps = { shifts: DemoShift[]; applications: Application[] };
@@ -15,7 +16,7 @@ type DetailProps = { shift: DemoShift; applications: Application[]; act: (move: 
 const sectionTitle = "mb-3 text-xl font-bold tracking-tight";
 
 function Back({ href, children }: { href: string; children: React.ReactNode }) {
-  return <a className="mb-2 inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-ink-muted hover:text-coral-ink" href={href}><Icon name="back" className="size-4" />{children}</a>;
+  return <a className="my-2 inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-ink-muted hover:text-coral-ink" href={href}><Icon name="back" className="size-4" />{children}</a>;
 }
 
 export function Marketplace({ shifts, applications }: ListProps) {
@@ -23,7 +24,7 @@ export function Marketplace({ shifts, applications }: ListProps) {
   return <>
     <PageHeader title="Available shifts" subtitle="Find location marshal work in UK film and TV." />
     {openShifts.length ? <ul className="grid items-start gap-4 md:grid-cols-2">
-      {openShifts.map(s => <ShiftListing key={s.id} shift={s} byline={s.unit}
+      {openShifts.map(s => <ShiftListing key={s.id} shift={{ ...s, duties: s.summary }} byline={s.unit}
         booked={roster(s, applications).booked} featured={s.id === "lockside"}
         status={applications.find(a => a.shift === s.id && a.marshal === "kit")?.status} href={`#marshal/${s.id}`} />)}
     </ul> : <Card><h2 className={sectionTitle}>All shifts are filled</h2><ButtonLink href="#marshal/dashboard" variant="secondary">See your bookings</ButtonLink></Card>}
@@ -87,45 +88,86 @@ export function ManagerDashboard({ shifts, applications }: ListProps) {
 
 function Brief({ shift, booked }: { shift: DemoShift; booked: number }) {
   return <Card>
-    <div className="mb-4 flex items-center gap-3"><DateBlock date={shift.startDate} />
+    <div className="mb-4 flex items-center gap-3">
+      <DateBlock date={shift.startDate} />
       <div><h2 className="text-lg font-bold">Shift details</h2><CapacityMeter booked={booked} needed={shift.marshalsNeeded} /></div>
     </div>
     <ShiftFacts shift={shift} />
-    {[["Duties", shift.duties], ["Parking / travel", shift.travel], ["Experience / notes", shift.experience]].map(([label, value]) =>
-      <div key={label} className="mt-4 border-t border-line pt-3"><h3 className="mb-1 font-bold">{label}</h3><p className="text-sm">{value}</p></div>)}
+    <div className="demo-brief-section"><h3>Arrival and travel</h3><p>{shift.arrival}</p><p>{shift.travel}</p></div>
+    <div className="demo-brief-section"><h3>Duties</h3><p>{shift.duties}</p></div>
+    <div className="demo-brief-section"><h3>Experience / notes</h3><p>{shift.experience}</p></div>
   </Card>;
 }
 
 function Contact({ person, managerView = false }: { person?: typeof manager; managerView?: boolean }) {
-  if (!person) return <ContactCard released={false} title="Contact" body="Contact details are released only when a manager accepts the application." />;
+  if (!person) return <ContactCard released={false} title="Contact" body="Contact details are released only when the manager books this marshal." />;
   return <ContactCard released title={CONTACT_RELEASED_HEADING} body={managerView ? CONTACT_RELEASED_BODY_MANAGER : CONTACT_RELEASED_BODY_MARSHAL}
-    items={[{ label: managerView ? "Marshal" : "Location manager", value: person.name }, { label: "Email", value: person.email }, { label: "Phone", value: person.phone }]} />;
+    items={[{ label: managerView ? "Booked marshal" : "Location manager", value: person.name }, { label: "Phone", value: person.phone }, { label: "Email", value: person.email }]} />;
+}
+
+function ProfileFacts({ person }: { person: (typeof profiles)[keyof typeof profiles] }) {
+  return <>
+    <div className="mb-4"><Kicker>Experience summary</Kicker><p className="mt-1 text-sm">{person.experience.join(" ")}</p></div>
+    <div className="demo-profile-facts"><DL items={[{ label: "Base location", value: person.base }, { label: "Transport", value: person.transport },
+      { label: "Travel radius", value: `${person.radius} miles` }, { label: "Availability", value: person.availability }]} /></div>
+    <div className="demo-brief-section"><h3>Setru work history</h3><p>{person.completedCount
+      ? `Managers have confirmed ${person.completedCount} completed shifts through Setru.` : "No completed shifts recorded on Setru yet."}</p></div>
+  </>;
+}
+
+function Booking({ shift, application, applications, managerView = false }: Omit<DetailProps, "act"> & {
+  application: Application; managerView?: boolean;
+}) {
+  const person = profiles[application.marshal];
+  const r = roster(shift, applications);
+  return <>
+    <Back href={managerView ? `#manager/${shift.id}` : "#marshal/dashboard"}>{managerView ? "Back to applicants" : "My dashboard"}</Back>
+    <PageHeader kicker="Booking confirmed" title={shift.productionName} subtitle={`${person.name} · ${formatDate(shift.startDate)}`}
+      action={<div className="flex flex-wrap items-center gap-3"><ShiftStatusBadge status={r.status} /><CapacityMeter booked={r.booked} needed={shift.marshalsNeeded} /></div>} />
+    <div className="grid items-start gap-3 md:grid-cols-2">
+      <Card>
+        <h2 className="mb-3 text-lg font-bold">Call and arrival</h2>
+        <div className="flex gap-8"><div><Kicker>Call</Kicker><p className="text-2xl font-bold tabular-nums">{shift.dailyStartTime}</p></div>
+          <div><Kicker>Wrap</Kicker><p className="text-2xl font-bold tabular-nums">{shift.dailyEndTime}</p></div></div>
+        <div className="demo-brief-section"><h3>{shift.location}</h3><p>{shift.arrival}</p><p>{shift.travel}</p></div>
+      </Card>
+      <Contact person={managerView ? person : manager} managerView={managerView} />
+    </div>
+    {managerView && <p className="mt-4 text-sm font-semibold">
+      {r.open ? "One place is still open." : "All places are booked."} <a className="underline" href="#marshal/dashboard">View Kit’s dashboard</a>
+    </p>}
+    {managerView && <details className="demo-more mt-4">
+      <summary>{person.name}’s application</summary>
+      <p className="mb-1 font-bold">Cover note</p><p className="mb-4">{application.coverNote}</p>
+      <ProfileFacts person={person} />
+    </details>}
+    <details className="demo-more mt-4">
+      <summary>Shift duties and rate</summary>
+      <p className="mb-2 font-bold">{formatRate(shift.rate, shift.rateUnit)}</p>
+      <p>{shift.duties}</p>
+    </details>
+  </>;
 }
 
 export function MarshalShift({ shift, applications, act }: DetailProps) {
   const r = roster(shift, applications);
   const own = r.entries.find(a => a.marshal === "kit");
+  if (own?.status === "ACCEPTED") return <Booking shift={shift} application={own} applications={applications} />;
   const outcome = own && marshalApplicationOutcome(own.status, r);
   return <>
     <Back href="#marshal">Back to open shifts</Back>
     <PageHeader title={shift.productionName} subtitle={`${shift.unit} · ${company}`} action={<ShiftStatusBadge status={r.status} />} />
-    <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
-      <Brief shift={shift} booked={r.booked} />
-      <div className="space-y-3">
-        <Card variant="highlight">
-          {outcome ? <>
-            <StatusBadge label={outcome.label} tone={outcome.tone} />
-            <p className="my-3 text-sm">{outcome.detail}</p>
-            <ButtonLink href="#marshal/dashboard" variant="secondary">My dashboard</ButtonLink>
-          </> : r.open ? <>
-            <h2 className="text-lg font-bold">Apply for this shift</h2>
-            <p className="mt-1 text-sm text-ink-muted">Apply with Kit Mercer’s sample profile.</p>
-            <div className="my-3 rounded-md bg-surface-sunken p-3 text-sm"><Kicker>Cover note</Kicker><p className="mt-1">{shift.note}</p></div>
-            <Button className="w-full" onClick={() => { act({ type: "apply", shift: shift.id, marshal: "kit" }); window.location.hash = "marshal/dashboard"; }}>Apply as Kit Mercer</Button>
-          </> : <p className="text-sm">This shift is filled.</p>}
-        </Card>
-        <Contact person={own?.status === "ACCEPTED" ? manager : undefined} />
+    <div className="demo-detail">
+      <div className="min-w-0 space-y-3">
+        {outcome && <Card variant="highlight"><StatusBadge label={outcome.label} tone={outcome.tone} /><p className="mt-2 text-sm">{outcome.detail}</p></Card>}
+        <Brief shift={shift} booked={r.booked} />
+        {(own || r.open) && <Card><Kicker>{own ? "Your cover note" : "Kit’s sample cover note"}</Kicker><p className="mt-2 text-sm">{own?.coverNote ?? shift.note}</p></Card>}
+        <Contact />
       </div>
+      {!own && r.open && <aside className="demo-decision">
+        <div className="demo-decision-context"><h2>Apply for this shift</h2><p>{shift.productionName} · {shift.dailyStartTime}–{shift.dailyEndTime}</p></div>
+        <Button className="w-full" onClick={() => { act({ type: "apply", shift: shift.id, marshal: "kit" }); window.location.hash = "marshal/dashboard"; }}>Apply as Kit Mercer</Button>
+      </aside>}
     </div>
   </>;
 }
@@ -136,12 +178,24 @@ export function ManagerShift({ shift, applications }: Omit<DetailProps, "act">) 
     <Back href="#manager">Production dashboard</Back>
     <PageHeader title={shift.productionName} subtitle={`${shift.location} · ${shift.dailyStartTime}–${shift.dailyEndTime}`} action={<ShiftStatusBadge status={r.status} />} />
     <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
-      <Card variant="highlight"><div className="mb-4 flex flex-wrap items-center justify-between gap-2"><h2 className="text-lg font-bold">Review applicants</h2><CapacityMeter booked={r.booked} needed={shift.marshalsNeeded} /></div>
+      <Card variant="highlight">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2"><h2 className="text-lg font-bold">Review applicants</h2><CapacityMeter booked={r.booked} needed={shift.marshalsNeeded} /></div>
         {r.entries.length === 0 && <p className="text-sm text-ink-muted">No applications yet. Apply in Marshal view to see the profile here.</p>}
-        {r.entries.map(a => <a key={a.marshal} href={`#manager/${shift.id}/${a.marshal}`} className="flex min-h-14 items-center justify-between gap-2 border-t border-line py-3 hover:text-coral-ink">
-          <span><strong>{profiles[a.marshal].name}</strong><span className="block text-sm text-ink-muted">{profiles[a.marshal].base}</span></span>
-          <span className="flex items-center gap-1"><ApplicationStatusBadge status={a.status} /><Icon name="chevron" className="size-4" /></span></a>)}
-      </Card><Brief shift={shift} booked={r.booked} />
+        {r.entries.map(a => {
+          const person = profiles[a.marshal];
+          const outcome = marshalApplicationOutcome(a.status, r);
+          return <a key={a.marshal} href={`#manager/${shift.id}/${a.marshal}`} className="block border-t border-line py-3 last:pb-0 hover:text-coral-ink">
+            <div className="flex items-center justify-between gap-2"><strong>{person.name}</strong><Icon name="chevron" className="size-4 shrink-0 text-coral-ink" /></div>
+            <p className="mt-0.5 text-sm text-ink-muted">{person.base} · {person.transport}</p>
+            {r.open && a.status === "APPLIED" && <p className="mt-1 text-sm">{person.experience[0]}</p>}
+            <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
+              {r.open && a.status === "APPLIED" ? <ApplicationStatusBadge status={a.status} /> : <StatusBadge label={outcome.label} tone={outcome.tone} />}
+              <span className="text-xs text-ink-muted">{person.completedCount ? `${person.completedCount} completed through Setru` : "No completed Setru shifts yet"}</span>
+            </div>
+          </a>;
+        })}
+      </Card>
+      <Brief shift={shift} booked={r.booked} />
     </div>
   </>;
 }
@@ -149,22 +203,25 @@ export function ManagerShift({ shift, applications }: Omit<DetailProps, "act">) 
 export function Applicant({ shift, application, applications, act }: DetailProps & { application: Application }) {
   const r = roster(shift, applications);
   const person = profiles[application.marshal];
-  const accepted = application.status === "ACCEPTED";
+  if (application.status === "ACCEPTED") return <Booking shift={shift} application={application} applications={applications} managerView />;
+  const outcome = marshalApplicationOutcome(application.status, r);
   return <>
     <Back href={`#manager/${shift.id}`}>Back to applicants</Back>
-    <PageHeader kicker="Applicant" title={person.name} subtitle={`Applying for ${shift.productionName}`} action={<ApplicationStatusBadge status={application.status} />} />
-    <div className="grid items-start gap-4 md:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
-      <Card><DL items={[{ label: "Base", value: person.base }, { label: "Travel", value: person.travel }, { label: "Availability", value: "Actively looking" }]} />
-        <div className="mt-4 border-t border-line pt-3"><Kicker>Experience summary</Kicker><p className="mt-1 text-sm">{person.experience}</p></div>
-        {application.marshal === "kit" && <div className="mt-4 border-t border-line pt-3"><Kicker>Cover note</Kicker><p className="mt-1 text-sm">{shift.note}</p></div>}
-      </Card>
-      <div className="space-y-3"><Card variant="highlight"><Kicker>Decision</Kicker>
-        <div className="my-3 flex flex-wrap items-center gap-3"><CapacityMeter booked={r.booked} needed={shift.marshalsNeeded} /><ShiftStatusBadge status={r.status} /></div>
-        {accepted ? <p className="text-sm font-semibold">{person.name} is booked for {shift.dailyStartTime}.</p> : r.open ?
-          <ConfirmButton action={async () => act({ type: "accept", shift: shift.id, marshal: application.marshal })} triggerLabel="Accept and book this marshal"
-            title={CONFIRM_ACCEPT_TITLE} description={confirmAcceptBody(r.booked, shift.marshalsNeeded)} confirmLabel={CONFIRM_ACCEPT_ACTION} />
-          : <p className="text-sm">All places are booked.</p>}
-      </Card><Contact person={accepted ? person : undefined} managerView /></div>
+    <PageHeader kicker="Applicant" title={person.name} subtitle={`${shift.productionName} · ${shift.dailyStartTime} call`}
+      action={r.open ? <ApplicationStatusBadge status={application.status} /> : <StatusBadge label={outcome.label} tone={outcome.tone} />} />
+    <div className="demo-detail">
+      <div className="min-w-0 space-y-3">
+        <Card variant="highlight"><Kicker>Cover note · {shift.productionName}</Kicker><p className="mt-2 text-base">{application.coverNote}</p></Card>
+        <Card><h2 className="mb-3 text-lg font-bold">Marshal profile</h2><ProfileFacts person={person} /></Card>
+        <Contact />
+      </div>
+      {r.open ? <aside className="demo-decision">
+        <div className="demo-decision-context"><h2>Booking decision</h2><CapacityMeter booked={r.booked} needed={shift.marshalsNeeded} /></div>
+        <ConfirmButton action={async () => act({ type: "accept", shift: shift.id, marshal: application.marshal })}
+          triggerLabel={`Accept and book ${person.name.split(" ")[0]}`} title={CONFIRM_ACCEPT_TITLE}
+          description={<><strong>{person.name} · {shift.productionName}</strong><p className="mt-2">{confirmAcceptBody(r.booked, shift.marshalsNeeded)}</p></>}
+          confirmLabel={CONFIRM_ACCEPT_ACTION} />
+      </aside> : <Card><h2 className="font-bold">All places are booked</h2><p className="mt-1 text-sm">{person.name} can be reviewed again if a place reopens.</p></Card>}
     </div>
   </>;
 }

@@ -12,7 +12,9 @@ test("the dawn call fills exactly once and releases a booking only for the selec
   assert.equal(transition(initialApplications, accept), initialApplications);
   assert.equal(roster(shift, pending).booked, 1);
   const filled = transition(pending, accept);
-  assert.deepEqual(roster(shift, filled).entries.map(a => a.status), ["ACCEPTED", "ACCEPTED"]);
+  const entries = roster(shift, filled).entries;
+  assert.deepEqual(entries.filter(a => a.status === "ACCEPTED").map(a => a.marshal).sort(), ["kit", "nell"]);
+  assert.equal(entries.find(a => a.marshal === "robin")?.status, "APPLIED");
   assert.equal(roster(shift, filled).status, "FILLED");
   assert.equal(transition(filled, accept), filled);
   assert.equal(transition(filled, apply), filled);
@@ -34,4 +36,21 @@ test("unknown or incomplete stored actions cannot create applicants or bookings"
     { type: "accept", shift: "unknown", marshal: "kit" }]) {
     assert.equal(transition(initialApplications, input), initialApplications);
   }
+});
+
+test("choosing Robin preserves Kit’s application as shift filled, including after replay", () => {
+  const lockside = productions[0];
+  const apply = { type: "apply", shift: lockside.id, marshal: "kit" };
+  const bookRobin = { type: "accept", shift: lockside.id, marshal: "robin" };
+  const moves = [apply, bookRobin];
+  const result = moves.reduce(transition, initialApplications);
+  const full = roster(lockside, result);
+  const kit = full.entries.find(a => a.marshal === "kit")!;
+  assert.equal(full.booked, 2);
+  assert.equal(kit.coverNote, lockside.note);
+  assert.equal(kit.status, "APPLIED");
+  assert.equal(marshalApplicationOutcome(kit.status, full).label, "Shift filled");
+  assert.equal(transition(result, { ...apply, type: "accept" }), result);
+  assert.deepEqual(JSON.parse(JSON.stringify(moves)).reduce(transition, initialApplications), result);
+  assert.equal(transition(transition(initialApplications, bookRobin), apply).some(a => a.shift === "lockside" && a.marshal === "kit"), false);
 });
