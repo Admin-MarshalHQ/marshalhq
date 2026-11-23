@@ -13,6 +13,7 @@ type SendEmailParams = {
   to: string;
   subject: string;
   body: string;
+  html?: string;
 };
 
 export type SendEmailResult =
@@ -62,6 +63,7 @@ export async function sendEmail(
         to: params.to,
         subject: params.subject,
         text: params.body,
+        html: params.html,
       }),
     });
     if (!res.ok) {
