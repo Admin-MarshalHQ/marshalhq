@@ -15,6 +15,7 @@ import {
   resetExpiry,
 } from "@/lib/reset";
 import { sendEmail } from "@/lib/mail";
+import { passwordResetEmail } from "@/lib/auth-emails";
 import { auth } from "@/lib/auth";
 import { SUPPORT_CATEGORY_LABEL, type SupportCategory } from "@/lib/types";
 
@@ -57,12 +58,7 @@ export async function requestPasswordResetAction(
       const url = buildResetUrl(raw);
       const result = await sendEmail({
         to: user.email,
-        subject: "Reset your Setru password",
-        body:
-          `Someone asked to reset the password for the Setru account linked to this email.\n\n` +
-          `If it was you, use the link below to set a new password. The link expires in 1 hour and can only be used once.\n\n` +
-          `${url}\n\n` +
-          `If it wasn't you, you can ignore this email. Your password will stay the same.`,
+        ...passwordResetEmail(url),
       });
       if (!result.ok) {
         // Email send failed — the token exists in the database but was never
