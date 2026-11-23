@@ -84,7 +84,7 @@ export default async function ApplicantDetailPage({
   const reliabilityLabel =
     p.completedCount > 0
       ? `${p.reliableCount} of ${p.completedCount} shifts rated reliable`
-      : "No completed shifts on MarshalHQ yet";
+      : "No completed shifts on Setru yet";
 
   const marshalReviews = await prisma.review.findMany({
     where: { subjectId: app.marshalId, direction: "MANAGER_ON_MARSHAL" },
@@ -174,7 +174,7 @@ export default async function ApplicantDetailPage({
             </Card>
           )}
           <Card variant="sunken">
-            <Kicker className="mb-1.5">MarshalHQ record</Kicker>
+            <Kicker className="mb-1.5">Setru record</Kicker>
             <p className="text-sm text-ink">{reliabilityLabel}.</p>
             <div className="mt-2 flex items-center gap-2">
               <span className="text-sm text-ink-muted">Manager rating:</span>

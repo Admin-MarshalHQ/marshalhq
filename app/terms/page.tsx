@@ -1,4 +1,7 @@
+import type { Metadata } from "next";
 import { PageHeader } from "@/components/ui";
+
+export const metadata: Metadata = { title: "Terms of use" };
 
 export default function Terms() {
   return (
@@ -6,7 +9,7 @@ export default function Terms() {
       <PageHeader title="Terms of use" />
       <div className="prose-plain max-w-none text-[15px]">
         <p>
-          MarshalHQ provides a platform for connecting UK production managers
+          Setru provides a platform for connecting UK production managers
           with location marshals. By using the service you agree to the
           following.
         </p>
@@ -18,17 +21,17 @@ export default function Terms() {
         <p>
           <strong>Shifts and applications.</strong> Managers post shifts that
           represent genuine work. Marshals apply only to shifts they are able
-          to complete. A shift moves to <em>Filled</em> when a manager accepts
-          one applicant, at which point contact details are released only to
-          that pair.
+          to complete. A shift moves to <em>Filled</em> when all its places are
+          booked. Contact details are shared privately between the manager
+          and each marshal once that marshal is accepted.
         </p>
         <p>
           <strong>Conduct.</strong> Do not misrepresent yourself, do not share
           contact details through the platform before acceptance, and do not
-          use MarshalHQ to circumvent fair hiring.
+          use Setru to circumvent fair hiring.
         </p>
         <p>
-          <strong>Liability.</strong> MarshalHQ is a staffing tool. It does not
+          <strong>Liability.</strong> Setru is a staffing tool. It does not
           employ marshals and is not party to the agreement between a manager
           and a marshal.
         </p>

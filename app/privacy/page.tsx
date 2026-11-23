@@ -1,5 +1,8 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { PageHeader } from "@/components/ui";
+
+export const metadata: Metadata = { title: "Privacy" };
 
 export default function Privacy() {
   return (
@@ -7,7 +10,7 @@ export default function Privacy() {
       <PageHeader title="Privacy" />
       <div className="prose-plain max-w-none text-[15px]">
         <p>
-          MarshalHQ collects only the information required to run a credible
+          Setru collects only the information required to run a credible
           staffing workflow.
         </p>
         <p>

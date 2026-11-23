@@ -118,8 +118,8 @@ export default async function ApplicantReviewPage({
                   {profile.training && <p className="mt-1 line-clamp-2 text-sm text-ink-muted"><span className="font-semibold">Training reported </span>{profile.training}</p>}
                   <p className="mt-2 text-sm font-medium text-ink-muted">
                     {profile.completedCount > 0
-                      ? `${profile.completedCount} ${profile.completedCount === 1 ? "shift" : "shifts"} completed through MarshalHQ`
-                      : "No completed MarshalHQ shifts yet"}
+                      ? `${profile.completedCount} ${profile.completedCount === 1 ? "shift" : "shifts"} completed through Setru`
+                      : "No completed Setru shifts yet"}
                   </p>
                 </div>
                 <Link

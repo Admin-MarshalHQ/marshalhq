@@ -183,7 +183,7 @@ export default function EarlyAccessForm() {
         <SubmitButton disabled={!canSubmit} />
         <p className="mono form__legal">
           By joining, you agree to a single confirmation email and one update
-          when MarshalHQ opens. Nothing else.
+          when Setru opens. Nothing else.
         </p>
       </div>
     </form>

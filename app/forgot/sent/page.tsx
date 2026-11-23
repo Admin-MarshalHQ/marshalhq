@@ -7,7 +7,7 @@ export default function ForgotSentPage() {
       <PageHeader title="Check your inbox" />
       <Card>
         <Alert tone="info">
-          If there is a MarshalHQ account linked to that email, we have sent a
+          If there is a Setru account linked to that email, we have sent a
           reset link. It expires in 1 hour and can only be used once.
         </Alert>
         <p className="mt-3 text-sm text-ink-muted">

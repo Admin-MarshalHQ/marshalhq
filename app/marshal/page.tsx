@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { requireRole } from "@/lib/access";
 import { prisma } from "@/lib/db";
 import {
@@ -12,6 +13,8 @@ import { formatShiftBlock } from "@/lib/format";
 import { marshalApplicationOutcome } from "@/lib/application-outcome";
 import { currentBookings } from "@/lib/workspace-shifts";
 import { MarshalApplicationRow } from "@/components/MarshalApplicationRow";
+
+export const metadata: Metadata = { title: "My dashboard" };
 
 export default async function MarshalHome() {
   const user = await requireRole("MARSHAL");

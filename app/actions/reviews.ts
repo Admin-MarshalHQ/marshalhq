@@ -110,7 +110,7 @@ export async function submitReviewAction(
     userId: subjectId,
     kind: "REVIEW_RECEIVED",
     subject: `New review: ${shift.productionName}`,
-    body: `You received a ${rating}-star review for ${shift.productionName}. See it on your MarshalHQ profile.`,
+    body: `You received a ${rating}-star review for ${shift.productionName}. See it on your Setru profile.`,
   };
   await prisma.notification.create({ data: note });
   await flushNotificationEmails([note]);

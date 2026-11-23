@@ -112,15 +112,15 @@ export async function submitWaitlistEntryAction(
   // truth, and a mail outage must not drop a valid waitlist request.
   const confirmation = sendEmail({
     to: v.email,
-    subject: "We received your MarshalHQ waitlist request",
+    subject: "We received your Setru waitlist request",
     body:
-      `Thanks for joining the MarshalHQ waitlist.\n\n` +
+      `Thanks for joining the Setru waitlist.\n\n` +
       `We received your request as: ${roleLabel}${
         roleOther ? ` - ${roleOther}` : ""
       }.\n\n` +
-      `This has created a waitlist entry only, not a MarshalHQ account. ` +
+      `This has created a waitlist entry only, not a Setru account. ` +
       `A human will review requests as the private beta opens, and we will ` +
-      `contact you when MarshalHQ opens to your side of the loop.\n\n` +
+      `contact you when Setru opens to your side of the loop.\n\n` +
       `No newsletters in the meantime.`,
   }).then((result) => {
     if (!result.ok) {

@@ -1,14 +1,7 @@
+import Image from "next/image";
 import clsx from "clsx";
 
-export function BrandLogo({
-  variant = "wordmark",
-  className,
-  alt = "MarshalHQ",
-}: {
-  variant?: "mark" | "wordmark";
-  className?: string;
-  alt?: string;
-}) {
+export function BrandLogo({ className, alt = "Setru" }: { className?: string; alt?: string }) {
   return (
     <span
       className={clsx("brand-logo", className)}
@@ -16,8 +9,8 @@ export function BrandLogo({
       aria-label={alt || undefined}
       aria-hidden={alt ? undefined : true}
     >
-      <span className="brand-logo__mark" />
-      {variant === "wordmark" && <span>MarshalHQ</span>}
+      <Image src="/brand/setru-mark.svg" width={28} height={28} alt="" className="brand-logo__mark" unoptimized loading="eager" />
+      <span>Setru</span>
     </span>
   );
 }

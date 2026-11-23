@@ -57,9 +57,9 @@ export async function requestPasswordResetAction(
       const url = buildResetUrl(raw);
       const result = await sendEmail({
         to: user.email,
-        subject: "Reset your MarshalHQ password",
+        subject: "Reset your Setru password",
         body:
-          `Someone asked to reset the password for the MarshalHQ account linked to this email.\n\n` +
+          `Someone asked to reset the password for the Setru account linked to this email.\n\n` +
           `If it was you, use the link below to set a new password. The link expires in 1 hour and can only be used once.\n\n` +
           `${url}\n\n` +
           `If it wasn't you, you can ignore this email. Your password will stay the same.`,
@@ -239,11 +239,11 @@ export async function submitSupportRequestAction(
     SUPPORT_CATEGORY_LABEL[category as SupportCategory] ?? category;
   const confirmation = sendEmail({
     to: email,
-    subject: "We received your MarshalHQ request",
+    subject: "We received your Setru request",
     body:
       `Thanks for getting in touch.\n\n` +
       `Category: ${catLabel}\n\n` +
-      `A human at MarshalHQ will review your request and reply. Privacy and account deletion requests are handled manually and may take a few working days.\n\n` +
+      `A human at Setru will review your request and reply. Privacy and account deletion requests are handled manually and may take a few working days.\n\n` +
       `For your records, this is the message we received:\n\n${message}`,
   }).then((r) => {
     if (!r.ok) {

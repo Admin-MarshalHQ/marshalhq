@@ -261,7 +261,7 @@ export async function closeShiftAction(id: string) {
         subject: `Shift cancelled: ${shift.productionName}`,
         body:
           `The manager has cancelled this shift. The booking is closed and the shift will not be marked as completed.\n\n` +
-          `If you have questions about this cancellation, contact MarshalHQ support and we\u2019ll follow up.`,
+          `If you have questions about this cancellation, contact Setru support and we\u2019ll follow up.`,
       };
       await tx.notification.create({ data: cancelNote });
       emailQueue.push(cancelNote);

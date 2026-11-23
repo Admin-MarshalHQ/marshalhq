@@ -162,8 +162,8 @@ export default async function BookingPage({
               <>
                 <p className="mt-1 text-xs text-ink-soft">
                   {reviewSubjects.length > 1
-                    ? "Your rating builds the chosen marshal’s reliability record on MarshalHQ."
-                    : `Your rating builds ${firstMarshalName}’s reliability record on MarshalHQ.`}
+                    ? "Your rating builds the chosen marshal’s reliability record on Setru."
+                    : `Your rating builds ${firstMarshalName}’s reliability record on Setru.`}
                 </p>
                 <ReviewForm
                   shiftId={shift.id}

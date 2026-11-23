@@ -11,7 +11,7 @@ export default function SupportThanksPage() {
           email you gave us.
         </Alert>
         <p className="mt-3 text-sm text-ink-muted">
-          A human at MarshalHQ will review it and reply. Privacy and account
+          A human at Setru will review it and reply. Privacy and account
           deletion requests are handled manually and may take a few working
           days.
         </p>

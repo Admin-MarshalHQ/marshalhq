@@ -23,8 +23,9 @@ export async function sendEmail(
   params: SendEmailParams,
 ): Promise<SendEmailResult> {
   const apiKey = process.env.RESEND_API_KEY;
-  const from =
-    process.env.EMAIL_FROM ?? "MarshalHQ <no-reply@marshalhq.local>";
+  const configuredSender = process.env.EMAIL_FROM ?? "no-reply@marshalhq.local";
+  const address = configuredSender.match(/<([^<>]+)>\s*$/)?.[1] ?? configuredSender;
+  const from = `Setru <${address.trim()}>`;
   const isProd = process.env.NODE_ENV === "production";
 
   if (!apiKey) {
