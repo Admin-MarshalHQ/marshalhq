@@ -1,16 +1,11 @@
-import Link from "next/link";
 import { requireRole } from "@/lib/access";
 import { prisma } from "@/lib/db";
 import {
-  ApplicationStatusBadge,
   ButtonLink,
-  CapacityMeter,
-  DateBlock,
   EmptyState,
   PageHeader,
 } from "@/components/ui";
-import { Icon } from "@/components/Icon";
-import { ShiftFacts } from "@/components/ShiftFacts";
+import { ShiftListing } from "@/components/ShiftListing";
 import { isShiftSchedulable } from "@/lib/state";
 
 export default async function BrowseShiftsPage() {
@@ -71,31 +66,16 @@ export default async function BrowseShiftsPage() {
         />
       ) : (
         <ul className="grid gap-4 md:grid-cols-2">
-          {shifts.map((shift) => {
-            const application = shift.applications[0];
-            return (
-              <li key={shift.id} className="card-link relative min-w-0 has-[:focus-visible]:outline has-[:focus-visible]:outline-[3px] has-[:focus-visible]:outline-offset-[3px] has-[:focus-visible]:outline-ink">
-                <div className="mb-3 flex items-center gap-3">
-                  <DateBlock date={shift.startDate} />
-                  <div className="min-w-0 flex-1">
-                    <h2 className="text-xl font-bold leading-snug tracking-tight">
-                      <Link href={`/marshal/shifts/${shift.id}`} className="after:absolute after:inset-0 after:content-['']">
-                        <span className="max-sm:line-clamp-2">{shift.productionName}</span>
-                      </Link>
-                    </h2>
-                    <p className="mt-0.5 text-sm text-ink-muted max-sm:truncate">{shift.manager.managerProfile?.companyName ?? "Manager"}</p>
-                  </div>
-                  <Icon name="chevron" className="shrink-0 text-coral-ink" />
-                </div>
-                <ShiftFacts shift={shift} />
-                <p className="mt-3 line-clamp-2 text-sm text-ink">{shift.duties}</p>
-                <div className="mt-3 flex flex-wrap items-center gap-3 border-t border-line pt-3">
-                  <CapacityMeter booked={shift._count.applications} needed={shift.marshalsNeeded} />
-                  {application && <ApplicationStatusBadge status={application.status} />}
-                </div>
-              </li>
-            );
-          })}
+          {shifts.map(shift => (
+            <ShiftListing
+              key={shift.id}
+              shift={shift}
+              byline={shift.manager.managerProfile?.companyName ?? "Manager"}
+              booked={shift._count.applications}
+              status={shift.applications[0]?.status}
+              href={`/marshal/shifts/${shift.id}`}
+            />
+          ))}
         </ul>
       )}
     </div>

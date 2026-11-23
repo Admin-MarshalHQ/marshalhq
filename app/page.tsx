@@ -80,9 +80,9 @@ export default async function Landing() {
             </p>
             <div className="home-hero-actions">
               <ButtonLink href="#waitlist">
-                Join the private beta waitlist <Icon name="arrow" className="size-4 shrink-0" />
+                Join the waitlist <Icon name="arrow" className="size-4 shrink-0" />
               </ButtonLink>
-              <a href="#loop" className="home-text-link">See how it works</a>
+              <a href="/demo" className="home-text-link">View demo</a>
             </div>
           </div>
           <ExampleShift />
@@ -97,6 +97,7 @@ export default async function Landing() {
         <div className="marketing-width !max-w-3xl">
           <h2 id="waitlist-heading" className="text-2xl font-bold tracking-tight sm:text-3xl">Join the private beta waitlist</h2>
           <p className="mt-2 text-ink-muted">{WAITLIST_NEXT_STEP}</p>
+          <a href="/demo" className="home-text-link">View demo</a>
           <EarlyAccessForm />
         </div>
       </section>
