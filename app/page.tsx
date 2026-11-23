@@ -14,7 +14,7 @@ const title = "Setru | Location marshal hiring for UK film and TV";
 const description =
   "Post clear shifts, compare applicants and share contact details after acceptance. Join the Setru private beta waitlist for UK film and TV.";
 const socialImage = {
-  url: "/opengraph-image",
+  url: "/brand/setru-social.png",
   width: 1200,
   height: 630,
   alt: "Setru. Location marshal hiring for UK film and TV.",
