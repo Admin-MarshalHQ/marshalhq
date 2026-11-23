@@ -44,8 +44,10 @@ The DB-layer invariants are already covered by `npm run db:smoke`. This check is
 
 ## Step 5 — Founder panel
 
+- [ ] Signed out, visit `/founder/waitlist` and enter the configured founder email at `/login/founder`. Check that the one-time code arrives, opens the requested page, and cannot be reused after signing out.
+- [ ] Confirm the founder email is refused by the password form at `/login`.
 - [ ] Logged in as the founder, visit `/founder`, `/founder/applications`, `/founder/profiles`, `/founder/shifts`, `/founder/support`, `/founder/users`. Each page renders without error.
-- [ ] Logged in as a non-founder manager or marshal, visit `/founder`. Confirm redirect away from the panel (per [middleware.ts:38-42](../middleware.ts)).
+- [ ] Logged in as a non-founder manager or marshal, visit `/founder`. Confirm redirect away from the panel.
 
 ## Step 6 — Manager creates and publishes a shift
 

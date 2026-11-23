@@ -1,6 +1,9 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { isFounderEmail, isFounderSession } from "@/lib/founder-identity";
 import type { Role } from "@/lib/types";
+
+export { isFounderEmail } from "@/lib/founder-identity";
 
 export async function requireUser() {
   const session = await auth();
@@ -14,24 +17,12 @@ export async function requireRole(role: Role) {
   return user;
 }
 
-// Founder identity is derived from env, not a role column, so the trusted loop
-// stays MANAGER/MARSHAL and the founder panel is gated by a single source of
-// truth. Comma-separated list; matched case-insensitively.
-function founderEmails(): string[] {
-  return (process.env.FOUNDER_EMAILS ?? "")
-    .split(",")
-    .map((s) => s.trim().toLowerCase())
-    .filter(Boolean);
-}
-
-export function isFounderEmail(email: string | null | undefined): boolean {
-  if (!email) return false;
-  return founderEmails().includes(email.trim().toLowerCase());
-}
-
 export async function requireFounder() {
-  const user = await requireUser();
+  const session = await auth();
+  const user = session?.user;
+  if (!user?.id) redirect("/login/founder");
   if (!isFounderEmail(user.email)) redirect("/");
+  if (!isFounderSession(user)) redirect("/login/founder");
   return user;
 }
 

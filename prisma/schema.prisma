@@ -29,6 +29,7 @@ model User {
   notifications  Notification[]
   passwordResetTokens PasswordResetToken[]
   emailVerificationTokens EmailVerificationToken[]
+  founderLoginPasscode FounderLoginPasscode?
   supportRequests     SupportRequest[]
   reviewsAuthored     Review[]            @relation("ReviewAuthor")
   reviewsReceived     Review[]            @relation("ReviewSubject")
@@ -158,6 +159,19 @@ model EmailVerificationToken {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   @@index([userId])
+}
+
+// One current challenge per founder. Keep the row after use so the resend
+// cooldown still applies, and clear the digest when the code is consumed.
+model FounderLoginPasscode {
+  userId      String   @id
+  challengeId String
+  codeHash    String?
+  issuedAt    DateTime
+  expiresAt   DateTime
+  attempts    Int      @default(0)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 // Support and privacy requests. Captured for any visitor (logged in or not) so

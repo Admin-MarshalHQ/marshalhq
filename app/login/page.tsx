@@ -26,6 +26,11 @@ export default function LoginPage({
           verifiedSuccess={verifiedSuccess}
         />
       </Card>
+      <p className="mt-4 text-center text-sm">
+        <Link href="/login/founder" className="shell-link text-coral-ink">
+          Founder login
+        </Link>
+      </p>
       <p className="mt-4 text-center text-sm text-ink-muted">
         Looking for access?{" "}
         <Link href="/#waitlist" className="text-accent underline">
