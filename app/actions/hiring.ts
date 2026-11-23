@@ -3,7 +3,7 @@
 import { prisma } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { auth } from "@/lib/auth";
+import { requireRole } from "@/lib/access";
 import {
   assertApplicationTransition,
   assertShiftTransition,
@@ -13,21 +13,15 @@ import {
 } from "@/lib/state";
 import { ApplySchema } from "@/lib/zod";
 import { flushNotificationEmails, type NotifyParams } from "@/lib/notify";
+import { lockShift } from "@/lib/booking-lock";
 import { datesOverlap } from "@/lib/availability";
 import { formatShiftBlock } from "@/lib/format";
-
-async function requireUser() {
-  const session = await auth();
-  if (!session?.user?.id) redirect("/login");
-  return session.user;
-}
 
 export async function applyToShiftAction(
   _prev: { error?: string } | null,
   formData: FormData,
 ): Promise<{ error?: string } | null> {
-  const user = await requireUser();
-  if (user.role !== "MARSHAL") redirect("/");
+  const user = await requireRole("MARSHAL");
 
   const parsed = ApplySchema.safeParse({
     shiftId: formData.get("shiftId"),
@@ -128,6 +122,11 @@ export async function applyToShiftAction(
   const emailQueue: NotifyParams[] = [];
   try {
     await prisma.$transaction(async (tx) => {
+      await lockShift(tx, shiftId);
+      const current = await tx.shift.findUnique({ where: { id: shiftId } });
+      if (!current || current.status !== "OPEN" || current.paused || !isShiftSchedulable(current)) {
+        throw new Error("SHIFT_UNAVAILABLE");
+      }
       const app = await tx.application.create({
         data: {
           shiftId,
@@ -164,6 +163,7 @@ export async function applyToShiftAction(
     });
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : "";
+    if (msg === "SHIFT_UNAVAILABLE") return { error: "This shift is no longer open for applications." };
     if (msg.includes("Unique constraint")) {
       return { error: "You\u2019ve already applied to this shift." };
     }
@@ -176,8 +176,7 @@ export async function applyToShiftAction(
 }
 
 export async function withdrawApplicationAction(applicationId: string) {
-  const user = await requireUser();
-  if (user.role !== "MARSHAL") redirect("/");
+  const user = await requireRole("MARSHAL");
   const app = await prisma.application.findUnique({
     where: { id: applicationId },
     include: { shift: true },
@@ -205,6 +204,9 @@ export async function withdrawApplicationAction(applicationId: string) {
   const emailQueue: NotifyParams[] = [];
   let transitionedAccepted = false;
   await prisma.$transaction(async (tx) => {
+    await lockShift(tx, app.shiftId);
+    const current = await tx.shift.findUniqueOrThrow({ where: { id: app.shiftId } });
+    if (classifyWithdraw(app, current) !== "allowed") throw new Error("WITHDRAW_STALE");
     // updateMany with the expected status re-verifies state atomically: a
     // concurrent withdraw-or-reject returns count=0 and we treat it as stale.
     const res = await tx.application.updateMany({
@@ -280,9 +282,7 @@ class StaleAcceptStateError extends Error {
 }
 
 export async function acceptApplicationAction(applicationId: string) {
-  const session = await auth();
-  if (!session?.user?.id || session.user.role !== "MANAGER") redirect("/login");
-  const managerId = session.user.id;
+  const { id: managerId } = await requireRole("MANAGER");
 
   const app = await prisma.application.findUnique({
     where: { id: applicationId },
@@ -291,19 +291,14 @@ export async function acceptApplicationAction(applicationId: string) {
   if (!app || app.shift.managerId !== managerId) redirect("/manager");
   const shiftId = app.shiftId;
 
-  // Acceptance is race-safe because every state change inside the transaction
-  // uses updateMany with a WHERE clause that re-asserts the current invariant
-  // against the database. If two managers click Accept on different applicants
-  // for the same shift at once, only one updateMany will match a row; the
-  // second returns count=0 and we abort the whole transaction with a
-  // StaleAcceptStateError, leaving no partial state behind. The outer redirect
-  // sends the user back to the applicant page with a stale flash so they see
-  // the fresh, settled state instead of a 500.
   const emailQueue: NotifyParams[] = [];
   try {
     await prisma.$transaction(async (tx) => {
       // Re-read both sides inside the transaction so the checks are made
       // against the current DB snapshot, not the stale read above.
+      await lockShift(tx, shiftId);
+      // A marshal may have pending applications with different managers.
+      await tx.$queryRaw`SELECT id FROM "User" WHERE id = ${app.marshalId} FOR UPDATE`;
       const freshShift = await tx.shift.findUnique({ where: { id: shiftId } });
       const acceptedBefore = await tx.application.count({
         where: { shiftId, status: "ACCEPTED" },
@@ -313,6 +308,7 @@ export async function acceptApplicationAction(applicationId: string) {
         freshShift.managerId !== managerId ||
         freshShift.status !== "OPEN" ||
         freshShift.paused ||
+        !isShiftSchedulable(freshShift) ||
         acceptedBefore >= freshShift.marshalsNeeded
       ) {
         throw new StaleAcceptStateError();
@@ -326,7 +322,18 @@ export async function acceptApplicationAction(applicationId: string) {
       const freshProfile = await tx.marshalProfile.findUnique({
         where: { userId: freshApp.marshalId },
       });
-      if (freshProfile?.paused) throw new StaleAcceptStateError();
+      if (!freshProfile || freshProfile.paused || !canMarshalApply(freshProfile.availability)) {
+        throw new StaleAcceptStateError();
+      }
+      const conflict = await tx.application.findFirst({
+        where: {
+          marshalId: freshApp.marshalId, status: "ACCEPTED", shiftId: { not: shiftId },
+          shift: { status: { in: ["OPEN", "FILLED"] },
+            startDate: { lte: freshShift.endDate }, endDate: { gte: freshShift.startDate } },
+        },
+        select: { id: true },
+      });
+      if (conflict) throw new StaleAcceptStateError();
 
       assertApplicationTransition(freshApp.status, "ACCEPTED");
 
@@ -400,9 +407,7 @@ export async function acceptApplicationAction(applicationId: string) {
 }
 
 export async function rejectApplicationAction(applicationId: string) {
-  const session = await auth();
-  if (!session?.user?.id || session.user.role !== "MANAGER") redirect("/login");
-  const managerId = session.user.id;
+  const { id: managerId } = await requireRole("MANAGER");
 
   const app = await prisma.application.findUnique({
     where: { id: applicationId },
@@ -417,11 +422,13 @@ export async function rejectApplicationAction(applicationId: string) {
   assertApplicationTransition(app.status, "REJECTED");
 
   const emailQueue: NotifyParams[] = [];
-  await prisma.$transaction(async (tx) => {
-    await tx.application.update({
-      where: { id: app.id },
+  const changed = await prisma.$transaction(async (tx) => {
+    await lockShift(tx, app.shiftId);
+    const result = await tx.application.updateMany({
+      where: { id: app.id, status: "APPLIED" },
       data: { status: "REJECTED", decidedAt: new Date() },
     });
+    if (!result.count) return false;
     const rejectedNote: NotifyParams = {
       userId: app.marshalId,
       kind: "APPLICATION_REJECTED",
@@ -435,7 +442,9 @@ export async function rejectApplicationAction(applicationId: string) {
     };
     await tx.notification.create({ data: rejectedNote });
     emailQueue.push(rejectedNote);
+    return true;
   });
+  if (!changed) redirect(`/manager/shifts/${app.shiftId}/applicants/${app.id}?stale=1`);
   await flushNotificationEmails(emailQueue);
   revalidatePath(`/manager/shifts/${app.shiftId}/applicants`);
   redirect(`/manager/shifts/${app.shiftId}/applicants`);

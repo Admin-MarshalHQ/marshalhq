@@ -5,7 +5,7 @@ const authCopy = {
   verification: {
     subject: "Verify your Setru email",
     headline: "Verify your email address",
-    intro: "Thanks for joining the Setru private pilot. Confirm this email address to finish verifying your account.",
+    intro: "Confirm this email address to verify your Setru account. Pilot shifts are available to invited participants.",
     button: "Verify email address",
     expiry: "This link expires in 24 hours and can only be used once.",
     unexpected: "If you didn’t create a Setru account, you can ignore this email.",

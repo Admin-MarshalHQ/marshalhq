@@ -1,5 +1,6 @@
 import NextAuth from "next-auth";
 import { NextResponse } from "next/server";
+import { isPilotParticipant } from "@/lib/pilot-participant";
 import { authConfig } from "@/lib/auth-config";
 import { isFounderEmail, isFounderSession } from "@/lib/founder-identity";
 
@@ -65,6 +66,10 @@ export default auth((req) => {
     if (!allowedWhileUnverified) {
       return NextResponse.redirect(new URL("/verify-email", nextUrl));
     }
+  }
+
+  if ((path.startsWith("/manager") || path.startsWith("/marshal")) && !isPilotParticipant(email)) {
+    return NextResponse.redirect(new URL("/pilot-access", nextUrl));
   }
 
   if (path.startsWith("/manager") && role !== "MANAGER") {

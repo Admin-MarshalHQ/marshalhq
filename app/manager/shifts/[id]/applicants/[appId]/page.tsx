@@ -15,6 +15,7 @@ import {
   acceptApplicationAction,
   rejectApplicationAction,
 } from "@/app/actions/hiring";
+import { isShiftSchedulable } from "@/lib/state";
 import { APPLICATION_STATUS_LABEL, AVAILABILITY_LABEL } from "@/lib/state";
 import { StarRatingDisplay } from "@/components/StarRating";
 import { ratingSummary } from "@/lib/reviews";
@@ -191,11 +192,11 @@ export default async function ApplicantDetailPage({
               <Alert tone="info">
                 This application is {APPLICATION_STATUS_LABEL[app.status as ApplicationStatus].toLowerCase()}.
               </Alert>
-            ) : shift.status !== "OPEN" || !hasCapacity ? (
+            ) : shift.status !== "OPEN" || !hasCapacity || !isShiftSchedulable(shift) ? (
               <Alert tone="warn">
-                You can only accept applicants while the shift is open and has a place available.
+                Booking requires a future call time and an open place.
               </Alert>
-            ) : p.paused ? (
+            ) : p.paused || p.availability === "UNAVAILABLE" ? (
               <Alert tone="warn">
                 This applicant is currently unavailable. They cannot be
                 accepted for this shift. Consider another applicant.

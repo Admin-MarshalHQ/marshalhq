@@ -6,10 +6,10 @@ import { sendEmail } from "../lib/mail";
 import { isShiftSchedulable } from "../lib/state";
 import { currentBookings, managerAttention } from "../lib/workspace-shifts";
 
-const today = new Date(2026, 10, 23);
-const now = new Date(2026, 10, 23, 12);
-const yesterday = new Date(2026, 10, 22);
-const tomorrow = new Date(2026, 10, 24);
+const today = new Date(Date.UTC(2026, 10, 23));
+const now = new Date(Date.UTC(2026, 10, 23, 12));
+const yesterday = new Date(Date.UTC(2026, 10, 22));
+const tomorrow = new Date(Date.UTC(2026, 10, 24));
 const shift = {
   startDate: today,
   endDate: today,

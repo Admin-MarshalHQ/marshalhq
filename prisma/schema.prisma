@@ -107,6 +107,7 @@ model Application {
   id         String    @id @default(cuid())
   shiftId    String
   marshalId  String
+  attendance String?   // Null preserves the historical shift-level completion record.
   coverNote  String?
   status     String    @default("APPLIED") // ApplicationStatus
   appliedAt  DateTime  @default(now())

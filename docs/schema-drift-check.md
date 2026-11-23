@@ -36,3 +36,7 @@ This compares the deployed database (via `POSTGRES_URL` from `.env.local` / `.en
 - [ ] Immediately after any deploy whose diff touches `prisma/schema.prisma`.
 - [ ] As part of the pre-invite smoke check setup (see [pre-invite-smoke-check.md](pre-invite-smoke-check.md), Setup).
 - [ ] Any time production pages 500 with Prisma errors mentioning a missing table or column.
+
+### Pilot attendance release
+
+The booking update adds one nullable text column, `Application.attendance`. Existing completed bookings retain their recorded shift-level outcome. Review and apply [the attendance SQL](../prisma/application-attendance.sql) to the intended database before promoting the app. Run the drift check afterwards. Configure `PILOT_PARTICIPANT_EMAILS` for that environment with the invited, verified account addresses. Registration and email verification are open. Founder addresses retain workspace access. Exercise an invited and an uninvited account before publishing a real brief.

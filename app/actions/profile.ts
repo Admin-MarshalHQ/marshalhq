@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { requireRole } from "@/lib/access";
 import { auth } from "@/lib/auth";
 import {
   ManagerProfileSchema,
@@ -25,9 +26,7 @@ export async function saveMarshalProfileAction(
   _prev: ProfileActionState,
   formData: FormData,
 ): Promise<ProfileActionState> {
-  const session = await auth();
-  if (!session?.user?.id || session.user.role !== "MARSHAL") redirect("/login");
-  const userId = session.user.id;
+  const { id: userId } = await requireRole("MARSHAL");
 
   const parsed = MarshalProfileSchema.safeParse({
     phone: formData.get("phone") ?? "",
@@ -93,9 +92,7 @@ export async function saveManagerProfileAction(
   _prev: ProfileActionState,
   formData: FormData,
 ): Promise<ProfileActionState> {
-  const session = await auth();
-  if (!session?.user?.id || session.user.role !== "MANAGER") redirect("/login");
-  const userId = session.user.id;
+  const { id: userId } = await requireRole("MANAGER");
 
   const parsed = ManagerProfileSchema.safeParse({
     companyName: formData.get("companyName"),

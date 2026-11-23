@@ -11,6 +11,7 @@
     "db:seed": "tsx prisma/seed.ts",
     "db:smoke": "tsx prisma/smoke.ts",
     "db:reset": "prisma db push --force-reset && npm run db:seed",
+    "test:booking": "node --import tsx --test scripts/booking-integrity.test.cjs",
     "test:remediation": "tsx scripts/audit_remediation_tests.ts",
     "qa:scan": "tsx scripts/qa_contamination_scan.ts",
     "qa:scan:fix": "tsx scripts/qa_contamination_scan.ts --fix",

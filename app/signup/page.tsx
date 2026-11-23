@@ -11,7 +11,7 @@ export default function SignupPage() {
       <PageHeader
         kicker="Setru"
         title="Sign up"
-        subtitle="Create a production manager or location marshal account."
+        subtitle="Register as a manager or marshal. Invited participants can access pilot shifts after verifying their email."
       />
       <Card>
         <SignupForm />

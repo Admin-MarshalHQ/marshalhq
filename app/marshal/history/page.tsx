@@ -1,3 +1,4 @@
+import { workedFilter } from "@/lib/attendance";
 import { requireRole } from "@/lib/access";
 import { prisma } from "@/lib/db";
 import {
@@ -22,6 +23,7 @@ export default async function CompletionHistoryPage() {
   const ratingSummaryValue = ratingSummary(reviews);
   const completed = await prisma.application.findMany({
     where: {
+      ...workedFilter,
       marshalId: user.id,
       status: "ACCEPTED",
       shift: { status: "COMPLETED" },
@@ -90,12 +92,12 @@ export default async function CompletionHistoryPage() {
                     )}
                   </p>
                 </div>
-                {a.shift.reliabilityFlag === true && (
+                {(a.attendance === "WORKED" || (a.attendance === null && a.shift.reliabilityFlag === true)) && (
                   <span className="rounded-full bg-ok-soft px-2 py-0.5 font-mono text-[11px] font-medium uppercase tracking-[0.04em] text-ok">
                     Reliable
                   </span>
                 )}
-                {a.shift.reliabilityFlag === false && (
+                {(a.attendance === "WORKED_FLAGGED" || (a.attendance === null && a.shift.reliabilityFlag === false)) && (
                   <span className="rounded-full bg-danger-soft px-2 py-0.5 font-mono text-[11px] font-medium uppercase tracking-[0.04em] text-danger">
                     Issue flagged
                   </span>
