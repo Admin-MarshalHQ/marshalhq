@@ -520,9 +520,9 @@ export function Skeleton({ className }: { className?: string }) {
 // The tile shows the start date. The row shows the full date range.
 export function DateBlock({ date }: { date: Date | string }) {
   const d = typeof date === "string" ? new Date(date) : date;
-  const weekday = d.toLocaleDateString("en-GB", { weekday: "short" });
-  const day = d.toLocaleDateString("en-GB", { day: "2-digit" });
-  const month = d.toLocaleDateString("en-GB", { month: "short" });
+  const weekday = d.toLocaleDateString("en-GB", { timeZone: "Europe/London", weekday: "short" });
+  const day = d.toLocaleDateString("en-GB", { timeZone: "Europe/London", day: "2-digit" });
+  const month = d.toLocaleDateString("en-GB", { timeZone: "Europe/London", month: "short" });
   return (
     <span className="shift-date-tile inline-grid min-w-12 shrink-0 justify-items-center gap-0.5 whitespace-nowrap rounded-md bg-coral-soft px-1.5 py-1.5 text-xs leading-none text-coral-ink">
       <span>{weekday}</span>

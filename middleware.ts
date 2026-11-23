@@ -1,11 +1,11 @@
 import NextAuth from "next-auth";
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { authConfig } from "@/lib/auth-config";
 import { isFounderEmail, isFounderSession } from "@/lib/founder-identity";
 
 const { auth } = NextAuth(authConfig);
 
-export default auth((req) => {
+const accountMiddleware = auth((req) => {
   const { nextUrl } = req;
   const isAuthed = !!req.auth?.user;
   const email = req.auth?.user?.email;
@@ -56,6 +56,21 @@ export default auth((req) => {
   // The Node guards resolve current verification, pilot access and role from the database.
   return NextResponse.next();
 });
+
+export default function middleware(req: NextRequest) {
+  // Render the public sample with an anonymous shell even if this browser
+  // also has an active pilot session. Never modify the browser's cookies.
+  if (req.nextUrl.pathname === "/demo") {
+    if (req.method !== "GET" && req.method !== "HEAD") {
+      return new NextResponse(null, { status: 405, headers: { Allow: "GET, HEAD" } });
+    }
+    const headers = new Headers(req.headers);
+    headers.delete("cookie");
+    headers.delete("authorization");
+    return NextResponse.next({ request: { headers } });
+  }
+  return accountMiddleware(req, {});
+}
 
 export const config = {
   matcher: ["/((?!api/auth(?:/|$)|_next/static|_next/image|favicon.ico).*)"],
