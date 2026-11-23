@@ -25,12 +25,12 @@ export function ExampleShift() {
           </div>
           <dl className="home-shift-facts">
             {shiftFacts.map(({ icon, label, value }) => (
-              <div key={label} className="flex items-start gap-1.5">
-                <Icon name={icon} className="size-4 shrink-0 text-coral-ink" />
-                <div>
-                  <dt className="text-xs text-ink-muted">{label}</dt>
-                  <dd className="mt-0.5 text-[0.8125rem] font-semibold leading-snug">{value}</dd>
-                </div>
+              <div key={label} className="relative pl-5">
+                <dt className="text-xs text-ink-muted">
+                  <Icon name={icon} className="absolute left-0 top-0 size-4 text-coral-ink" />
+                  {label}
+                </dt>
+                <dd className="mt-0.5 text-[0.8125rem] font-semibold leading-snug">{value}</dd>
               </div>
             ))}
           </dl>
@@ -135,7 +135,7 @@ export function HiringProcess() {
             <li key={title} className={contact ? "home-step home-step-contact" : "home-step"}>
               <span className="home-step-number" aria-hidden="true">{index + 1}</span>
               <div className="min-w-0 pt-1">
-                <h3>{title}</h3>
+                <h3><span className="sr-only">Step {index + 1}. </span>{title}</h3>
                 <p>{body}</p>
                 {contact && (
                   <span className="home-contact-note">
