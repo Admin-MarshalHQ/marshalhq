@@ -110,6 +110,7 @@ export default async function ManagerShiftDetailPage({
         action={<ShiftStatusBadge status={shift.status} />}
       />
 
+      {searchParams.close === "attendance" && <Alert tone="warn">This booked shift has ended. Record attendance instead of cancelling.</Alert>}
       {searchParams.close === "stale" && <Alert tone="warn">The shift or its bookings changed. Review the current roster before cancelling.</Alert>}
       {searchParams.attendance === "stale" && <Alert tone="warn">The roster changed or an outcome was missing. Review the current bookings.</Alert>}
       {searchParams.revertBlocked === "1" && (
@@ -323,7 +324,8 @@ export default async function ManagerShiftDetailPage({
                       variant="danger"
                     />
                   )}
-                  {active && bookedCount > 0 && (
+                  {canComplete && <p className="text-sm text-ink-muted">This booked shift has ended. Record attendance above instead of cancelling.</p>}
+                  {active && bookedCount > 0 && !canComplete && (
                     <ConfirmButton
                       action={close}
                       triggerLabel="Cancel shift"

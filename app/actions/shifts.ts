@@ -185,16 +185,18 @@ export async function closeShiftAction(id: string, expectedStatus: string, expec
   const emailQueue: NotifyParams[] = [];
   const cancelledAcceptedMarshalIds: string[] = [];
 
-  const closed = await prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx) => {
     await lockShift(tx, id);
     const current = await tx.shift.findUniqueOrThrow({ where: { id } });
-    if (current.status !== expectedStatus || !["DRAFT", "OPEN", "FILLED"].includes(current.status)) return false;
+    if (current.status !== expectedStatus || !["DRAFT", "OPEN", "FILLED"].includes(current.status)) return "stale";
     const accepted = await tx.application.findMany({
       where: { shiftId: id, status: "ACCEPTED" },
       select: { id: true, marshalId: true },
     });
     const confirmed = new Set(expectedBookings);
-    if (confirmed.size !== accepted.length || accepted.some(app => !confirmed.has(app.id))) return false;
+    if (confirmed.size !== accepted.length || accepted.some(app => !confirmed.has(app.id))) return "stale";
+    // A booked shift that has wrapped must settle attendance, not cancel.
+    if (accepted.length > 0 && hasShiftEnded(current)) return "attendance";
     // Auto-reject all APPLIED applications
     const rejected = await tx.application.findMany({
       where: { shiftId: id, status: "APPLIED" },
@@ -244,9 +246,9 @@ export async function closeShiftAction(id: string, expectedStatus: string, expec
       await tx.notification.create({ data: cancelNote });
       emailQueue.push(cancelNote);
     }
-    return true;
+    return "closed";
   });
-  if (!closed) redirect(`/manager/shifts/${id}?close=stale`);
+  if (result !== "closed") redirect(`/manager/shifts/${id}?close=${result}`);
   await flushNotificationEmails(emailQueue);
   // Revalidate both the shift detail and the accepted marshal's application
   // history so the status change is visible on refresh.
