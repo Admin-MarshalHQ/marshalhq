@@ -3,11 +3,9 @@
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { sendEmail } from "@/lib/mail";
+import { waitlistConfirmationEmail } from "@/lib/waitlist-confirmation";
 import { WaitlistEntrySchema } from "@/lib/zod";
-import {
-  WAITLIST_ROLE_LABEL,
-  type WaitlistRole,
-} from "@/lib/types";
+import { WAITLIST_ROLE_LABEL } from "@/lib/types";
 
 export type ActionState = { error?: string } | null;
 
@@ -93,10 +91,9 @@ export async function submitWaitlistEntryAction(
     return { error: "Something went wrong saving your interest. Try again." };
   }
 
-  // Prepare the shared email summary from the stored request.
-  // The same labels are used for visitor and founder emails.
+  // Prepare the founder email summary from the stored request.
   const notifyTo = (process.env.SUPPORT_NOTIFY_EMAIL ?? "").trim();
-  const roleLabel = WAITLIST_ROLE_LABEL[v.role as WaitlistRole];
+  const roleLabel = WAITLIST_ROLE_LABEL[v.role];
   const detailLines: string[] = [];
   if (company) {
     detailLines.push(`Company or production: ${company}`);
@@ -112,16 +109,7 @@ export async function submitWaitlistEntryAction(
   // truth, and a mail outage must not drop a valid waitlist request.
   const confirmation = sendEmail({
     to: v.email,
-    subject: "We received your Setru waitlist request",
-    body:
-      `Thanks for joining the Setru waitlist.\n\n` +
-      `We received your request as: ${roleLabel}${
-        roleOther ? ` - ${roleOther}` : ""
-      }.\n\n` +
-      `This has created a waitlist entry only, not a Setru account. ` +
-      `A human will review requests as the private beta opens, and we will ` +
-      `contact you when Setru opens to your side of the loop.\n\n` +
-      `No newsletters in the meantime.`,
+    ...waitlistConfirmationEmail(v.role),
   }).then((result) => {
     if (!result.ok) {
       console.error("[waitlist] confirmation email failed", {
@@ -131,7 +119,6 @@ export async function submitWaitlistEntryAction(
     }
   });
 
-  // The same labels are used for visitor and founder emails.
   const founderNotify = notifyTo
     ? sendEmail({
         to: notifyTo,

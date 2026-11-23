@@ -146,3 +146,70 @@ test("transactional email keeps the configured address under the Setru sender na
   }
   assert.deepEqual(messages, ["Setru <admin@marshalhq.com>", "Setru <admin@marshalhq.com>"]);
 });
+
+test("waitlist submissions send matching HTML and plain text after storage without changing the founder email", async (t) => {
+  const keys = ["RESEND_API_KEY", "SUPPORT_NOTIFY_EMAIL"] as const;
+  const saved = keys.map((key) => process.env[key]);
+  t.after(() => {
+    keys.forEach((key, i) => {
+      const value = saved[i];
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    });
+  });
+  process.env.RESEND_API_KEY = "test-only";
+  process.env.SUPPORT_NOTIFY_EMAIL = "founder@example.com";
+
+  let storedRole: string | undefined;
+  const savedPrisma = globalThis.__prisma;
+  t.after(() => { globalThis.__prisma = savedPrisma; });
+  globalThis.__prisma = {
+    waitlistEntry: {
+      create: async (input: { data: { role: string } }) => {
+        storedRole = input.data.role;
+        return { id: "test-entry", createdAt: new Date("2026-11-23T00:00:00Z") };
+      },
+    },
+  } as unknown as typeof savedPrisma;
+  const { submitWaitlistEntryAction } = await import("../app/actions/waitlist");
+
+  const messages: Array<Record<string, string>> = [];
+  t.mock.method(globalThis, "fetch", async (url: string, options: RequestInit) => {
+    assert.equal(url, "https://api.resend.com/emails");
+    assert(storedRole);
+    messages.push(JSON.parse(String(options.body)));
+    return new Response(null, { status: 200 });
+  });
+
+  for (const [role, label] of [["MANAGER", "Manager"], ["MARSHAL", "Marshal"], ["OTHER", "Other"]]) {
+    storedRole = undefined;
+    const form = new FormData();
+    form.set("name", "Waitlist QA");
+    form.set("email", `${role.toLowerCase()}@example.com`);
+    form.set("role", role);
+    form.set("consentToContact", "on");
+    if (role === "OTHER") form.set("roleOther", "<em>Private free text</em>");
+
+    await assert.rejects(submitWaitlistEntryAction(null, form), (error: Error & { digest?: string }) =>
+      error.message === "NEXT_REDIRECT" && !!error.digest?.includes(";/early-access/thanks;"),
+    );
+    assert.equal(storedRole, role);
+    assert.equal(messages.length, 2);
+    const [visitor, founder] = messages.splice(0);
+    assert.equal(visitor.to, `${role.toLowerCase()}@example.com`);
+    assert.match(visitor.subject, /Setru waitlist/);
+    assert.match(visitor.text, new RegExp(`Role submitted: ${label}`));
+    assert.match(visitor.html, new RegExp(`Role submitted:</strong> ${label}`));
+    assert.match(visitor.html, /<meta name="viewport"/);
+    for (const content of [visitor.text, visitor.html]) {
+      assert.match(content, /isn’t an account or an invitation/);
+      assert.match(content, /private beta places open for your role/);
+      assert.match(content, /https:\/\/setru\.co\.uk\/support/);
+      assert.match(content, /https:\/\/setru\.co\.uk\/privacy/);
+      assert.doesNotMatch(content, /Private free text|reply to this email/i);
+    }
+    assert.equal(founder.to, "founder@example.com");
+    assert.match(founder.subject, /\[Waitlist\]/);
+    assert.equal(founder.html, undefined);
+  }
+});
