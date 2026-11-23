@@ -1,8 +1,10 @@
+import { requireFounder } from "@/lib/access";
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { Card, PageHeader } from "@/components/ui";
 
 export default async function FounderOverviewPage() {
+  await requireFounder();
   // Small readout — counts, plus a peek at the latest items. Intentionally
   // not a dashboard; each tile just links the founder to the relevant list.
   const [

@@ -11,9 +11,12 @@ declare module "next-auth" {
       email: string;
       emailVerifiedAt: string | null;
       founderPasscode: boolean;
+      founderIssuedAt?: number;
     } & DefaultSession["user"];
   }
   interface User {
+    sessionVersion: number;
+    founderSessionId?: string;
     role: Role;
     emailVerifiedAt?: string | null;
   }
@@ -34,6 +37,8 @@ export const authConfig = {
   callbacks: {
     async jwt({ token, user, account }) {
       if (user) {
+        token.sessionVersion = user.sessionVersion;
+        token.founderSessionId = user.founderSessionId;
         token.uid = user.id;
         token.role = user.role;
         token.emailVerifiedAt = user.emailVerifiedAt ?? null;
@@ -44,6 +49,7 @@ export const authConfig = {
     async session({ session, token }) {
       const claims = token as SessionClaims;
       if (claims.uid) {
+        session.user.founderIssuedAt = typeof token.founderIssuedAt === "number" ? token.founderIssuedAt : undefined;
         session.user.id = claims.uid;
         session.user.role = claims.role ?? "UNSET";
         session.user.emailVerifiedAt = claims.emailVerifiedAt ?? null;

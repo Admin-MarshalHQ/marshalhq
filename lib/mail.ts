@@ -41,7 +41,6 @@ export async function sendEmail(
     if (isProd) {
       console.error(
         "[mail] RESEND_API_KEY is not set in production; refusing to log email body",
-        { to: params.to, subject: params.subject },
       );
       return { ok: false, reason: "misconfigured_no_api_key" };
     }
@@ -67,16 +66,7 @@ export async function sendEmail(
       }),
     });
     if (!res.ok) {
-      // Resend's error response body doesn't include our email payload, but
-      // we keep the logged fields narrow anyway: to/subject/status only.
-      // Never log params.body — it could carry a reset URL or token.
-      const providerBody = isProd ? "<redacted>" : await res.text();
-      console.error("[mail] Resend rejected request", {
-        to: params.to,
-        subject: params.subject,
-        status: res.status,
-        providerBody,
-      });
+      console.error("[mail] Resend rejected request", { status: res.status });
       return { ok: false, reason: `resend_${res.status}` };
     }
     return { ok: true, channel: "resend" };
@@ -84,8 +74,6 @@ export async function sendEmail(
     // Never include `err.message` verbatim here — a rejected fetch can echo
     // the request body in some runtimes. Emit only a static reason code.
     console.error("[mail] send failed", {
-      to: params.to,
-      subject: params.subject,
       errName: err instanceof Error ? err.name : "unknown",
     });
     return { ok: false, reason: "network_error" };

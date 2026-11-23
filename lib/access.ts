@@ -1,3 +1,4 @@
+import { founderFreshness } from "@/lib/session-policy";
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { isFounderEmail, isFounderSession } from "@/lib/founder-identity";
@@ -26,11 +27,12 @@ export async function requireRole(role: Role) {
   return user;
 }
 
-export async function requireFounder() {
+export async function requireFounder(fresh = false) {
   const session = await auth();
   const user = session?.user;
   if (!user?.id) redirect("/login/founder");
   if (!isFounderEmail(user.email)) redirect("/");
+  if (fresh && (!user.founderIssuedAt || Date.now() - user.founderIssuedAt >= founderFreshness)) redirect("/login/founder");
   if (!isFounderSession(user)) redirect("/login/founder");
   return user;
 }

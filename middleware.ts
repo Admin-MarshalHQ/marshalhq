@@ -1,6 +1,5 @@
 import NextAuth from "next-auth";
 import { NextResponse } from "next/server";
-import { isPilotParticipant } from "@/lib/pilot-participant";
 import { authConfig } from "@/lib/auth-config";
 import { isFounderEmail, isFounderSession } from "@/lib/founder-identity";
 
@@ -9,9 +8,7 @@ const { auth } = NextAuth(authConfig);
 export default auth((req) => {
   const { nextUrl } = req;
   const isAuthed = !!req.auth?.user;
-  const role = req.auth?.user?.role;
   const email = req.auth?.user?.email;
-  const emailVerifiedAt = req.auth?.user?.emailVerifiedAt;
   const path = nextUrl.pathname;
 
   const isPublic =
@@ -56,32 +53,10 @@ export default auth((req) => {
     return NextResponse.redirect(url);
   }
 
-  if (!emailVerifiedAt) {
-    const allowedWhileUnverified =
-      path === "/settings" ||
-      path === "/support" ||
-      path === "/support/thanks" ||
-      path === "/notifications" ||
-      path.startsWith("/api/auth");
-    if (!allowedWhileUnverified) {
-      return NextResponse.redirect(new URL("/verify-email", nextUrl));
-    }
-  }
-
-  if ((path.startsWith("/manager") || path.startsWith("/marshal")) && !isPilotParticipant(email)) {
-    return NextResponse.redirect(new URL("/pilot-access", nextUrl));
-  }
-
-  if (path.startsWith("/manager") && role !== "MANAGER") {
-    return NextResponse.redirect(new URL("/", nextUrl));
-  }
-  if (path.startsWith("/marshal") && role !== "MARSHAL") {
-    return NextResponse.redirect(new URL("/", nextUrl));
-  }
-
+  // The Node guards resolve current verification, pilot access and role from the database.
   return NextResponse.next();
 });
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+  matcher: ["/((?!api/auth(?:/|$)|_next/static|_next/image|favicon.ico).*)"],
 };

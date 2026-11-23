@@ -14,7 +14,6 @@ import {
 import { ApplySchema } from "@/lib/zod";
 import { flushNotificationEmails, type NotifyParams } from "@/lib/notify";
 import { lockShift } from "@/lib/booking-lock";
-import { datesOverlap } from "@/lib/availability";
 import { formatShiftBlock } from "@/lib/format";
 
 export async function applyToShiftAction(
@@ -32,102 +31,29 @@ export async function applyToShiftAction(
   }
   const { shiftId, coverNote } = parsed.data;
 
-  const profile = await prisma.marshalProfile.findUnique({
-    where: { userId: user.id },
-  });
-  if (!profile) {
-    return {
-      error:
-        "Create your marshal profile before applying. This is required so managers can assess you.",
-    };
-  }
-
-  // Paused-profile backstop: a marshal whose profile has been paused by the
-  // founder cannot apply. The apply form on the shift page already blocks
-  // this, but a client-bypassed POST must be refused too.
-  if (profile.paused) {
-    return {
-      error:
-        "Your profile is currently paused. Contact support before applying to shifts.",
-    };
-  }
-
-  // Availability backstop: a marshal who has set themselves to Not currently
-  // available can't apply even if the UI is bypassed. Keeps the trust promise
-  // that a posted availability means something for managers.
-  if (!canMarshalApply(profile.availability)) {
-    return {
-      error:
-        "Your availability is set to Not currently available. Update your profile availability before applying.",
-    };
-  }
-
-  const shift = await prisma.shift.findUnique({ where: { id: shiftId } });
-  // A paused shift behaves as if it is not open — stops applications even
-  // when the shift's status field is still OPEN.
-  if (!shift || shift.status !== "OPEN" || shift.paused) {
-    return { error: "This shift isn\u2019t open for applications." };
-  }
-  // Temporal guard: applying to a shift whose start has already passed would
-  // create an immediately-stale application. The published-shift guard
-  // prevents this happening for freshly-published shifts, but time passes
-  // and an OPEN shift can drift past its start; refuse late apply attempts
-  // here too rather than accept an application that will never be actioned.
-  if (!isShiftSchedulable(shift)) {
-    return {
-      error: "This shift has already started. Applications are closed.",
-    };
-  }
-  const acceptedOnShift = await prisma.application.count({
-    where: { shiftId, status: "ACCEPTED" },
-  });
-  if (acceptedOnShift >= shift.marshalsNeeded) {
-    return { error: "This shift is already filled." };
-  }
-
-  // Booking-conflict guard. An overlap with a shift this marshal is already
-  // ACCEPTED on is a hard block: accepting both would guarantee a no-show for
-  // one manager, which is the worst trust failure the loop can produce. The
-  // shift detail page surfaces the same conflict before the form, but a
-  // client-bypassed POST must be refused here too. Self-marked unavailable
-  // dates are a soft reminder only (rendered by the page, not blocked here) —
-  // the calendar is self-reported and the marshal may know better.
-  const acceptedElsewhere = await prisma.application.findMany({
-    where: {
-      marshalId: user.id,
-      status: "ACCEPTED",
-      shiftId: { not: shiftId },
-      shift: { status: { in: ["OPEN", "FILLED"] } },
-    },
-    select: {
-      shift: {
-        select: { startDate: true, endDate: true, productionName: true },
-      },
-    },
-  });
-  const clashingBooking = acceptedElsewhere.find((a) =>
-    datesOverlap(
-      shift.startDate,
-      shift.endDate,
-      a.shift.startDate,
-      a.shift.endDate,
-    ),
-  );
-  if (clashingBooking) {
-    return {
-      error: `These dates overlap ${clashingBooking.shift.productionName}, which you’re already booked on. Withdraw from that booking before applying here.`,
-    };
-  }
-
   const emailQueue: NotifyParams[] = [];
   try {
-    await prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx) => {
       await lockShift(tx, shiftId);
-      const current = await tx.shift.findUnique({ where: { id: shiftId } });
-      if (!current || current.status !== "OPEN" || current.paused || !isShiftSchedulable(current)) {
-        throw new Error("SHIFT_UNAVAILABLE");
+      await tx.$queryRaw`SELECT id FROM "User" WHERE id = ${user.id} FOR UPDATE`;
+      await tx.$queryRaw`SELECT id FROM "MarshalProfile" WHERE "userId" = ${user.id} FOR UPDATE`;
+      const profile = await tx.marshalProfile.findUnique({ where: { userId: user.id } });
+      if (!profile) return { error: "Create your marshal profile before applying." };
+      if (profile.paused) return { error: "Your profile is paused. Please contact support." };
+      if (!canMarshalApply(profile.availability)) return { error: "Update your availability before applying." };
+      const shift = await tx.shift.findUnique({ where: { id: shiftId } });
+      if (!shift || shift.paused || shift.status !== "OPEN" || !isShiftSchedulable(shift)) {
+        return { error: "This shift is no longer open for applications." };
       }
-      const app = await tx.application.create({
+      const booked = await tx.application.count({ where: { shiftId, status: "ACCEPTED" } });
+      if (booked >= shift.marshalsNeeded) return { error: "This shift is already filled." };
+      const conflict = await tx.application.findFirst({
+        where: { marshalId: user.id, status: "ACCEPTED", shiftId: { not: shiftId },
+          shift: { status: { in: ["OPEN", "FILLED"] }, startDate: { lte: shift.endDate }, endDate: { gte: shift.startDate } } },
+        select: { shift: { select: { productionName: true } } },
+      });
+      if (conflict) return { error: `These dates overlap your booking on ${conflict.shift.productionName}.` };
+      await tx.application.create({
         data: {
           shiftId,
           marshalId: user.id,
@@ -159,8 +85,9 @@ export async function applyToShiftAction(
       await tx.notification.create({ data: applicantNote });
       await tx.notification.create({ data: managerNote });
       emailQueue.push(applicantNote, managerNote);
-      return app;
+      return null;
     });
+    if (result) return result;
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : "";
     if (msg === "SHIFT_UNAVAILABLE") return { error: "This shift is no longer open for applications." };
@@ -425,7 +352,7 @@ export async function rejectApplicationAction(applicationId: string) {
   const changed = await prisma.$transaction(async (tx) => {
     await lockShift(tx, app.shiftId);
     const result = await tx.application.updateMany({
-      where: { id: app.id, status: "APPLIED" },
+      where: { id: app.id, status: "APPLIED", shift: { managerId, status: { in: ["OPEN", "FILLED"] } } },
       data: { status: "REJECTED", decidedAt: new Date() },
     });
     if (!result.count) return false;

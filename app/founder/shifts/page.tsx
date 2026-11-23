@@ -1,9 +1,11 @@
+import { requireFounder } from "@/lib/access";
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { Card, PageHeader, ShiftStatusBadge } from "@/components/ui";
 import { formatRate, formatShiftBlock } from "@/lib/format";
 
 export default async function FounderShiftsPage() {
+  await requireFounder();
   const shifts = await prisma.shift.findMany({
     orderBy: [{ paused: "desc" }, { createdAt: "desc" }],
     include: {

@@ -1,9 +1,11 @@
+import { requireFounder } from "@/lib/access";
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { ApplicationStatusBadge, Card, PageHeader } from "@/components/ui";
 import { formatShiftBlock } from "@/lib/format";
 
 export default async function FounderApplicationsPage() {
+  await requireFounder();
   const applications = await prisma.application.findMany({
     orderBy: { appliedAt: "desc" },
     take: 200,

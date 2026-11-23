@@ -1,3 +1,4 @@
+import { requireFounder } from "@/lib/access";
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { Card, PageHeader } from "@/components/ui";
@@ -5,6 +6,7 @@ import { AVAILABILITY_LABEL } from "@/lib/state";
 import type { Availability } from "@/lib/types";
 
 export default async function FounderMarshalProfilesPage() {
+  await requireFounder();
   const profiles = await prisma.marshalProfile.findMany({
     take: 200,
     orderBy: [{ paused: "desc" }, { createdAt: "desc" }],

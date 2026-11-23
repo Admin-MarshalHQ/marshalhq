@@ -255,7 +255,6 @@ export const WaitlistEntrySchema = z
       .optional()
       .or(z.literal("")),
     note: z.string().trim().max(1000).optional().or(z.literal("")),
-    consentToContact: z.literal("on").optional(),
     managerRole: z
       .union([
         z.string().trim().max(120),

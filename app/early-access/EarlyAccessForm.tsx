@@ -53,7 +53,6 @@ export default function EarlyAccessForm() {
 
   return (
     <form action={action} className="form waitlist-form">
-      <input type="hidden" name="consentToContact" value="on" />
 
       {state?.error && (
         <div className="form__error" role="alert">

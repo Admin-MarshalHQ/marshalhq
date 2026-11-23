@@ -1,4 +1,6 @@
 import { createHmac, randomInt, randomUUID, timingSafeEqual } from "node:crypto";
+import { allowRequest } from "@/lib/request-budget";
+import { founderLifetime } from "@/lib/session-policy";
 import { prisma } from "@/lib/db";
 import { isFounderEmail } from "@/lib/founder-identity";
 import { sendEmail } from "@/lib/mail";
@@ -17,7 +19,8 @@ export async function issueFounderPasscode(email: string): Promise<void> {
   const secret = process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET;
   if (!secret || !isFounderEmail(email)) return;
 
-  const user = await prisma.user.findUnique({ where: { email }, select: { id: true } });
+  if (!(await allowRequest("founderIssue", email))) return;
+  const user = await prisma.user.findFirst({ where: { email, disabledAt: null }, select: { id: true } });
   if (!user) return;
 
   const code = String(randomInt(100_000_000)).padStart(8, "0");
@@ -37,7 +40,7 @@ export async function issueFounderPasscode(email: string): Promise<void> {
   const created = await table.createMany({ data: { userId: user.id, ...data }, skipDuplicates: true });
   if (!created.count) {
     const replaced = await table.updateMany({
-      where: { userId: user.id, issuedAt: { lte: new Date(issuedAt.getTime() - RESEND_COOLDOWN_MS) } },
+      where: { userId: user.id, OR: [{ codeHash: null }, { expiresAt: { lte: issuedAt } }, { attempts: { gte: MAX_ATTEMPTS } }], issuedAt: { lte: new Date(issuedAt.getTime() - RESEND_COOLDOWN_MS) } },
       data,
     });
     if (!replaced.count) return;
@@ -59,15 +62,15 @@ export async function consumeFounderPasscode(rawEmail: unknown, rawCode: unknown
   const code = typeof rawCode === "string" ? rawCode.trim() : "";
   if (!secret || !emailInput.success || !/^\d{8}$/.test(code)) return null;
   const { email } = emailInput.data;
-  if (!isFounderEmail(email)) return null;
+  if (!isFounderEmail(email) || !(await allowRequest("founderVerify", email))) return null;
 
   const user = await prisma.user.findUnique({
     where: { email },
-    select: { id: true, email: true, role: true, emailVerifiedAt: true, founderLoginPasscode: true },
+    select: { sessionVersion: true, disabledAt: true, id: true, email: true, role: true, emailVerifiedAt: true, founderLoginPasscode: true },
   });
   const passcode = user?.founderLoginPasscode;
   const codeHash = passcode?.codeHash;
-  if (!user || !passcode || !codeHash) return null;
+  if (!user || user.disabledAt || !passcode || !codeHash) return null;
 
   return prisma.$transaction(async (tx) => {
     const now = new Date();
@@ -97,7 +100,13 @@ export async function consumeFounderPasscode(rawEmail: unknown, rawCode: unknown
         data: { emailVerifiedAt: now },
       });
     }
+    await tx.founderSession.deleteMany({ where: { userId: user.id, expiresAt: { lte: now } } });
+    const session = await tx.founderSession.create({
+      data: { userId: user.id, issuedAt: now, expiresAt: new Date(now.getTime() + founderLifetime) },
+    });
     return {
+      founderSessionId: session.id,
+      sessionVersion: user.sessionVersion,
       id: user.id,
       email: user.email,
       role: user.role as Role,

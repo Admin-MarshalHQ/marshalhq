@@ -17,6 +17,9 @@ model User {
   id             String   @id @default(cuid())
   email          String   @unique
   passwordHash   String
+  sessionVersion Int @default(0)
+  disabledAt DateTime?
+  founderSessions FounderSession[]
   role           String   @default("UNSET") // Role: MANAGER | MARSHAL | UNSET
   phone          String?
   emailVerifiedAt DateTime?
@@ -274,4 +277,20 @@ model ShiftAlert {
   marshal User @relation(fields: [marshalId], references: [id], onDelete: Cascade)
 
   @@index([marshalId])
+}
+
+model FounderSession {
+  id        String   @id @default(uuid())
+  userId    String
+  issuedAt  DateTime @default(now())
+  expiresAt DateTime
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId])
+}
+
+model RequestBudget {
+  key       String   @id
+  hits      Int
+  expiresAt DateTime
+  @@index([expiresAt])
 }

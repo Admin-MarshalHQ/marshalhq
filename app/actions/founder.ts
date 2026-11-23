@@ -14,7 +14,7 @@ export async function setMarshalProfilePausedAction(
   profileId: string,
   paused: boolean,
 ) {
-  await requireFounder();
+  await requireFounder(true);
   await prisma.marshalProfile.update({
     where: { id: profileId },
     data: { paused },
@@ -24,7 +24,7 @@ export async function setMarshalProfilePausedAction(
 }
 
 export async function setShiftPausedAction(shiftId: string, paused: boolean) {
-  await requireFounder();
+  await requireFounder(true);
   await prisma.shift.update({
     where: { id: shiftId },
     data: { paused },
@@ -38,7 +38,7 @@ export async function updateMarshalProfileNoteAction(
   _prev: { error?: string } | null,
   formData: FormData,
 ): Promise<{ error?: string } | null> {
-  await requireFounder();
+  await requireFounder(true);
   const parsed = FounderNoteSchema.safeParse({ note: formData.get("note") });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
@@ -57,7 +57,7 @@ export async function updateShiftNoteAction(
   _prev: { error?: string } | null,
   formData: FormData,
 ): Promise<{ error?: string } | null> {
-  await requireFounder();
+  await requireFounder(true);
   const parsed = FounderNoteSchema.safeParse({ note: formData.get("note") });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
@@ -76,7 +76,7 @@ export async function updateManagerProfileNoteAction(
   _prev: { error?: string } | null,
   formData: FormData,
 ): Promise<{ error?: string } | null> {
-  await requireFounder();
+  await requireFounder(true);
   const parsed = FounderNoteSchema.safeParse({ note: formData.get("note") });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
@@ -96,7 +96,7 @@ export async function updateSupportRequestNoteAction(
   _prev: { error?: string } | null,
   formData: FormData,
 ): Promise<{ error?: string } | null> {
-  await requireFounder();
+  await requireFounder(true);
   const parsed = FounderNoteSchema.safeParse({ note: formData.get("note") });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
@@ -114,7 +114,7 @@ export async function setSupportRequestResolvedAction(
   requestId: string,
   resolved: boolean,
 ) {
-  await requireFounder();
+  await requireFounder(true);
   await prisma.supportRequest.update({
     where: { id: requestId },
     data: { resolvedAt: resolved ? new Date() : null },
@@ -124,6 +124,6 @@ export async function setSupportRequestResolvedAction(
 }
 
 export async function goToFounderRoot() {
-  await requireFounder();
+  await requireFounder(true);
   redirect("/founder");
 }

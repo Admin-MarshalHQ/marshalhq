@@ -1,3 +1,4 @@
+import { requireFounder } from "@/lib/access";
 import { prisma } from "@/lib/db";
 import { Card, PageHeader } from "@/components/ui";
 import {
@@ -14,6 +15,7 @@ import {
 } from "@/lib/types";
 
 export default async function FounderWaitlistPage() {
+  await requireFounder();
   const entries = await prisma.waitlistEntry.findMany({
     orderBy: { createdAt: "desc" },
     take: 200,

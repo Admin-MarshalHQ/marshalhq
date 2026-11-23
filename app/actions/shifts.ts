@@ -137,46 +137,20 @@ export async function updateDraftShiftAction(
 
 export async function publishShiftAction(id: string) {
   const managerId = await requireManagerId();
-  const shift = await getOwnedShift(id, managerId);
-  // A paused shift cannot be published — the founder has explicitly put it
-  // off-market and we don't want the manager re-surfacing it silently.
-  if (shift.paused) {
-    redirect(`/manager/shifts/${id}`);
-  }
-  // Temporal guard: a published shift must be schedulable — end time after
-  // start time, and start strictly in the future. "Open" is a trust promise
-  // that the shift is live and actionable; stale drafts with a past date
-  // must not become OPEN via publish.
-  if (!isShiftSchedulable(shift)) {
-    revalidatePath(`/manager/shifts/${id}`);
-    redirect(`/manager/shifts/${id}?publishBlocked=1`);
-  }
-  // Contact-leak backstop: re-run the detector on the visible free-text fields
-  // at publish time. Save/edit already validates via Zod, so this only catches
-  // legacy drafts that pre-date the contact-detection rollout. Without this
-  // belt-and-braces check, a contaminated DRAFT created before the schema
-  // refinement was added could become OPEN and surface contact text to
-  // marshals. Manager is bounced back to the draft with a calm edit prompt.
-  if (
-    hasContactLeak(
-      shift.productionName,
-      shift.location,
-      shift.duties,
-      shift.parkingTravel,
-      shift.experienceNotes,
-    )
-  ) {
-    revalidatePath(`/manager/shifts/${id}`);
-    redirect(`/manager/shifts/${id}?publishBlocked=contact`);
-  }
-  assertShiftTransition(shift.status, "OPEN");
-  await prisma.shift.updateMany({
-    where: { id, status: "DRAFT" },
-    data: { status: "OPEN" },
+  const result = await prisma.$transaction(async tx => {
+    await lockShift(tx, id);
+    const shift = await tx.shift.findFirst({ where: { id, managerId, status: "DRAFT", paused: false } });
+    if (!shift) return "";
+    if (!isShiftSchedulable(shift)) return "?publishBlocked=1";
+    if (hasContactLeak(shift.productionName, shift.location, shift.duties, shift.parkingTravel, shift.experienceNotes)) {
+      return "?publishBlocked=contact";
+    }
+    await tx.shift.update({ where: { id }, data: { status: "OPEN" } });
+    return "";
   });
   revalidatePath("/manager");
   revalidatePath(`/manager/shifts/${id}`);
-  redirect(`/manager/shifts/${id}`);
+  redirect(`/manager/shifts/${id}${result}`);
 }
 
 export async function unpublishShiftAction(id: string) {
@@ -289,7 +263,7 @@ export async function completeShiftAction(id: string, form: FormData) {
 }
 
 export async function resolveAttendanceAction(id: string, form: FormData) {
-  await requireFounder();
+  await requireFounder(true);
   await settleAttendance(id, form, null);
 }
 
@@ -341,7 +315,17 @@ async function settleAttendance(id: string, form: FormData, managerId: string | 
         queue.push(note);
       }
     }
-    if (managerId) await tx.shift.update({ where: { id }, data: { status: "COMPLETED", completedAt: new Date() } });
+    if (managerId) {
+      const pending = await tx.application.findMany({ where: { shiftId: id, status: "APPLIED" }, select: { marshalId: true } });
+      await tx.application.updateMany({ where: { shiftId: id, status: "APPLIED" }, data: { status: "REJECTED", decidedAt: new Date() } });
+      const notices = pending.map(({ marshalId }): NotifyParams => ({
+        userId: marshalId, kind: "SHIFT_STATUS_CHANGED", subject: `Shift completed: ${shift.productionName}`,
+        body: "This shift has ended and you were not booked. Your application is now closed.",
+      }));
+      if (notices.length) await tx.notification.createMany({ data: notices });
+      queue.push(...notices);
+      await tx.shift.update({ where: { id }, data: { status: "COMPLETED", completedAt: new Date() } });
+    }
     return true;
   });
   await flushNotificationEmails(queue);
