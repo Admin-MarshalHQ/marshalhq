@@ -68,11 +68,12 @@ label {
 }
 
 .brand-logo {
-  @apply inline-flex shrink-0 items-center gap-2 whitespace-nowrap text-[1.5rem] font-extrabold leading-none tracking-[-0.065em] text-ink;
+  @apply inline-flex shrink-0 items-baseline gap-1 whitespace-nowrap text-[1.5rem] font-extrabold leading-none tracking-[-0.065em] text-ink;
 }
 
 .brand-logo__mark {
-  @apply size-7 shrink-0;
+  @apply w-auto shrink-0;
+  height: 0.78em;
 }
 
 .brand-link,

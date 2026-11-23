@@ -32,7 +32,7 @@ export const metadata: Metadata = {
   metadataBase: new URL(process.env.APP_BASE_URL?.trim() || "https://marshalhq.com"),
   title: { default: "Setru", template: "%s | Setru" },
   applicationName: "Setru",
-  icons: { icon: { url: "/brand/setru-mark.svg", type: "image/svg+xml" } },
+  icons: { icon: { url: "/brand/setru-radio-favicon.svg", type: "image/svg+xml" } },
   description:
     "A clearer way to hire location marshals for UK film and TV production.",
 };

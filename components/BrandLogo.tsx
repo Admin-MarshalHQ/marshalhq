@@ -9,7 +9,7 @@ export function BrandLogo({ className, alt = "Setru" }: { className?: string; al
       aria-label={alt || undefined}
       aria-hidden={alt ? undefined : true}
     >
-      <Image src="/brand/setru-mark.svg" width={28} height={28} alt="" className="brand-logo__mark" unoptimized loading="eager" />
+      <Image src="/brand/setru-mark.svg" width={26} height={36} alt="" className="brand-logo__mark" unoptimized loading="eager" />
       <span>Setru</span>
     </span>
   );
