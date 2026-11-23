@@ -4,7 +4,7 @@ import Link from "next/link";
 import localFont from "next/font/local";
 import { auth, signOut } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { isFounderEmail } from "@/lib/access";
+import { isFounderSession } from "@/lib/founder-identity";
 import { VersionBadge } from "@/components/VersionBadge";
 import { BrandLogo } from "@/components/BrandLogo";
 import AppNav, { type NavItem } from "@/components/AppNav";
@@ -55,7 +55,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const session = await auth();
   const userId = session?.user?.id;
   const role = session?.user?.role;
-  const founder = isFounderEmail(session?.user?.email);
+  const founder = isFounderSession(session?.user);
   const unread = userId
     ? await prisma.notification.count({ where: { userId, readAt: null } })
     : 0;

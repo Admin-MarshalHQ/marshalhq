@@ -1,27 +1,14 @@
-import NextAuth, { type DefaultSession } from "next-auth";
+import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
+import { authConfig, FOUNDER_PASSCODE_PROVIDER } from "@/lib/auth-config";
 import { prisma } from "@/lib/db";
+import { isFounderEmail } from "@/lib/founder-identity";
+import { consumeFounderPasscode } from "@/lib/founder-passcode";
 import type { Role } from "@/lib/types";
 
-declare module "next-auth" {
-  interface Session {
-    user: {
-      id: string;
-      role: Role;
-      email: string;
-      emailVerifiedAt: string | null;
-    } & DefaultSession["user"];
-  }
-  interface User {
-    role: Role;
-    emailVerifiedAt?: string | null;
-  }
-}
-
 export const { handlers, auth, signIn, signOut } = NextAuth({
-  session: { strategy: "jwt" },
-  pages: { signIn: "/login" },
+  ...authConfig,
   providers: [
     Credentials({
       credentials: {
@@ -31,7 +18,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       async authorize(creds) {
         const email = String(creds?.email ?? "").trim().toLowerCase();
         const password = String(creds?.password ?? "");
-        if (!email || !password) return null;
+        if (!email || !password || isFounderEmail(email)) return null;
         const user = await prisma.user.findUnique({ where: { email } });
         if (!user) return null;
         const ok = await bcrypt.compare(password, user.passwordHash);
@@ -44,29 +31,16 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         };
       },
     }),
+    Credentials({
+      id: FOUNDER_PASSCODE_PROVIDER,
+      name: "Founder email passcode",
+      credentials: {
+        email: { label: "Email", type: "email" },
+        code: { label: "Passcode", type: "text" },
+      },
+      async authorize(creds) {
+        return consumeFounderPasscode(creds?.email, creds?.code);
+      },
+    }),
   ],
-  callbacks: {
-    async jwt({ token, user }) {
-      if (user) {
-        (token as { uid?: string }).uid = user.id as string;
-        (token as { role?: Role }).role = (user as { role: Role }).role;
-        (token as { emailVerifiedAt?: string | null }).emailVerifiedAt =
-          (user as { emailVerifiedAt?: string | null }).emailVerifiedAt ?? null;
-      }
-      return token;
-    },
-    async session({ session, token }) {
-      const t = token as {
-        uid?: string;
-        role?: Role;
-        emailVerifiedAt?: string | null;
-      };
-      if (t.uid) {
-        session.user.id = t.uid;
-        session.user.role = t.role ?? "UNSET";
-        session.user.emailVerifiedAt = t.emailVerifiedAt ?? null;
-      }
-      return session;
-    },
-  },
 });

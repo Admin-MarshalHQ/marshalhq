@@ -17,6 +17,7 @@ import {
 import { sendEmail } from "@/lib/mail";
 import { passwordResetEmail } from "@/lib/auth-emails";
 import { auth } from "@/lib/auth";
+import { isFounderEmail } from "@/lib/founder-identity";
 import { SUPPORT_CATEGORY_LABEL, type SupportCategory } from "@/lib/types";
 
 export type ActionState = { error?: string } | null;
@@ -39,6 +40,7 @@ export async function requestPasswordResetAction(
     redirect("/forgot/sent");
   }
   const { email } = parsed.data;
+  if (isFounderEmail(email)) redirect("/forgot/sent");
 
   const user = await prisma.user.findUnique({ where: { email } });
   if (user) {
@@ -120,9 +122,9 @@ export async function completePasswordResetAction(
   // bounces to the expired screen.
   const record = await prisma.passwordResetToken.findUnique({
     where: { tokenHash },
-    select: { id: true, userId: true, usedAt: true, expiresAt: true },
+    select: { id: true, userId: true, usedAt: true, expiresAt: true, user: { select: { email: true } } },
   });
-  if (!record || record.usedAt || record.expiresAt < new Date()) {
+  if (!record || record.usedAt || record.expiresAt < new Date() || isFounderEmail(record.user.email)) {
     redirect("/reset/expired");
   }
 

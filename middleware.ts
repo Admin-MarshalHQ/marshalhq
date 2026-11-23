@@ -1,6 +1,9 @@
-import { auth } from "@/lib/auth";
+import NextAuth from "next-auth";
 import { NextResponse } from "next/server";
-import { isFounderEmail } from "@/lib/access";
+import { authConfig } from "@/lib/auth-config";
+import { isFounderEmail, isFounderSession } from "@/lib/founder-identity";
+
+const { auth } = NextAuth(authConfig);
 
 export default auth((req) => {
   const { nextUrl } = req;
@@ -13,6 +16,7 @@ export default auth((req) => {
   const isPublic =
     path === "/" ||
     path === "/login" ||
+    path === "/login/founder" ||
     path === "/signup" ||
     path === "/verify-email" ||
     path.startsWith("/verify-email/") ||
@@ -35,6 +39,16 @@ export default auth((req) => {
 
   if (isPublic) return NextResponse.next();
 
+  if (path === "/founder" || path.startsWith("/founder/")) {
+    if (isFounderSession(req.auth?.user)) return NextResponse.next();
+    if (isAuthed && !isFounderEmail(email)) {
+      return NextResponse.redirect(new URL("/", nextUrl));
+    }
+    const url = new URL("/login/founder", nextUrl);
+    url.searchParams.set("next", path);
+    return NextResponse.redirect(url);
+  }
+
   if (!isAuthed) {
     const url = new URL("/login", nextUrl);
     url.searchParams.set("next", path);
@@ -51,15 +65,6 @@ export default auth((req) => {
     if (!allowedWhileUnverified) {
       return NextResponse.redirect(new URL("/verify-email", nextUrl));
     }
-  }
-
-  // Founder panel is gated by FOUNDER_EMAILS (not a role). Non-founders are
-  // bounced to the home page rather than given a chance to enumerate the area.
-  if (path.startsWith("/founder")) {
-    if (!isFounderEmail(email)) {
-      return NextResponse.redirect(new URL("/", nextUrl));
-    }
-    return NextResponse.next();
   }
 
   if (path.startsWith("/manager") && role !== "MANAGER") {

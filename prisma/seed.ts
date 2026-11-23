@@ -48,8 +48,7 @@ async function main() {
   const pw = await bcrypt.hash(seedPassword, 10);
 
   // ---- Founder account -------------------------------------------------
-  // Matches FOUNDER_EMAILS in .env. Sign-in flow is a normal manager; the
-  // founder panel shows up because the email is in the allowlist.
+  // Matches FOUNDER_EMAILS in .env and signs in with an email passcode.
   await prisma.user.upsert({
     where: { email: "admin@marshalhq.com" },
     create: {
@@ -603,7 +602,7 @@ async function main() {
   console.log("Seeded.");
   console.log("  Founder:");
   console.log(
-    "    admin@marshalhq.com / password123  (matches FOUNDER_EMAILS in .env)",
+    "    admin@marshalhq.com / one-time passcode at /login/founder",
   );
   console.log("  Managers:");
   console.log(
