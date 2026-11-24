@@ -14,6 +14,7 @@ type SendEmailParams = {
   subject: string;
   body: string;
   html?: string;
+  idempotencyKey?: string;
 };
 
 export type SendEmailResult =
@@ -53,8 +54,10 @@ export async function sendEmail(
   try {
     const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
+      signal: AbortSignal.timeout(10000),
       headers: {
         "Content-Type": "application/json",
+        ...(params.idempotencyKey && { "Idempotency-Key": params.idempotencyKey }),
         Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({

@@ -1,26 +1,29 @@
+import { Pagination, pageNumber, pageSize } from "@/components/Pagination";
 import { requireFounder } from "@/lib/access";
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { Card, PageHeader } from "@/components/ui";
 import { SUPPORT_CATEGORY_LABEL, type SupportCategory } from "@/lib/types";
 
-export default async function FounderSupportListPage() {
+export default async function FounderSupportListPage({ searchParams }: { searchParams: { page?: string; filter?: string } }) {
   await requireFounder();
+  const total = await prisma.supportRequest.count();
+  const page = pageNumber(searchParams.page, total);
   const requests = await prisma.supportRequest.findMany({
-    take: 200,
-    orderBy: [{ resolvedAt: "asc" }, { createdAt: "desc" }],
+    take: pageSize, skip: (page - 1) * pageSize,
+    orderBy: [{ resolvedAt: { sort: "asc", nulls: "first" } }, { createdAt: "desc" }, { id: "desc" }],
     include: {
       user: { select: { email: true, role: true } },
     },
   });
 
-  const openCount = requests.filter((r) => !r.resolvedAt).length;
+  const openCount = await prisma.supportRequest.count({ where: { resolvedAt: null } });
 
   return (
     <div>
       <PageHeader
         title="Support & privacy requests"
-        subtitle={`${openCount} open \u00b7 ${requests.length} total. Privacy and deletion requests are handled manually.`}
+        subtitle={`${openCount} open \u00b7 ${total} total. Privacy and deletion requests are handled manually.`}
       />
       <Card>
         <div className="overflow-x-auto">
@@ -43,7 +46,7 @@ export default async function FounderSupportListPage() {
                   <td className="py-2 pr-4">
                     <span className="font-medium text-ink">{r.email}</span>
                     <p className="text-xs text-ink-soft">
-                      {r.user ? r.user.role : "Logged out"}
+                      {r.user ? r.user.role : "No linked account"}
                     </p>
                   </td>
                   <td className="py-2 pr-4 text-ink-muted">
@@ -85,6 +88,7 @@ export default async function FounderSupportListPage() {
           </table>
         </div>
       </Card>
+      <Pagination page={page} total={total} base={"/founder/support"} />
     </div>
   );
 }

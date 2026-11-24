@@ -12,13 +12,13 @@ export function ShiftFacts({ shift }: {
     rateUnit: string;
   };
 }) {
-  const [dates, times] = formatShiftBlock(
+  const [dates, ...times] = formatShiftBlock(
     shift.startDate, shift.endDate, shift.dailyStartTime, shift.dailyEndTime,
   ).split(" · ");
   const facts: { icon: IconName; label: string; value: string }[] = [
     { icon: "pin", label: "Location", value: shift.location },
     { icon: "calendar", label: "Dates", value: dates },
-    { icon: "clock", label: "Hours", value: times },
+    { icon: "clock", label: "Hours", value: times.join(" · ") },
     { icon: "pound", label: "Rate", value: formatRate(shift.rate, shift.rateUnit) },
   ];
 

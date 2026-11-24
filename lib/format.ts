@@ -18,7 +18,7 @@ export function formatRate(rate: number, unit: string): string {
 }
 
 export function formatTimeRange(start: string, end: string): string {
-  return `${start}\u2013${end}`;
+  return `${start}\u2013${end}${end < start ? " (next day)" : ""}`;
 }
 
 // Compare two Dates by their UTC calendar day. Block lengths and same-day
@@ -50,6 +50,11 @@ export function formatShiftBlock(
   const start = typeof startDate === "string" ? new Date(startDate) : startDate;
   const end = typeof endDate === "string" ? new Date(endDate) : endDate;
   const time = formatTimeRange(dailyStartTime, dailyEndTime);
+  if (dailyEndTime < dailyStartTime) {
+    const lastWrap = new Date(end.getTime() + 86_400_000);
+    const calls = isSameUtcDay(start, end) ? formatDate(start) : `${formatDate(start)} to ${formatDate(end)}`;
+    return `Calls ${calls} · ${time} · Final wrap ${formatDate(lastWrap)} at ${dailyEndTime}`;
+  }
   if (isSameUtcDay(start, end)) {
     return `${formatDate(start)} \u00b7 ${time}`;
   }

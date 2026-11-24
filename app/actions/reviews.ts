@@ -4,10 +4,10 @@ import { prisma } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requirePilotUser } from "@/lib/access";
-import { workedFilter } from "@/lib/attendance";
+import { lockShift } from "@/lib/booking-lock";
 import { ReviewSchema } from "@/lib/zod";
 import { reviewDirectionFor } from "@/lib/reviews";
-import { flushNotificationEmails, type NotifyParams } from "@/lib/notify";
+import { flushNotificationEmails, saveNotice } from "@/lib/notify";
 
 export type ReviewActionState = { error?: string } | null;
 
@@ -48,7 +48,7 @@ export async function submitReviewAction(
     // form sends marshalId; with several booked marshals and no explicit
     // choice we refuse rather than guess.
     const acceptedApps = await prisma.application.findMany({
-      where: { shiftId, status: "ACCEPTED", ...workedFilter },
+      where: { shiftId, status: "ACCEPTED", attendance: "WORKED" },
       select: { id: true, status: true, marshalId: true },
       orderBy: { decidedAt: "asc" },
     });
@@ -74,7 +74,7 @@ export async function submitReviewAction(
     subjectId = application?.marshalId ?? "";
   } else {
     application = await prisma.application.findFirst({
-      where: { shiftId, marshalId: userId, ...workedFilter },
+      where: { shiftId, marshalId: userId, attendance: "WORKED" },
       select: { id: true, status: true, marshalId: true },
     });
     subjectId = shift.managerId;
@@ -85,17 +85,23 @@ export async function submitReviewAction(
     return { error: "You can’t review this shift." };
   }
 
+  let deliveryId: string;
   try {
-    await prisma.review.create({
-      data: {
-        shiftId,
-        authorId: userId,
-        subjectId,
-        direction,
-        rating,
-        comment: comment || null,
-      },
+    const saved = await prisma.$transaction(async tx => {
+      await lockShift(tx, shiftId);
+      const eligible = await tx.application.findFirst({
+        where: { id: application!.id, shiftId, status: "ACCEPTED", attendance: "WORKED", shift: { status: "COMPLETED" } },
+        select: { id: true },
+      });
+      if (!eligible) return false;
+      const review = await tx.review.create({ data: { shiftId, authorId: userId, subjectId, direction, rating, comment: comment || null } });
+      return saveNotice(tx, { userId: subjectId, kind: "REVIEW_RECEIVED",
+        subject: `New review: ${shift.productionName}`, body: "Your shift review is available.",
+        link: direction === "MANAGER_ON_MARSHAL" ? `/marshal/profile#review-${review.id}` : `/manager/reviews#review-${review.id}`,
+      });
     });
+    if (!saved) return { error: "This booking is no longer eligible for a review." };
+    deliveryId = saved;
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : "";
     if (msg.includes("Unique constraint")) {
@@ -104,14 +110,7 @@ export async function submitReviewAction(
     return { error: "Could not submit your review." };
   }
 
-  const note: NotifyParams = {
-    userId: subjectId,
-    kind: "REVIEW_RECEIVED",
-    subject: `New review: ${shift.productionName}`,
-    body: `You received a ${rating}-star review for ${shift.productionName}. See it on your Setru profile.`,
-  };
-  await prisma.notification.create({ data: note });
-  await flushNotificationEmails([note]);
+  await flushNotificationEmails([deliveryId]);
 
   if (role === "MANAGER") {
     revalidatePath(`/manager/shifts/${shiftId}/booking`);

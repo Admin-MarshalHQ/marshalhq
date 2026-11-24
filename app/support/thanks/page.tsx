@@ -7,8 +7,7 @@ export default function SupportThanksPage() {
       <PageHeader title="Request received" />
       <Card>
         <Alert tone="success">
-          Thanks — we have your request. A confirmation is on its way to the
-          email you gave us.
+          We’ve received your request.
         </Alert>
         <p className="mt-3 text-sm text-ink-muted">
           A human at Setru will review it and reply. Privacy and account

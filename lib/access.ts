@@ -17,7 +17,7 @@ export async function requirePilotUser() {
   const user = await requireUser();
   if (!user.emailVerifiedAt) redirect("/verify-email");
   if (isFounderEmail(user.email) && !isFounderSession(user)) redirect("/login/founder");
-  if (!isPilotParticipant(user.email)) redirect("/pilot-access");
+  if (!isPilotParticipant(user.email, user.role)) redirect("/pilot-access");
   return user;
 }
 
@@ -27,13 +27,14 @@ export async function requireRole(role: Role) {
   return user;
 }
 
-export async function requireFounder(fresh = false) {
+export async function requireFounder(fresh = false, returnTo = "/founder") {
   const session = await auth();
   const user = session?.user;
-  if (!user?.id) redirect("/login/founder");
+  const login = "/login/founder?next=" + encodeURIComponent(returnTo);
+  if (!user?.id) redirect(login);
   if (!isFounderEmail(user.email)) redirect("/");
-  if (fresh && (!user.founderIssuedAt || Date.now() - user.founderIssuedAt >= founderFreshness)) redirect("/login/founder");
-  if (!isFounderSession(user)) redirect("/login/founder");
+  if (fresh && (!user.founderIssuedAt || Date.now() - user.founderIssuedAt >= founderFreshness)) redirect(login);
+  if (!isFounderSession(user)) redirect(login);
   return user;
 }
 

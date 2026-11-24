@@ -18,9 +18,7 @@ export default async function SupportPage() {
       />
       <Card>
         <p className="mb-4 text-sm text-ink-muted">
-          A human reviews every request. Privacy and account deletion requests
-          are handled manually to keep the shift, application, and completion
-          history intact for the people you&rsquo;ve worked with.
+          Ask us to check a booking, correct your record, exercise a privacy right or make a complaint. For a shift issue, include the shift name and date. Please leave out ID documents and other people’s contact details.
         </p>
         <SupportForm loggedInEmail={loggedInEmail} />
       </Card>

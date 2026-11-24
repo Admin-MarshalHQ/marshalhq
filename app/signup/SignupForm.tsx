@@ -20,9 +20,9 @@ function Submit({ role }: { role: "MANAGER" | "MARSHAL" | null }) {
   );
 }
 
-export default function SignupForm() {
+export default function SignupForm({ initialRole }: { initialRole: "MANAGER" | "MARSHAL" | null }) {
   const [state, action] = useFormState(signupAction, null);
-  const [role, setRole] = useState<"MANAGER" | "MARSHAL" | null>(null);
+  const [role, setRole] = useState<"MANAGER" | "MARSHAL" | null>(initialRole);
 
   return (
     <form action={action} className="space-y-5">
@@ -41,7 +41,7 @@ export default function SignupForm() {
             <input
               type="radio"
               name="role"
-              value="MANAGER"
+              value="MANAGER" checked={role === "MANAGER"}
               className="mr-2 size-4"
               onChange={() => setRole("MANAGER")}
               required
@@ -61,7 +61,7 @@ export default function SignupForm() {
             <input
               type="radio"
               name="role"
-              value="MARSHAL"
+              value="MARSHAL" checked={role === "MARSHAL"}
               className="mr-2 size-4"
               onChange={() => setRole("MARSHAL")}
               required

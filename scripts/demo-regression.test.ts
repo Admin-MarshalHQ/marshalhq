@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { initialApplications, productions, roster, transition } from "../app/demo/model";
+import { initialApplications, makeShifts, productions, roster, transition } from "../app/demo/model";
 import { marshalApplicationOutcome } from "../lib/application-outcome";
 
 test("the dawn call fills exactly once and releases a booking only for the selected pair", () => {
@@ -18,7 +18,7 @@ test("the dawn call fills exactly once and releases a booking only for the selec
   assert.equal(roster(shift, filled).status, "FILLED");
   assert.equal(transition(filled, accept), filled);
   assert.equal(transition(filled, apply), filled);
-  assert.equal(marshalApplicationOutcome("ACCEPTED", roster(shift, filled)).label, "Booked");
+  assert.equal(marshalApplicationOutcome("ACCEPTED", { ...makeShifts("2099-06-01")[0], ...roster(shift, filled) }).label, "Booked");
   assert.equal(roster(shift, initialApplications).booked, 1);
 });
 
@@ -49,7 +49,7 @@ test("choosing Robin preserves Alex’s application as shift filled, including a
   assert.equal(full.booked, 2);
   assert.equal(alex.coverNote, lockside.note);
   assert.equal(alex.status, "APPLIED");
-  assert.equal(marshalApplicationOutcome(alex.status, full).label, "Shift filled");
+  assert.equal(marshalApplicationOutcome(alex.status, { ...makeShifts("2099-06-01")[0], ...full }).label, "Shift filled");
   assert.equal(transition(result, { ...apply, type: "accept" }), result);
   assert.deepEqual(JSON.parse(JSON.stringify(moves)).reduce(transition, initialApplications), result);
   assert.equal(transition(transition(initialApplications, bookRobin), apply).some(a => a.shift === "lockside" && a.marshal === "alex"), false);

@@ -16,11 +16,9 @@ function Submit() {
 export default function ManagerProfileForm({
   companyName,
   displayName,
-  phone,
 }: {
   companyName: string;
   displayName: string;
-  phone: string | null;
 }) {
   const [state, action] = useFormState(saveManagerProfileAction, null);
   return (
@@ -32,15 +30,7 @@ export default function ManagerProfileForm({
       <Field label="Your name" error={state?.fieldErrors?.displayName}>
         <input name="displayName" required defaultValue={displayName} />
       </Field>
-      <Field label="Phone" hint="Released only after a booking is confirmed">
-        <input
-          type="tel"
-          name="phone"
-          defaultValue={phone ?? ""}
-          autoComplete="tel"
-          placeholder="07911 123456"
-        />
-      </Field>
+      <a href="/settings" className="text-sm underline">Edit your booking phone in Settings</a>
       <Submit />
     </form>
   );

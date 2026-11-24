@@ -29,7 +29,7 @@ export function ShiftListing({ shift, byline, booked, status, href, featured }: 
       <div className="mt-3 flex flex-wrap items-center gap-3 border-t border-line pt-3">
         <CapacityMeter booked={booked} needed={shift.marshalsNeeded} />
         {status && <ApplicationStatusBadge status={status} />}
-        {featured && <span className="ml-auto text-sm font-bold text-coral-ink">View dawn call →</span>}
+        {featured && <span className="ml-auto text-sm font-bold text-coral-ink">View shift →</span>}
       </div>
     </li>
   );

@@ -1,3 +1,5 @@
+import { hiringOpen } from "@/lib/workspace-shifts";
+import { worked } from "@/lib/attendance";
 import type { Metadata } from "next";
 import { requireRole } from "@/lib/access";
 import { prisma } from "@/lib/db";
@@ -28,7 +30,7 @@ export default async function MarshalHome() {
   });
 
   const booked = currentBookings(apps, new Date());
-  const awaitingDecision = apps.filter((a) => a.status === "APPLIED" && a.shift.status === "OPEN" && !a.shift.paused);
+  const awaitingDecision = apps.filter((a) => a.status === "APPLIED" && hiringOpen(a.shift));
   const nextBooking = booked[0];
   const featuredOutcome = nextBooking && marshalApplicationOutcome(nextBooking.status, nextBooking.shift);
   const recentApplications = apps.slice(0, 10);
@@ -71,10 +73,11 @@ export default async function MarshalHome() {
         </div>
       )}
 
-      <div className="summary-grid">
+      <ButtonLink href="/marshal/availability" variant="secondary">Manage date availability</ButtonLink>
+      <div className="summary-grid mt-4">
         <StatCard label="Awaiting a decision" value={awaitingDecision.length} />
         <StatCard label="Current and upcoming bookings" value={booked.length} icon="check" tone="ok" />
-        <StatCard label="Completed shifts" value={profile?.completedCount ?? 0} href="/marshal/history" icon="calendar" tone="neutral" />
+        <StatCard label="Completed shifts" value={apps.filter(a => a.status === "ACCEPTED" && a.shift.status === "COMPLETED" && worked(a.attendance)).length} href="/marshal/history" icon="calendar" tone="neutral" />
       </div>
 
       <div className="mb-2 mt-6 flex flex-wrap items-center justify-between gap-2">
@@ -84,7 +87,7 @@ export default async function MarshalHome() {
       {recentApplications.length === 0 ? (
         <EmptyState
           title="No applications yet"
-          body="Browse open shifts to find work near you. You'll see each application's status here after you apply."
+          body="Browse open shifts to find your next shoot. You'll see each application's status here after you apply."
           action={<ButtonLink href="/marshal/shifts">Browse shifts</ButtonLink>}
         />
       ) : (

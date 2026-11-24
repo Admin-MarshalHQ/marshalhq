@@ -1,3 +1,4 @@
+import { confirmedCount } from "@/lib/attendance";
 import { requireFounder } from "@/lib/access";
 import Link from "next/link";
 import { prisma } from "@/lib/db";
@@ -11,7 +12,7 @@ export default async function FounderMarshalProfilesPage() {
     take: 200,
     orderBy: [{ paused: "desc" }, { createdAt: "desc" }],
     include: {
-      user: { select: { email: true } },
+      user: { select: { email: true, _count: confirmedCount } },
     },
   });
 
@@ -51,7 +52,7 @@ export default async function FounderMarshalProfilesPage() {
                     {AVAILABILITY_LABEL[p.availability as Availability]}
                   </td>
                   <td className="py-2 pr-4 text-ink-muted">
-                    {p.reliableCount}/{p.completedCount}
+                    {p.user._count.applications}
                   </td>
                   <td className="py-2">
                     {p.paused ? (

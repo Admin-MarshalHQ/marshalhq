@@ -1,5 +1,6 @@
 "use server";
 
+import { conflictingBooking } from "@/lib/booking-conflict";
 import { prisma } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -12,7 +13,7 @@ import {
   isShiftSchedulable,
 } from "@/lib/state";
 import { ApplySchema } from "@/lib/zod";
-import { flushNotificationEmails, type NotifyParams } from "@/lib/notify";
+import { flushNotificationEmails, saveNotice, notifyPendingAfterDropout, type NotifyParams } from "@/lib/notify";
 import { lockShift } from "@/lib/booking-lock";
 import { formatShiftBlock } from "@/lib/format";
 
@@ -31,11 +32,12 @@ export async function applyToShiftAction(
   }
   const { shiftId, coverNote } = parsed.data;
 
-  const emailQueue: NotifyParams[] = [];
+  const emailQueue: string[] = [];
   try {
     const result = await prisma.$transaction(async (tx) => {
       await lockShift(tx, shiftId);
-      await tx.$queryRaw`SELECT id FROM "User" WHERE id = ${user.id} FOR UPDATE`;
+      const [actor] = await tx.$queryRaw<{role: string}[]>`SELECT role FROM "User" WHERE id = ${user.id} FOR UPDATE`;
+      if (actor?.role !== "MARSHAL") return { error: "Your account role changed. Sign in again." };
       await tx.$queryRaw`SELECT id FROM "MarshalProfile" WHERE "userId" = ${user.id} FOR UPDATE`;
       const profile = await tx.marshalProfile.findUnique({ where: { userId: user.id } });
       if (!profile) return { error: "Create your marshal profile before applying." };
@@ -47,11 +49,7 @@ export async function applyToShiftAction(
       }
       const booked = await tx.application.count({ where: { shiftId, status: "ACCEPTED" } });
       if (booked >= shift.marshalsNeeded) return { error: "This shift is already filled." };
-      const conflict = await tx.application.findFirst({
-        where: { marshalId: user.id, status: "ACCEPTED", shiftId: { not: shiftId },
-          shift: { status: { in: ["OPEN", "FILLED"] }, startDate: { lte: shift.endDate }, endDate: { gte: shift.startDate } } },
-        select: { shift: { select: { productionName: true } } },
-      });
+      const conflict = await conflictingBooking(tx, user.id, shift);
       if (conflict) return { error: `These dates overlap your booking on ${conflict.shift.productionName}.` };
       await tx.application.create({
         data: {
@@ -82,9 +80,7 @@ export async function applyToShiftAction(
         subject: `New applicant: ${shift.productionName}`,
         body: `${profile.fullName} applied to ${shift.productionName} (${whenStr}). You now have ${pendingCount} pending applicant${pendingCount === 1 ? "" : "s"} to review on this shift.`,
       };
-      await tx.notification.create({ data: applicantNote });
-      await tx.notification.create({ data: managerNote });
-      emailQueue.push(applicantNote, managerNote);
+      emailQueue.push(await saveNotice(tx, applicantNote), await saveNotice(tx, managerNote));
       return null;
     });
     if (result) return result;
@@ -128,8 +124,7 @@ export async function withdrawApplicationAction(applicationId: string) {
 
   assertApplicationTransition(app.status, "WITHDRAWN");
 
-  const emailQueue: NotifyParams[] = [];
-  let transitionedAccepted = false;
+  const emailQueue: string[] = [];
   await prisma.$transaction(async (tx) => {
     await lockShift(tx, app.shiftId);
     const current = await tx.shift.findUniqueOrThrow({ where: { id: app.shiftId } });
@@ -159,40 +154,18 @@ export async function withdrawApplicationAction(applicationId: string) {
         },
       });
       if (reopen.count !== 1) throw new Error("WITHDRAW_STALE");
-      transitionedAccepted = true;
+      emailQueue.push(await saveNotice(tx, {
+        userId: shift.managerId, kind: "SHIFT_STATUS_CHANGED",
+        subject: `Accepted marshal withdrew: ${shift.productionName}`,
+        body: "An accepted marshal withdrew. A place has reopened on your shift.",
+        link: `/manager/shifts/${shift.id}`,
+      }, shift.id));
+      if (current.status === "FILLED") emailQueue.push(...await notifyPendingAfterDropout(tx, shift));
     }
   }).catch((err) => {
-    if (err instanceof Error && err.message === "WITHDRAW_STALE") {
-      flash("stale");
-    }
+    if (err instanceof Error && err.message === "WITHDRAW_STALE") flash("stale");
     throw err;
   });
-
-  if (transitionedAccepted) {
-    const managerNote: NotifyParams = {
-      userId: shift.managerId,
-      kind: "SHIFT_STATUS_CHANGED",
-      subject: `Accepted marshal withdrew: ${shift.productionName}`,
-      body: `An accepted marshal dropped out. One slot has reopened on this shift.`,
-    };
-    await prisma.notification.create({ data: managerNote });
-    emailQueue.push(managerNote);
-    const priorApplicants = await prisma.application.findMany({
-      where: { shiftId: shift.id, status: "APPLIED" },
-      select: { marshalId: true },
-    });
-    for (const prior of priorApplicants) {
-      const note: NotifyParams = {
-        userId: prior.marshalId,
-        kind: "SHIFT_STATUS_CHANGED",
-        subject: `Still under consideration: ${shift.productionName}`,
-        body:
-          "A slot is open again on this shift. Your application is still visible to the manager; no action is needed unless you want to withdraw.",
-      };
-      await prisma.notification.create({ data: note });
-      emailQueue.push(note);
-    }
-  }
   await flushNotificationEmails(emailQueue);
   revalidatePath("/marshal/applications");
   revalidatePath(`/marshal/applications/${applicationId}`);
@@ -203,8 +176,8 @@ export async function withdrawApplicationAction(applicationId: string) {
 // holds. Caught by the outer handler to flash the user back to the applicant
 // page rather than surfacing a server error.
 class StaleAcceptStateError extends Error {
-  constructor() {
-    super("STALE_ACCEPT_STATE");
+  constructor(reason = "STALE_ACCEPT_STATE") {
+    super(reason);
   }
 }
 
@@ -218,7 +191,7 @@ export async function acceptApplicationAction(applicationId: string) {
   if (!app || app.shift.managerId !== managerId) redirect("/manager");
   const shiftId = app.shiftId;
 
-  const emailQueue: NotifyParams[] = [];
+  const emailQueue: string[] = [];
   try {
     await prisma.$transaction(async (tx) => {
       // Re-read both sides inside the transaction so the checks are made
@@ -252,15 +225,8 @@ export async function acceptApplicationAction(applicationId: string) {
       if (!freshProfile || freshProfile.paused || !canMarshalApply(freshProfile.availability)) {
         throw new StaleAcceptStateError();
       }
-      const conflict = await tx.application.findFirst({
-        where: {
-          marshalId: freshApp.marshalId, status: "ACCEPTED", shiftId: { not: shiftId },
-          shift: { status: { in: ["OPEN", "FILLED"] },
-            startDate: { lte: freshShift.endDate }, endDate: { gte: freshShift.startDate } },
-        },
-        select: { id: true },
-      });
-      if (conflict) throw new StaleAcceptStateError();
+      const conflict = await conflictingBooking(tx, freshApp.marshalId, freshShift);
+      if (conflict) throw new StaleAcceptStateError("date-conflict");
 
       assertApplicationTransition(freshApp.status, "ACCEPTED");
 
@@ -317,11 +283,11 @@ export async function acceptApplicationAction(applicationId: string) {
         subject: `You\u2019re booked: ${freshShift.productionName}`,
         body: `The manager has accepted you for ${freshShift.productionName} (${whenStr}) at ${freshShift.location}. Contact details are now visible on your application page.${phoneNudge}`,
       };
-      await tx.notification.create({ data: acceptedNote });
-      emailQueue.push(acceptedNote);
+      emailQueue.push(await saveNotice(tx, { ...acceptedNote, link: `/marshal/applications/${app.id}` }, shiftId));
     });
   } catch (err) {
     if (err instanceof StaleAcceptStateError) {
+      if (err.message === "date-conflict") redirect(`/manager/shifts/${shiftId}/applicants/${app.id}?conflict=1`);
       revalidatePath(`/manager/shifts/${app.shiftId}/applicants/${app.id}`);
       redirect(`/manager/shifts/${app.shiftId}/applicants/${app.id}?stale=1`);
     }
@@ -348,7 +314,7 @@ export async function rejectApplicationAction(applicationId: string) {
   }
   assertApplicationTransition(app.status, "REJECTED");
 
-  const emailQueue: NotifyParams[] = [];
+  const emailQueue: string[] = [];
   const changed = await prisma.$transaction(async (tx) => {
     await lockShift(tx, app.shiftId);
     const result = await tx.application.updateMany({
@@ -367,8 +333,7 @@ export async function rejectApplicationAction(applicationId: string) {
         app.shift.dailyEndTime,
       )}). Your profile stays visible for other open shifts.`,
     };
-    await tx.notification.create({ data: rejectedNote });
-    emailQueue.push(rejectedNote);
+    emailQueue.push(await saveNotice(tx, rejectedNote));
     return true;
   });
   if (!changed) redirect(`/manager/shifts/${app.shiftId}/applicants/${app.id}?stale=1`);

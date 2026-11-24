@@ -9,7 +9,6 @@ export default async function EditManagerProfilePage() {
   const account = await prisma.user.findUnique({
     where: { id: user.id },
     select: {
-      phone: true,
       managerProfile: {
         select: { companyName: true, displayName: true },
       },
@@ -29,7 +28,6 @@ export default async function EditManagerProfilePage() {
         <ManagerProfileForm
           companyName={account.managerProfile.companyName}
           displayName={account.managerProfile.displayName}
-          phone={account.phone}
         />
       </Card>
     </div>

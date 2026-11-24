@@ -18,6 +18,7 @@ export default function ForgotPage() {
           Back to log in
         </Link>
       </p>
+    <p className="mt-4 text-sm"><a href="/login/founder" className="underline">Founder sign-in by email code</a></p>
     </div>
   );
 }

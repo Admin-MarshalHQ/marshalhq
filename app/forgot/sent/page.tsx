@@ -7,8 +7,7 @@ export default function ForgotSentPage() {
       <PageHeader title="Check your inbox" />
       <Card>
         <Alert tone="info">
-          If there is a Setru account linked to that email, we have sent a
-          reset link. It expires in 1 hour and can only be used once.
+          If the address belongs to a password account, check your inbox for a reset link. The link expires in one hour.
         </Alert>
         <p className="mt-3 text-sm text-ink-muted">
           Nothing arriving? Check the spam folder, or{" "}
@@ -23,6 +22,7 @@ export default function ForgotSentPage() {
           </Link>
         </p>
       </Card>
+    <p className="mt-4 text-sm"><a href="/login/founder" className="underline">Founder sign-in by email code</a></p>
     </div>
   );
 }

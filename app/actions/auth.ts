@@ -1,5 +1,6 @@
 "use server";
 
+import { invitedRole } from "@/lib/pilot-participant";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db";
 import { SignupSchema } from "@/lib/zod";
@@ -41,6 +42,8 @@ export async function signupAction(
         "This email can\u2019t be used to create an account. If you think this is a mistake, contact support.",
     };
   }
+  const intended = invitedRole(email);
+  if (intended && intended !== role) return { error: "Use the role in your pilot invitation or contact support to correct it." };
   const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) return { error: "An account with that email already exists." };
   const passwordHash = await bcrypt.hash(password, 10);
@@ -62,7 +65,7 @@ export async function signupAction(
           : undefined,
     },
   });
-  await issueEmailVerification(created.id, created.email);
+  const delivery = await issueEmailVerification(created.id, created.email);
 
   try {
     await signIn("credentials", {
@@ -73,7 +76,7 @@ export async function signupAction(
   } catch {
     // Fall through: user can log in manually.
   }
-  redirect("/verify-email");
+  redirect(`/verify-email?delivery=${delivery}`);
 }
 
 export async function loginAction(

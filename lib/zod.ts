@@ -1,3 +1,4 @@
+import { validShiftWindow } from "./state";
 import { z } from "zod";
 import { normalisePhone, PHONE_INVALID_MESSAGE } from "./phone";
 import { CONTACT_LEAK_MESSAGE, detectContactLeak } from "./contact-detect";
@@ -73,7 +74,7 @@ export const ShiftDraftSchema = z
       .number()
       .int("Enter a whole number")
       .min(1, "At least one marshal is required"),
-    rate: z.coerce.number().positive("Rate must be positive"),
+    rate: z.coerce.number().min(0.01, "Enter at least £0.01").multipleOf(0.01, "Enter a rate in pounds and pence"),
     rateUnit: z.enum(["HOUR", "DAY"]),
     duties: noContactLeak(
       z.string().trim().min(1, "Describe the duties").max(2000),
@@ -84,30 +85,22 @@ export const ShiftDraftSchema = z
   .superRefine((v, ctx) => {
     const start = new Date(v.startDate);
     const end = new Date(v.endDate);
-    if (
-      Number.isNaN(start.getTime()) ||
-      Number.isNaN(end.getTime()) ||
-      end.getTime() < start.getTime()
-    ) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["endDate"],
-        message: "End date can’t be before start date",
-      });
+    for (const name of ["startDate", "endDate"] as const) {
+      const value = v[name];
+      const date = new Date(value);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(value) || !Number.isFinite(+date) || date.toISOString().slice(0, 10) !== value) {
+        ctx.addIssue({ code: "custom", path: [name], message: "Enter a valid call date." });
+        return;
+      }
     }
-    if (v.dailyEndTime <= v.dailyStartTime) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["dailyEndTime"],
-        message: "End time must be after start time",
-      });
+    if (end < start) {
+      ctx.addIssue({ code: "custom", path: ["endDate"], message: "The last call must be on or after the first call date." });
+    } else if (!validShiftWindow(start, end, v.dailyStartTime, v.dailyEndTime)) {
+      ctx.addIssue({ code: "custom", path: ["dailyEndTime"], message: "Use different call and wrap times that exist on every scheduled date in London." });
     }
   });
 
 export const MarshalProfileSchema = z.object({
-  phone: z
-    .union([phoneField, z.literal("")])
-    .transform((v) => (v === "" ? null : v)),
   fullName: noContactLeak(z.string().trim().min(1, "Required").max(120)),
   baseLocation: noContactLeak(z.string().trim().min(1, "Required").max(120)),
   travelRadiusMiles: z.coerce.number().int().min(0).max(500),
@@ -144,9 +137,6 @@ export const PhoneSchema = z.object({
 export const ManagerProfileSchema = z.object({
   companyName: noContactLeak(z.string().trim().min(1, "Required").max(120)),
   displayName: noContactLeak(z.string().trim().min(1, "Required").max(120)),
-  phone: z
-    .union([phoneField, z.literal("")])
-    .transform((v) => (v === "" ? null : v)),
 });
 
 export const ApplySchema = z.object({

@@ -6,7 +6,7 @@ import {
   PageHeader,
 } from "@/components/ui";
 import { ShiftListing } from "@/components/ShiftListing";
-import { isShiftSchedulable } from "@/lib/state";
+import { isShiftSchedulable, londonCallDate } from "@/lib/state";
 
 export default async function BrowseShiftsPage() {
   const user = await requireRole("MARSHAL");
@@ -18,8 +18,8 @@ export default async function BrowseShiftsPage() {
   // Paused shifts are hidden from marshal browsing entirely — a paused shift
   // behaves as if the founder has taken it off the market, even if its status
   // is still OPEN in the database.
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const now = new Date();
+  const today = londonCallDate(now);
   const candidates = await prisma.shift.findMany({
     where: {
       status: "OPEN",
@@ -43,7 +43,6 @@ export default async function BrowseShiftsPage() {
     },
   });
 
-  const now = new Date();
   const shifts = candidates.filter((shift) => isShiftSchedulable(shift, now));
 
   return (

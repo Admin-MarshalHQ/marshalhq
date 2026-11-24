@@ -17,6 +17,7 @@ export default async function FounderOverviewPage() {
     applicationCount,
     openSupportCount,
     totalSupportCount,
+    disputedShifts,
     latestSupport,
   ] = await Promise.all([
     prisma.user.count(),
@@ -28,6 +29,7 @@ export default async function FounderOverviewPage() {
     prisma.application.count(),
     prisma.supportRequest.count({ where: { resolvedAt: null } }),
     prisma.supportRequest.count(),
+    prisma.shift.count({ where: { applications: { some: { status: "ACCEPTED", attendance: { in: ["UNRESOLVED", "WORKED_FLAGGED", "PARTIAL_FLAGGED"] } } } } }),
     prisma.supportRequest.findMany({
       orderBy: { createdAt: "desc" },
       take: 5,
@@ -49,6 +51,7 @@ export default async function FounderOverviewPage() {
       />
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <StatCard label="Shifts with attendance disputes" value={disputedShifts} href="/founder/shifts?filter=disputes" />
         <StatCard
           label="Users"
           value={userCount}

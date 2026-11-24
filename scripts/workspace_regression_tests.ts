@@ -36,7 +36,7 @@ test("featured bookings sort by call time and keep a current multi-day booking t
   const elapsed = {
     ...accepted,
     id: "elapsed",
-    shift: { ...shift, startDate: yesterday, dailyEndTime: "12:00", status: "FILLED" },
+    shift: { ...shift, startDate: yesterday, dailyStartTime: "07:00", dailyEndTime: "12:00", status: "FILLED" },
   };
   const current = {
     ...accepted,
@@ -72,7 +72,7 @@ test("attention prioritises live reviews by call time and emits one row for elap
       ["early", "review", 3],
       ["late", "review", 3],
       ["done", "completion", 0],
-      ["elapsed", "elapsed", 3],
+      ["elapsed", "elapsed", 0],
     ],
   );
 });
@@ -90,7 +90,8 @@ test("application outcomes reflect the marshal's place, independent of other boo
     ["ACCEPTED", "OPEN", "Booked"],
     ["ACCEPTED", "FILLED", "Booked"],
     ["APPLIED", "FILLED", "Shift filled"],
-    ["ACCEPTED", "COMPLETED", "Completed"],
+    ["ACCEPTED", "COMPLETED", "Attendance unconfirmed"],
+    ["PRODUCTION_CANCELLED", "CLOSED", "Cancelled by production"],
     ["APPLIED", "COMPLETED", "Shift completed"],
     ["REJECTED", "OPEN", "Rejected"],
     ["WITHDRAWN", "OPEN", "Withdrawn"],
@@ -100,10 +101,10 @@ test("application outcomes reflect the marshal's place, independent of other boo
     ["ACCEPTED", "CLOSED", "Booking cancelled"],
   ];
   for (const [status, shiftStatus, expected] of cases) {
-    assert.equal(marshalApplicationOutcome(status, { ...shift, status: shiftStatus }).label, expected);
+    assert.equal(marshalApplicationOutcome(status, { ...shift, status: shiftStatus }, null, now).label, expected);
   }
   assert.equal(
-    marshalApplicationOutcome("APPLIED", { ...shift, status: "FILLED" }).detail,
+    marshalApplicationOutcome("APPLIED", { ...shift, status: "FILLED" }, null, now).detail,
     "Your application can be reviewed again if a place reopens.",
   );
 });
@@ -111,7 +112,7 @@ test("application outcomes reflect the marshal's place, independent of other boo
 test("historic notifications rebrand the platform reference and retain project names", () => {
   assert.equal(
     notificationDisplayBody("REVIEW_RECEIVED", "Review for MarshalHQ Studios. See it on your MarshalHQ profile."),
-    "Review for MarshalHQ Studios. See it on your Setru profile.",
+    "A review was submitted for this shift.",
   );
   assert.equal(
     notificationDisplayBody("SHIFT_STATUS_CHANGED", "If you have questions about this cancellation, contact MarshalHQ support and we’ll follow up."),
@@ -168,6 +169,13 @@ test("waitlist submissions send matching HTML and plain text after storage with 
     $transaction: async (run: (tx: unknown) => unknown) => run(globalThis.__prisma),
     $executeRaw: async () => 1,
     requestBudget: { deleteMany: async () => ({ count: 0 }) },
+    mailDelivery: {
+      create: async () => ({ id: "test-delivery" }),
+      updateMany: async () => ({ count: 1 }),
+      findUniqueOrThrow: async () => ({ attempts: 1, notification: null, waitlist: {
+        role: storedRole, email: storedRole!.toLowerCase() + "@example.com",
+      } }),
+    },
     waitlistEntry: {
       findFirst: async () => null,
       create: async (input: { data: { role: string } }) => {

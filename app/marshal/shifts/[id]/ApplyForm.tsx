@@ -57,10 +57,10 @@ export default function ApplyForm({
             </span>
           </div>
       )}
-      <Submit />
       <p className="text-xs text-ink-soft">
-        By applying you agree to be contacted if the manager accepts you.
+        By applying, you confirm you are available for every advertised call, including the final wrap. The manager sees your named profile and note now and may receive your name by email. If booked, you each receive access to the other’s booking contact details.
       </p>
+      <Submit />
     </form>
   );
 }

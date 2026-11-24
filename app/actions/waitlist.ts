@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { sendEmail } from "@/lib/mail";
-import { waitlistConfirmationEmail } from "@/lib/waitlist-confirmation";
+import { flushNotificationEmails } from "@/lib/notify";
 import { WaitlistEntrySchema } from "@/lib/zod";
 import { allowRequest } from "@/lib/request-budget";
 
@@ -71,17 +71,26 @@ export async function submitWaitlistEntryAction(
     marshalExperience:
       isMarshal && v.marshalExperience ? v.marshalExperience : null,
     availability: isMarshal && v.availability ? v.availability : null,
-    source: "homepage",
+    source: "homepage:confirmation-and-one-role-update:v1",
   };
 
   let createdId: string;
+  let deliveryId: string | undefined;
   if (!(await allowRequest("waitlist", v.email))) return { error: "Too many requests. Please try again later." };
   try {
     const created = await prisma.$transaction(async tx => {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${"waitlist:" + v.email}, 0))`;
-      const exists = await tx.waitlistEntry.findFirst({ where: { email: v.email, role: v.role }, select: { id: true } });
-      if (exists) return null;
-      return tx.waitlistEntry.create({ data, select: { id: true } });
+      const exists = await tx.waitlistEntry.findFirst({ where: { email: v.email, role: v.role }, select: { id: true, delivery: { select: { id: true } } } });
+      if (exists) {
+        // Historical confirmations have no trustworthy dispatch status.
+        // Only retry tracked deliveries, never replay the historical list.
+        deliveryId = exists.delivery?.id;
+        return null;
+      }
+      const entry = await tx.waitlistEntry.create({ data });
+      const delivery = await tx.mailDelivery.create({ data: { waitlistId: entry.id } });
+      deliveryId = delivery.id;
+      return entry;
     });
     createdId = created?.id ?? "";
   } catch (err) {
@@ -91,20 +100,9 @@ export async function submitWaitlistEntryAction(
     return { error: "Something went wrong saving your interest. Try again." };
   }
 
+  if (deliveryId) await flushNotificationEmails([deliveryId], true);
   if (!createdId) redirect("/early-access/thanks");
   const notifyTo = process.env.SUPPORT_NOTIFY_EMAIL?.trim();
-  const confirmation = sendEmail({
-    to: v.email,
-    ...waitlistConfirmationEmail(v.role),
-  }).then((result) => {
-    if (!result.ok) {
-      console.error("[waitlist] confirmation email failed", {
-        entryId: createdId,
-        reason: result.reason,
-      });
-    }
-  });
-
   const founderNotify = notifyTo
     ? sendEmail({
         to: notifyTo,
@@ -120,7 +118,7 @@ export async function submitWaitlistEntryAction(
       })
     : Promise.resolve();
 
-  await Promise.allSettled([confirmation, founderNotify]);
+  await Promise.allSettled([founderNotify]);
 
   redirect("/early-access/thanks");
 }

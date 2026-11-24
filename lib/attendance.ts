@@ -1,6 +1,6 @@
 export const attendanceLabels = {
   WORKED: "Worked as agreed",
-  WORKED_FLAGGED: "Worked, reliability issue confirmed",
+  WORKED_FLAGGED: "Worked — feedback withheld",
   NOT_WORKED: "Did not work",
   UNRESOLVED: "Awaiting founder review",
 } as const;
@@ -10,7 +10,16 @@ export function isAttendance(value: unknown): value is keyof typeof attendanceLa
 }
 
 export function worked(value: string | null) {
-  return value === null || value === "WORKED" || value === "WORKED_FLAGGED";
+  return value === "WORKED" || value === "WORKED_FLAGGED";
 }
 
-export const workedFilter = { OR: [{ attendance: null }, { attendance: { in: ["WORKED", "WORKED_FLAGGED"] } }] };
+export const workedFilter = { attendance: { in: ["WORKED", "WORKED_FLAGGED"] } };
+export const confirmedWork = { status: "ACCEPTED", shift: { status: "COMPLETED" }, ...workedFilter };
+export const confirmedCount = { select: { applications: { where: confirmedWork } } };
+
+export type Attendance = keyof typeof attendanceLabels;
+export function attendanceLabel(value: string | null) {
+  if (value === "PARTIAL") return "Worked part of the run";
+  if (value === "PARTIAL_FLAGGED") return "Worked part of the run · feedback withheld";
+  return isAttendance(value) ? attendanceLabels[value] : "Individual attendance unconfirmed";
+}

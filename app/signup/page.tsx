@@ -5,7 +5,7 @@ import SignupForm from "./SignupForm";
 
 export const metadata: Metadata = { title: "Create an account" };
 
-export default function SignupPage() {
+export default function SignupPage({searchParams}: {searchParams: {role?: string}}) {
   return (
     <div className="mx-auto max-w-md">
       <PageHeader
@@ -14,7 +14,7 @@ export default function SignupPage() {
         subtitle="Register as a manager or marshal. Invited participants can access pilot shifts after verifying their email."
       />
       <Card>
-        <SignupForm />
+        <SignupForm initialRole={searchParams.role === "MANAGER" || searchParams.role === "MARSHAL" ? searchParams.role : null} />
       </Card>
       <p className="mt-4 text-center text-sm text-ink-muted">
         Already have an account?{" "}
