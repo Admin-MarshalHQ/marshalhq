@@ -59,7 +59,7 @@ export const SUPPORT_CATEGORY_LABEL: Record<SupportCategory, string> = {
   APPLICATION_ISSUE: "Application issue",
   CONTACT_BOOKING: "Contact or booking issue",
   PROFILE_ISSUE: "Profile issue",
-  PRIVACY_DELETION: "Privacy or account deletion request",
+  PRIVACY_DELETION: "Privacy complaint, rights or account deletion",
   TRUST_SAFETY: "Trust or safety concern",
   OTHER: "Other",
 };

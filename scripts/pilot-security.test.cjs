@@ -7,6 +7,7 @@ test("session recovery, founder revocation and public intake controls", async t 
   const url = new URL(process.env.DATABASE_URL);
   assert.equal(url.hostname, "127.0.0.1");
   assert.equal(url.pathname, "/setru_qa");
+  process.env.SETRU_FIXTURE_INTAKE = "1";
   const { prisma } = require("../lib/db.ts");
   t.after(() => prisma.$disconnect());
   const { validateSession } = require("../lib/session-policy.ts");

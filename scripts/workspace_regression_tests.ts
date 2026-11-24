@@ -149,7 +149,7 @@ test("transactional email keeps the configured address under the Setru sender na
 });
 
 test("waitlist submissions send matching HTML and plain text after storage with a minimal founder alert", async (t) => {
-  const keys = ["RESEND_API_KEY", "SUPPORT_NOTIFY_EMAIL", "AUTH_SECRET"] as const;
+  const keys = ["RESEND_API_KEY", "SUPPORT_NOTIFY_EMAIL", "AUTH_SECRET", "SETRU_FIXTURE_INTAKE"] as const;
   const saved = keys.map((key) => process.env[key]);
   t.after(() => {
     keys.forEach((key, i) => {
@@ -160,6 +160,7 @@ test("waitlist submissions send matching HTML and plain text after storage with 
   });
   process.env.RESEND_API_KEY = "test-only";
   process.env.AUTH_SECRET = "unit-test-only";
+  process.env.SETRU_FIXTURE_INTAKE = "1";
   process.env.SUPPORT_NOTIFY_EMAIL = "founder@example.com";
 
   let storedRole: string | undefined;

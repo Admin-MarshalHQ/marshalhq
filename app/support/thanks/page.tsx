@@ -10,9 +10,7 @@ export default function SupportThanksPage() {
           We’ve received your request.
         </Alert>
         <p className="mt-3 text-sm text-ink-muted">
-          A human at Setru will review it and reply. Privacy and account
-          deletion requests are handled manually and may take a few working
-          days.
+          Setru will review your request and use the email address you supplied to follow up.
         </p>
         <p className="mt-3 text-sm text-ink-muted">
           <Link href="/" className="text-accent underline">

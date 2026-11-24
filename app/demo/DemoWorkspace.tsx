@@ -75,7 +75,7 @@ export default function DemoWorkspace({ firstDay }: { firstDay: string }) {
         <a href="/" aria-label="Setru home" className="brand-link"><BrandLogo alt="" /></a>
         <span className="demo-sample">Demo · sample data</span>
       </div>
-      <a className="demo-waitlist" href="/#waitlist">Join the waitlist</a>
+      <a className="demo-waitlist" href="/#waitlist">Private beta access</a>
     </div></header>
     <div className="demo-toolbar"><div className="demo-width flex min-h-16 items-center justify-between gap-2">
       <nav aria-label="Demo role" className="demo-roles">

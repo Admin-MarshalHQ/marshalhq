@@ -1,6 +1,8 @@
 # Setru privacy notice: publication gates
 
-The review copy of `/privacy` is not a complete notice and is **not ready to publish**. The existing production notice remains unchanged; that is not legal clearance for existing intake. The legal-readiness review recommended holding new waitlist entries while these items are open. This draft does not alter public intake or pilot access. In local dev or an access-controlled Vercel preview only, set `SETRU_PRIVACY_REVIEW=1` to see the copy. Production cannot enable this draft through that flag.
+The public pages describe development use, existing records, the synthetic demo and Support. The prospective intake notice remains a preview-only draft. New waitlist entries and registrations are held at the page and server action before validation, persistence or mail. Existing accounts, recovery, rights requests and the demo remain accessible. This change neither deletes records nor authorises real hiring.
+
+For local fixture tests only, SETRU_FIXTURE_INTAKE=1 exercises the original intake flows. Hosted previews and production builds refuse this switch. Use SETRU_PRIVACY_REVIEW=1 in local development or a protected preview to inspect the prospective notice. Review and approve each intake route separately before reopening it.
 
 Before replacing the published notice, obtain and document:
 
@@ -12,3 +14,11 @@ Before replacing the published notice, obtain and document:
 - **Collection and exercise of rights:** resolve Article 13/14 applicability and notices for any historic or separately sourced records; confirm how requests are handled. Recheck the notice links and summary in the footer, shared waitlist form and support (already linked in the current build), and add any remaining collection notices needed for the authorised launch scope.
 
 Primary sources: [ICO right to be informed](https://ico.org.uk/for-organisations/uk-gdpr-guidance-and-resources/individual-rights/individual-rights/right-to-be-informed/) and [Electronic Commerce Regulations 2002, regulation 6](https://www.legislation.gov.uk/uksi/2002/2013/regulation/6). Source reconciliation: `app/actions/waitlist.ts`, `app/actions/recovery.ts`, `app/actions/hiring.ts`, `app/actions/shifts.ts`, accepted booking pages, `lib/mail.ts`, and the amended legal-readiness pack. Verify the final controller and service-provider statements with the founder/adviser before enabling collection or release.
+
+
+## Release decisions
+
+- **Development and demo:** Check the signed-out homepage, demo, legal pages, Support, login and both intake holds on the deployed revision. Preserve existing rights and withdrawal requests. Prove the operator can receive, handle and reply to them. A rendered form does not prove delivery.
+- **Waitlist:** Resolve the controller, public contact, lawful bases, provider transfers, retention and withdrawal evidence above. Test receipt, retry and opt-out for the exact one-update wording. Review historic entries separately.
+- **Private pilot:** Before collecting real accounts, approve participant terms and a privacy notice, implement versioned affirmative assent for new and existing users and provide a retainable copy. Before advertising, get specialist advice, document the direct GB hirer’s authority, role, risks, rate, payer and terms, and deliver the dated brief. Clear each named application before display, notification or manual introduction. Rehearse pair-only contact, individual night and multi-day attendance, correction, disputed feedback and rights handling on the deployed revision. Assess the risks of work history affecting future hiring. Use the three restricted vacancy records and record founder release.
+- **Public beta:** Verify actual pilot outcomes, resolve release-critical defects, confirm operating cover, limits and the wider model, and obtain a separate founder decision. Record deployment, test scope and milestone decisions in Evidence and gates. Keep private evidence and addresses outside the repository.

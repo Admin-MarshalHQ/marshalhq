@@ -34,7 +34,7 @@ export default function LoginPage({
       <p className="mt-4 text-center text-sm text-ink-muted">
         Looking for access?{" "}
         <Link href="/#waitlist" className="text-accent underline">
-          Join the waitlist
+          Private beta access
         </Link>
       </p>
     </div>

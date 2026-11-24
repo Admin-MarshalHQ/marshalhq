@@ -1,5 +1,7 @@
 "use server";
 
+import { intakeHeld } from "@/lib/intake";
+
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { sendEmail } from "@/lib/mail";
@@ -16,6 +18,7 @@ export async function submitWaitlistEntryAction(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
+  if (intakeHeld()) return { error: "New waitlist entries are paused." };
   const get = (k: string) => {
     const v = formData.get(k);
     return v == null ? "" : String(v);

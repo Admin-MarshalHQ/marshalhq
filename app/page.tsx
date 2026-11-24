@@ -1,3 +1,4 @@
+import { intakeHeld } from "@/lib/intake";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -12,7 +13,7 @@ import "./home.css";
 
 const title = "Setru | Location marshal hiring for UK film and TV";
 const description =
-  "Post clear shifts, compare applicants and share contact details after acceptance. Join the Setru private beta waitlist for UK film and TV.";
+  "Post clear shifts, compare applicants and share contact details after acceptance. Explore the UK film and TV hiring demo.";
 const socialImage = {
   url: "/brand/setru-social.png",
   width: 1200,
@@ -54,9 +55,9 @@ export default async function Landing() {
           </nav>
           <div className="home-header-actions">
             <Link href="/login" className="shell-link">Log in</Link>
-            <ButtonLink href="#waitlist" className="home-nav-waitlist">
-              <span className="hidden sm:inline">Join the waitlist</span>
-              <span className="sm:hidden">Waitlist</span>
+            <ButtonLink href="/demo" className="home-nav-waitlist">
+              <span className="hidden sm:inline">View demo</span>
+              <span className="sm:hidden">Demo</span>
             </ButtonLink>
             <details className="home-mobile-menu">
               <summary className="shell-icon list-none" aria-label="About Setru menu">
@@ -79,10 +80,10 @@ export default async function Landing() {
               rate and duties before they apply.
             </p>
             <div className="home-hero-actions">
-              <ButtonLink href="#waitlist">
-                Join the waitlist <Icon name="arrow" className="size-4 shrink-0" />
+              <ButtonLink href="/demo">
+                View demo <Icon name="arrow" className="size-4 shrink-0" />
               </ButtonLink>
-              <a href="/demo" className="home-text-link">View demo</a>
+              <a href="#waitlist" className="home-text-link">Private beta access</a>
             </div>
           </div>
           <ExampleShift />
@@ -95,10 +96,11 @@ export default async function Landing() {
 
       <section id="waitlist" tabIndex={-1} className="home-section border-t border-line bg-coral-soft" aria-labelledby="waitlist-heading">
         <div className="marketing-width !max-w-3xl">
-          <h2 id="waitlist-heading" className="text-2xl font-bold tracking-tight sm:text-3xl">Join the private beta waitlist</h2>
-          <p className="mt-2 text-ink-muted">{WAITLIST_NEXT_STEP}</p>
-          <a href="/demo" className="home-text-link">View demo</a>
-          <EarlyAccessForm />
+          <h2 id="waitlist-heading" className="text-2xl font-bold tracking-tight sm:text-3xl">Private beta access</h2>
+          {intakeHeld() ? <p className="mt-2 text-ink-muted">
+            New waitlist entries and registrations are paused. If you have already joined, you can
+            ask to leave or update your details through <Link className="underline" href="/support">Support</Link>.
+          </p> : <><p className="mt-2 text-ink-muted">{WAITLIST_NEXT_STEP}</p><EarlyAccessForm /></>}
         </div>
       </section>
     </div>

@@ -52,6 +52,7 @@ test("logged workflow regressions against disposable PostgreSQL", async t => {
   const dbUrl = new URL(process.env.DATABASE_URL);
   assert.equal(dbUrl.hostname, "127.0.0.1");
   assert.equal(dbUrl.pathname, "/setru_qa");
+  process.env.SETRU_FIXTURE_INTAKE = "1";
   const { PrismaClient } = require("@prisma/client");
   const actor = new AsyncLocalStorage();
   let failNotice;
