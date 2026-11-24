@@ -1,10 +1,14 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { PageHeader } from "@/components/ui";
+import ReviewNotice, { showPrivacyReview } from "./ReviewNotice";
 
 export const metadata: Metadata = { title: "Privacy" };
 
 export default function Privacy() {
+  if (showPrivacyReview()) {
+    return <div className="mx-auto max-w-3xl"><PageHeader title="Privacy" /><ReviewNotice /></div>;
+  }
   return (
     <div className="mx-auto max-w-3xl">
       <PageHeader title="Privacy" />
