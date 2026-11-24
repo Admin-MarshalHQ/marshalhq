@@ -29,7 +29,7 @@ export default async function FounderOverviewPage() {
     prisma.application.count(),
     prisma.supportRequest.count({ where: { resolvedAt: null } }),
     prisma.supportRequest.count(),
-    prisma.shift.count({ where: { applications: { some: { status: "ACCEPTED", attendance: { in: ["UNRESOLVED", "WORKED_FLAGGED"] } } } } }),
+    prisma.shift.count({ where: { applications: { some: { status: "ACCEPTED", attendance: { in: ["UNRESOLVED", "WORKED_FLAGGED", "PARTIAL_FLAGGED"] } } } } }),
     prisma.supportRequest.findMany({
       orderBy: { createdAt: "desc" },
       take: 5,

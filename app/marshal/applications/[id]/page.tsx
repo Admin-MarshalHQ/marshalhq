@@ -31,6 +31,7 @@ import {
   CONTACT_RELEASED_BODY_MARSHAL,
   CONTACT_RELEASED_HEADING,
 } from "@/lib/copy";
+import { RunAttendance } from "@/components/RunAttendance";
 import ReviewForm from "@/components/ReviewForm";
 import { StarRatingDisplay } from "@/components/StarRating";
 import { ratingSummary } from "@/lib/reviews";
@@ -158,6 +159,7 @@ export default async function MyApplicationDetail({
       })()}
 
       <p className="mb-4 text-sm text-ink-muted">{outcome.detail}</p>
+      <RunAttendance days={app.attendanceDays} releasedFrom={app.releasedFrom} />
 
       {withdrawFlash === "committed" && (
         <div className="mb-4">

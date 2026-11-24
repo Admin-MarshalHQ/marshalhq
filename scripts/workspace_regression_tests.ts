@@ -36,7 +36,7 @@ test("featured bookings sort by call time and keep a current multi-day booking t
   const elapsed = {
     ...accepted,
     id: "elapsed",
-    shift: { ...shift, startDate: yesterday, dailyEndTime: "12:00", status: "FILLED" },
+    shift: { ...shift, startDate: yesterday, dailyStartTime: "07:00", dailyEndTime: "12:00", status: "FILLED" },
   };
   const current = {
     ...accepted,

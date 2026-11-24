@@ -30,7 +30,7 @@ test("manager cancellation honours final wrap and preserves attendance", async (
   async function run(status, endDate, booked) {
     writes = [];
     const rendered = { managerId: "manager-1", status, productionName: "Example", endDate: new Date("2098-02-01"), dailyEndTime: "18:00" };
-    snapshot = { rendered, current: { ...rendered, endDate: new Date(endDate) },
+    snapshot = { rendered, current: { ...rendered, startDate: new Date(endDate), endDate: new Date(endDate), dailyStartTime: "07:00" },
       accepted: booked ? [{ id: "booking", marshalId: "marshal-1" }] : [],
       pending: [{ id: "pending", marshalId: "marshal-2" }],
     };

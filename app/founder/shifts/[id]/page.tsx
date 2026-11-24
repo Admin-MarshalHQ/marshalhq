@@ -1,7 +1,9 @@
 import { requireFounder } from "@/lib/access";
 import { AttendanceForm } from "@/components/AttendanceForm";
 import { resolveAttendanceAction } from "@/app/actions/shifts";
-import { attendanceLabels, isAttendance } from "@/lib/attendance";
+import { RunAttendance } from "@/components/RunAttendance";
+import { recordedDays } from "@/lib/run-attendance";
+import { attendanceLabel } from "@/lib/attendance";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
@@ -194,7 +196,9 @@ export default async function FounderShiftDetailPage({
       </div>
 
       {searchParams.attendance === "stale" && <Alert tone="warn">The record was not changed. Check the current outcome and enter a reason before saving a different outcome.</Alert>}
-      {reviewable.map(app => <AttendanceForm key={app.id} resolving roster={[app]} action={resolveAttendanceAction.bind(null, shift.id)} />)}
+      {reviewable.map(app => app.attendanceDays ? Object.entries(recordedDays(app.attendanceDays)).sort().map(([day, outcome]) =>
+        <AttendanceForm key={app.id + day} resolving callDate={day} roster={[{ ...app, attendance: outcome }]} action={resolveAttendanceAction.bind(null, shift.id)} />)
+        : <AttendanceForm key={app.id} resolving roster={[app]} action={resolveAttendanceAction.bind(null, shift.id)} />)}
       <h2 className="mt-6 mb-2 text-sm font-semibold uppercase tracking-wide text-ink-soft">
         Applications ({shift.applications.length})
       </h2>
@@ -226,7 +230,8 @@ export default async function FounderShiftDetailPage({
                       Marshal paused
                     </span>
                   )}
-                  {isAttendance(a.attendance) && <span>{attendanceLabels[a.attendance]}</span>}
+                  {a.attendance && <span>{attendanceLabel(a.attendance)}</span>}
+                  <RunAttendance days={a.attendanceDays} releasedFrom={a.releasedFrom} />
                   <ApplicationStatusBadge status={a.status} />
                 </div>
               </li>

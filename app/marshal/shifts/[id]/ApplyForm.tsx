@@ -58,7 +58,7 @@ export default function ApplyForm({
           </div>
       )}
       <p className="text-xs text-ink-soft">
-        By applying, you confirm you are willing to work the advertised dates and terms. The manager sees your named profile and note now and may receive your name by email. If booked, you each receive access to the other’s booking contact details.
+        By applying, you confirm you are available for every advertised call, including the final wrap. The manager sees your named profile and note now and may receive your name by email. If booked, you each receive access to the other’s booking contact details.
       </p>
       <Submit />
     </form>

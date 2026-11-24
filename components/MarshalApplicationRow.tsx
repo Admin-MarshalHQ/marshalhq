@@ -2,10 +2,10 @@ import Link from "next/link";
 import type { Application, Shift } from "@prisma/client";
 import { DateBlock, StatusBadge } from "@/components/ui";
 import { marshalApplicationOutcome } from "@/lib/application-outcome";
-import { formatShiftBlock } from "@/lib/format";
+import { formatDate, formatShiftBlock } from "@/lib/format";
 
 export function MarshalApplicationRow({ application }: {
-  application: Pick<Application, "id" | "status" | "attendance"> & { shift: Shift };
+  application: Pick<Application, "id" | "status" | "attendance" | "releasedFrom"> & { shift: Shift };
 }) {
   const { id, status, shift } = application;
   const outcome = marshalApplicationOutcome(status, shift, application.attendance);
@@ -29,6 +29,7 @@ export function MarshalApplicationRow({ application }: {
               shift.dailyEndTime,
             )}
           </p>
+          {application.releasedFrom && <p>Released from calls starting {formatDate(application.releasedFrom)}.</p>}
           <p className="mt-1 text-sm text-ink-muted">{outcome.detail}</p>
         </div>
       </div>

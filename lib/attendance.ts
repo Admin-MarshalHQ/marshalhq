@@ -16,3 +16,10 @@ export function worked(value: string | null) {
 export const workedFilter = { attendance: { in: ["WORKED", "WORKED_FLAGGED"] } };
 export const confirmedWork = { status: "ACCEPTED", shift: { status: "COMPLETED" }, ...workedFilter };
 export const confirmedCount = { select: { applications: { where: confirmedWork } } };
+
+export type Attendance = keyof typeof attendanceLabels;
+export function attendanceLabel(value: string | null) {
+  if (value === "PARTIAL") return "Worked part of the run";
+  if (value === "PARTIAL_FLAGGED") return "Worked part of the run · feedback withheld";
+  return isAttendance(value) ? attendanceLabels[value] : "Individual attendance unconfirmed";
+}

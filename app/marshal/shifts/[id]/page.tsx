@@ -1,4 +1,4 @@
-import { validPilotWindow } from "@/lib/state";
+import { validShiftWindow } from "@/lib/state";
 import { marshalApplicationOutcome } from "@/lib/application-outcome";
 import { recordedReviews } from "@/lib/recorded-reviews";
 import Link from "next/link";
@@ -20,7 +20,7 @@ import {
 import { shiftBlockLengthLabel } from "@/lib/format";
 import { ShiftFacts } from "@/components/ShiftFacts";
 import { canMarshalApply, isLimitedAvailability, shiftStartDateTime } from "@/lib/state";
-import { shiftConflicts, type ConflictReason } from "@/lib/availability";
+import { bookedSchedule, shiftConflicts, type ConflictReason } from "@/lib/availability";
 import { StarRatingDisplay } from "@/components/StarRating";
 import { ratingSummary } from "@/lib/reviews";
 import {
@@ -91,7 +91,7 @@ export default async function MarshalShiftDetailPage({
           status: "ACCEPTED",
           shift: { status: { in: ["OPEN", "FILLED"] } },
         },
-        select: { shift: { select: { startDate: true, endDate: true } } },
+        select: { releasedFrom: true, shift: { select: { startDate: true, endDate: true, dailyStartTime: true, dailyEndTime: true } } },
       }),
       prisma.availabilityBlock.findMany({
         where: { marshalId: user.id },
@@ -100,7 +100,7 @@ export default async function MarshalShiftDetailPage({
     ]);
     conflict = shiftConflicts(
       shift,
-      acceptedElsewhere.map((a) => a.shift),
+      acceptedElsewhere.map(a => bookedSchedule(a)),
       blocks,
     );
   }
@@ -189,8 +189,8 @@ export default async function MarshalShiftDetailPage({
               </div>
             ) : shift.status !== "OPEN" ? (
               <Alert tone="warn">This shift is no longer open.</Alert>
-            ) : !validPilotWindow(shift.startDate, shift.endDate, shift.dailyStartTime, shift.dailyEndTime) ? (
-              <Alert tone="warn">New pilot bookings require one shoot day with same-day wrap.</Alert>
+            ) : !validShiftWindow(shift.startDate, shift.endDate, shift.dailyStartTime, shift.dailyEndTime) ? (
+              <Alert tone="warn">This shift has an invalid call or wrap time and cannot take applications.</Alert>
             ) : started ? (
               <Alert tone="warn">Applications have closed because the shift has already started.</Alert>
             ) : !profile ? (

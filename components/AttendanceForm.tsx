@@ -1,13 +1,17 @@
 import { attendanceLabels } from "@/lib/attendance";
+import { formatDate } from "@/lib/format";
 import { Button } from "./ui";
 
-export function AttendanceForm({ roster, action, resolving = false }: {
+export function AttendanceForm({ roster, action, resolving = false, callDate, finishOnly = false }: {
   roster: { id: string; attendance: string | null; marshal: { marshalProfile: { fullName: string } | null } }[];
   action: (form: FormData) => Promise<void>;
   resolving?: boolean;
+  callDate?: string;
+  finishOnly?: boolean;
 }) {
   return <form action={action} className="space-y-3">
-    <h2 className="font-bold">{resolving ? "Review or correct attendance" : "Confirm attendance after wrap"}</h2>
+    <h2 className="font-bold">{resolving ? "Review or correct attendance" : callDate ? "Record attendance for this call" : finishOnly ? "All calls accounted for" : "Confirm attendance after wrap"}</h2>
+    {callDate && <p>Call date · {formatDate(callDate)}<input type="hidden" name="callDate" value={callDate} /></p>}
     {resolving && <input type="hidden" name="applicationId" value={roster[0].id} />}
     {resolving && <>
       <p>Current record: {attendanceLabels[roster[0].attendance as keyof typeof attendanceLabels] ?? "Individual attendance unconfirmed"}</p>
@@ -24,6 +28,6 @@ export function AttendanceForm({ roster, action, resolving = false }: {
           .map(([key,label]) => <option key={key} value={key}>{key === "WORKED_FLAGGED" && !resolving ? "Worked — concern for review" : label}</option>)}
       </select>
     </label>)}
-    <Button type="submit">{resolving ? "Save reviewed outcomes" : "Confirm attendance and finish shift"}</Button>
+    <Button type="submit">{resolving ? "Save reviewed outcomes" : callDate ? "Save call attendance" : finishOnly ? "Finish shift" : "Confirm attendance and finish shift"}</Button>
   </form>;
 }

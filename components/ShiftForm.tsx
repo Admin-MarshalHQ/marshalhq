@@ -1,5 +1,6 @@
 "use client";
 
+import { formatShiftBlock } from "@/lib/format";
 import { useState } from "react";
 import { useFormState, useFormStatus } from "react-dom";
 import { Alert, Button, Field, FormSection } from "@/components/ui";
@@ -67,6 +68,9 @@ export default function ShiftForm({
     : "";
   const [shootDate, setShootDate] = useState(startDateValue);
 
+  const [lastDate, setLastDate] = useState(shift ? new Date(shift.endDate).toISOString().slice(0, 10) : "");
+  const [call, setCall] = useState(shift?.dailyStartTime ?? "07:00");
+  const [wrap, setWrap] = useState(shift?.dailyEndTime ?? "19:00");
   return (
     <form action={a} className="space-y-6">
       {state?.error && <Alert tone="danger">{state.error}</Alert>}
@@ -98,42 +102,51 @@ export default function ShiftForm({
         </Field>
       </FormSection>
 
-      <FormSection title="Schedule" description="Pilot shifts cover one shoot day. Call and wrap must fall on that day in London time. When clocks go back, a repeated time means its first occurrence.">
+      <FormSection title="Schedule" description="Book the same crew for one call or a run of consecutive calls. Hours repeat each day in London time. An earlier wrap time means the following day. When clocks go back, repeated times use the first occurrence.">
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Shoot date" error={state?.fieldErrors?.startDate}>
+          <Field label="First call date" error={state?.fieldErrors?.startDate}>
             <input
               type="date"
               name="startDate"
               required
-              value={shootDate} onChange={(e) => setShootDate(e.target.value)}
+              value={shootDate} onChange={(e) => {
+                const next = e.target.value;
+                if (!lastDate || lastDate === shootDate || lastDate < next) setLastDate(next);
+                setShootDate(next);
+              }}
             />
           </Field>
-          <input type="hidden" name="endDate" value={shootDate} />
+          <Field label="Last call date" hint="Use the first date again for one shift." error={state?.fieldErrors?.endDate}>
+            <input type="date" name="endDate" required min={shootDate} value={lastDate} onChange={e => setLastDate(e.target.value)} />
+          </Field>
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
           <Field
-            label="Daily start time"
+            label="Call time"
             error={state?.fieldErrors?.dailyStartTime}
           >
             <input
               type="time"
               name="dailyStartTime"
               required
-              defaultValue={shift?.dailyStartTime ?? "07:00"}
+              value={call} onChange={e => setCall(e.target.value)}
             />
           </Field>
           <Field
-            label="Daily end time"
+            label="Wrap time"
             error={state?.fieldErrors?.dailyEndTime}
           >
             <input
               type="time"
               name="dailyEndTime"
               required
-              defaultValue={shift?.dailyEndTime ?? "19:00"}
+              value={wrap} onChange={e => setWrap(e.target.value)}
             />
           </Field>
         </div>
+        {shootDate && lastDate >= shootDate && call && wrap && call !== wrap && (
+          <p aria-live="polite" className="text-sm text-ink-muted">{formatShiftBlock(shootDate, lastDate, call, wrap)}</p>
+        )}
       </FormSection>
 
       <FormSection title="Team and pay">

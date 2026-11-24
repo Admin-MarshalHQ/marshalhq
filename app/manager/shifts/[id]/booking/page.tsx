@@ -1,4 +1,5 @@
 import { ShiftEmailStatus } from "@/components/ShiftEmailStatus";
+import { RunAttendance } from "@/components/RunAttendance";
 import { marshalApplicationOutcome } from "@/lib/application-outcome";
 import { notFound } from "next/navigation";
 import { requireRole } from "@/lib/access";
@@ -138,6 +139,7 @@ export default async function BookingPage({
                 { label: "Phone", value: contact.phone ? <a className="underline" href={`tel:${contact.phone}`}>{formatPhone(contact.phone)}</a> : "No phone number provided" },
               ]}
             >
+              <RunAttendance days={app.attendanceDays} releasedFrom={app.releasedFrom} />
               {p?.training && (
                 <div className="mt-3">
                   <Kicker className="mb-0.5">Training / credentials</Kicker>

@@ -2,6 +2,7 @@ import { confirmedCount } from "@/lib/attendance";
 import { recordedReviews } from "@/lib/recorded-reviews";
 import { notFound } from "next/navigation";
 import { requireRole } from "@/lib/access";
+import { conflictingBooking } from "@/lib/booking-conflict";
 import { prisma } from "@/lib/db";
 import {
   Alert,
@@ -84,11 +85,7 @@ export default async function ApplicantDetailPage({
   const p = app.marshal.marshalProfile;
   if (!p) notFound();
 
-  const conflict = app.status === "APPLIED" && await prisma.application.findFirst({
-    where: { marshalId: app.marshalId, status: "ACCEPTED", shiftId: { not: shift.id },
-      shift: { status: { in: ["OPEN", "FILLED"] }, startDate: { lte: shift.endDate }, endDate: { gte: shift.startDate } } },
-    select: { id: true },
-  });
+  const conflict = app.status === "APPLIED" && await conflictingBooking(prisma, app.marshalId, shift);
   const workCount = app.marshal._count.applications;
 
   const marshalReviews = await recordedReviews(app.marshalId, "MANAGER_ON_MARSHAL");

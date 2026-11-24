@@ -1,4 +1,4 @@
-import { validPilotWindow } from "./state";
+import { validShiftWindow } from "./state";
 import { z } from "zod";
 import { normalisePhone, PHONE_INVALID_MESSAGE } from "./phone";
 import { CONTACT_LEAK_MESSAGE, detectContactLeak } from "./contact-detect";
@@ -85,29 +85,18 @@ export const ShiftDraftSchema = z
   .superRefine((v, ctx) => {
     const start = new Date(v.startDate);
     const end = new Date(v.endDate);
-    if (
-      Number.isNaN(start.getTime()) ||
-      Number.isNaN(end.getTime()) ||
-      end.getTime() < start.getTime()
-    ) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["endDate"],
-        message: "End date can’t be before start date",
-      });
+    for (const name of ["startDate", "endDate"] as const) {
+      const value = v[name];
+      const date = new Date(value);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(value) || !Number.isFinite(+date) || date.toISOString().slice(0, 10) !== value) {
+        ctx.addIssue({ code: "custom", path: [name], message: "Enter a valid call date." });
+        return;
+      }
     }
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(v.startDate) || !Number.isFinite(+start) ||
-        start.toISOString().slice(0, 10) !== v.startDate || v.endDate !== v.startDate) {
-      ctx.addIssue({ code: "custom", path: ["startDate"], message: "Post one valid shoot date per pilot shift." });
-    } else if (!validPilotWindow(start, end, v.dailyStartTime, v.dailyEndTime)) {
-      ctx.addIssue({ code: "custom", path: ["dailyEndTime"], message: "Choose valid London times with wrap after call on the same day." });
-    }
-    if (v.dailyEndTime <= v.dailyStartTime) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["dailyEndTime"],
-        message: "End time must be after start time",
-      });
+    if (end < start) {
+      ctx.addIssue({ code: "custom", path: ["endDate"], message: "The last call must be on or after the first call date." });
+    } else if (!validShiftWindow(start, end, v.dailyStartTime, v.dailyEndTime)) {
+      ctx.addIssue({ code: "custom", path: ["dailyEndTime"], message: "Use different call and wrap times that exist on every scheduled date in London." });
     }
   });
 

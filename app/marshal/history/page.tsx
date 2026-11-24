@@ -1,5 +1,6 @@
 import { recordedReviews } from "@/lib/recorded-reviews";
-import { workedFilter } from "@/lib/attendance";
+import { RunAttendance } from "@/components/RunAttendance";
+import { worked } from "@/lib/attendance";
 import { requireRole } from "@/lib/access";
 import { prisma } from "@/lib/db";
 import {
@@ -18,7 +19,7 @@ export default async function CompletionHistoryPage() {
   const ratingSummaryValue = ratingSummary(reviews);
   const completed = await prisma.application.findMany({
     where: {
-      ...workedFilter,
+      attendance: { in: ["WORKED", "WORKED_FLAGGED", "PARTIAL", "PARTIAL_FLAGGED"] },
       marshalId: user.id,
       status: "ACCEPTED",
       shift: { status: "COMPLETED" },
@@ -46,7 +47,7 @@ export default async function CompletionHistoryPage() {
 
       <Card className="mb-4">
         <Kicker>Shifts recorded as worked</Kicker>
-        <p className="mt-1 font-serif text-2xl text-ink">{completed.length}</p>
+        <p className="mt-1 font-serif text-2xl text-ink">{completed.filter(app => worked(app.attendance)).length}</p>
         <div className="mt-2 flex items-center gap-2">
           <span className="text-xs text-ink-muted">Manager rating:</span>
           <StarRatingDisplay summary={ratingSummaryValue} />
@@ -78,6 +79,7 @@ export default async function CompletionHistoryPage() {
                       a.shift.dailyEndTime,
                     )}
                   </p>
+                  <RunAttendance days={a.attendanceDays} releasedFrom={a.releasedFrom} />
                 </div>
 
               </div>

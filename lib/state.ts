@@ -61,6 +61,7 @@ export function assertApplicationTransition(
 export type CompletableShift = {
   bookedCount?: number;
   endDate: Date;
+  dailyStartTime: string;
   dailyEndTime: string; // "HH:MM"
   status: string;
 };
@@ -74,10 +75,18 @@ export function canCompleteShift(
 }
 
 export function hasShiftEnded(
-  shift: Pick<CompletableShift, "endDate" | "dailyEndTime">,
+  shift: Pick<CompletableShift, "endDate" | "dailyStartTime" | "dailyEndTime">,
   now: Date = new Date(),
 ): boolean {
-  return shiftDateTime(shift.endDate, shift.dailyEndTime).getTime() <= now.getTime();
+  return wrapDateTime(shift.endDate, shift.dailyStartTime, shift.dailyEndTime).getTime() <= now.getTime();
+}
+
+const londonDate = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "Europe/London", year: "numeric", month: "2-digit", day: "2-digit",
+});
+
+export function londonCallDate(now = new Date()) {
+  return new Date(londonDate.format(now));
 }
 
 const londonHour = new Intl.DateTimeFormat("en-GB", {
@@ -93,16 +102,33 @@ function shiftDateTime(date: Date, time: string): Date {
   return Number(londonHour.format(summer)) === hour ? summer : new Date(utc);
 }
 
-// New pilot bookings cover one London calendar day. Existing bookings still
-// use their recorded dates for wrap, cancellation and attendance.
-export function validPilotWindow(start: Date, end: Date, call: string, wrap: string) {
-  if (!Number.isFinite(+start) || +start !== +end || wrap <= call) return false;
+export const DAY = 86_400_000;
+
+export type Schedule = { startDate: Date; endDate: Date; dailyStartTime: string; dailyEndTime: string };
+
+export function dayAfter(date: Date, offset = 1) {
+  return new Date(date.getTime() + offset * DAY);
+}
+
+// endDate is the last CALL date. An earlier wrap clock belongs to the following date.
+export function wrapDateTime(callDate: Date, call: string, wrap: string) {
+  return shiftDateTime(wrap < call ? dayAfter(callDate) : callDate, wrap);
+}
+
+export function validShiftWindow(start: Date, end: Date, call: string, wrap: string) {
   const clock = /^(?:[01]\d|2[0-3]):[0-5]\d$/;
-  if (!clock.test(call) || !clock.test(wrap)) return false;
-  const first = shiftDateTime(start, call);
-  const last = shiftDateTime(end, wrap);
-  return londonHour.format(first) === call.slice(0, 2) &&
-    londonHour.format(last) === wrap.slice(0, 2) && first < last;
+  if (!Number.isFinite(+start) || !Number.isFinite(+end) || end < start ||
+      !clock.test(call) || !clock.test(wrap) || call === wrap) return false;
+  // Only 01:xx can be skipped by the London spring clock change. Check every
+  // occurrence, including the morning after the final night call.
+  for (const [time, offset] of [[call, 0], [wrap, wrap < call ? 1 : 0]] as const) {
+    if (!time.startsWith("01:")) continue;
+    const last = dayAfter(end, offset);
+    for (let date = dayAfter(start, offset); date <= last; date = dayAfter(date)) {
+      if (londonHour.format(shiftDateTime(date, time)) !== "01") return false;
+    }
+  }
+  return true;
 }
 
 export function beforeCall(shift: { startDate: Date; dailyStartTime: string }, now = new Date()) {
@@ -122,9 +148,7 @@ export function shiftStartDateTime(startDate: Date, dailyStartTime: string): Dat
 
 /**
  * True if the shift is safe to publish or apply to on temporal grounds. The
- * block's first day start must be strictly in the future, the daily end time
- * must be after the daily start time, and the end date must not precede the
- * start date.
+ * block's first day start must be strictly in the future, every scheduled call and wrap must exist in London time.
  */
 export function isShiftSchedulable(
   shift: {
@@ -135,7 +159,7 @@ export function isShiftSchedulable(
   },
   now: Date = new Date(),
 ): boolean {
-  return validPilotWindow(shift.startDate, shift.endDate, shift.dailyStartTime, shift.dailyEndTime) &&
+  return validShiftWindow(shift.startDate, shift.endDate, shift.dailyStartTime, shift.dailyEndTime) &&
     beforeCall(shift, now);
 }
 

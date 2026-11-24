@@ -1,14 +1,17 @@
 import { hiringOpen } from "@/lib/workspace-shifts";
 import { ShiftEmailStatus } from "@/components/ShiftEmailStatus";
-import { attendanceLabels, isAttendance } from "@/lib/attendance";
+import { RunAttendance } from "@/components/RunAttendance";
+import { nextAttendanceDate, callKey } from "@/lib/run-attendance";
+import { attendanceLabel } from "@/lib/attendance";
 import { AttendanceForm } from "@/components/AttendanceForm";
-import { beforeCall, hasShiftEnded } from "@/lib/state";
+import { beforeCall, hasShiftEnded, dayAfter, londonCallDate, wrapDateTime } from "@/lib/state";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireRole } from "@/lib/access";
 import { prisma } from "@/lib/db";
 import {
   Alert,
+  Button,
   ButtonLink,
   CapacityMeter,
   Card,
@@ -23,6 +26,7 @@ import {
   completeShiftAction,
   publishShiftAction,
   reopenAfterDropoutAction,
+  releaseRemainingCallsAction,
   unpublishShiftAction,
 } from "@/app/actions/shifts";
 import {
@@ -56,7 +60,7 @@ export default async function ManagerShiftDetailPage({
   searchParams,
 }: {
   params: { id: string };
-  searchParams: { dropout?: string; close?: string; attendance?: string; revertBlocked?: string; publishBlocked?: string };
+  searchParams: { release?: string; dropout?: string; close?: string; attendance?: string; revertBlocked?: string; publishBlocked?: string };
 }) {
   const user = await requireRole("MANAGER");
   const shift = await prisma.shift.findUnique({
@@ -87,6 +91,14 @@ export default async function ManagerShiftDetailPage({
   const canComplete = active && bookedCount > 0 && hasShiftEnded(shift);
   const canRecordDropout = active && bookedCount > 0 && beforeCall(shift);
 
+  const multi = +shift.startDate !== +shift.endDate;
+  const attendanceDate = multi && active ? nextAttendanceDate(shift, acceptedApps) : null;
+  const readyForCall = attendanceDate && wrapDateTime(attendanceDate, shift.dailyStartTime, shift.dailyEndTime) <= new Date();
+  const callRoster = acceptedApps.filter(app => !app.releasedFrom || !attendanceDate || app.releasedFrom > attendanceDate);
+  const localDay = londonCallDate();
+  const firstRelease = beforeCall({ ...shift, startDate: localDay }) ? localDay : dayAfter(localDay);
+  const inRun = multi && active && bookedCount > 0 && !beforeCall(shift);
+
   // Server action wrappers — each captures shift.id so the client ConfirmButton
   // can invoke the action with no arguments.
   const publish = publishShiftAction.bind(null, shift.id, shift.updatedAt.toISOString());
@@ -111,7 +123,8 @@ export default async function ManagerShiftDetailPage({
       {searchParams.dropout === "saved" && <Alert tone="success">Withdrawal recorded. The place is open again.</Alert>}
       {searchParams.dropout === "stale" && <Alert tone="warn">The roster changed. Review the current bookings before continuing.</Alert>}
       {searchParams.dropout === "started" && <Alert tone="warn">Call time has passed. Record attendance after wrap or contact support about the booking.</Alert>}
-      {searchParams.close === "attendance" && <Alert tone="warn">This booked shift has ended. Record attendance instead of cancelling.</Alert>}
+      {searchParams.close === "attendance" && <Alert tone="warn">The booking has started. Keep its attendance record and release any remaining calls separately.</Alert>}
+      {searchParams.release === "stale" && <Alert tone="warn">The release was not saved. Choose a future call and check the current booking.</Alert>}
       {searchParams.close === "stale" && <Alert tone="warn">The shift or its bookings changed. Review the current roster before cancelling.</Alert>}
       {searchParams.attendance === "stale" && <Alert tone="warn">The roster changed or an outcome was missing. Review the current bookings.</Alert>}
       {searchParams.revertBlocked === "1" && (
@@ -127,7 +140,7 @@ export default async function ManagerShiftDetailPage({
         <div className="mb-4">
           <Alert tone="warn">
             <strong className="mr-1">Can&rsquo;t publish this shift.</strong>
-            Choose one future shoot date with valid London call and wrap times on the same day.
+            Choose a future first call and valid London call and wrap times for the whole run.
           </Alert>
         </div>
       )}
@@ -282,7 +295,19 @@ export default async function ManagerShiftDetailPage({
                   </ButtonLink>
                 </>
               )}
-              {canComplete && <AttendanceForm roster={acceptedApps} action={completeShiftAction.bind(null, shift.id)} />}
+              {(readyForCall || (canComplete && !attendanceDate)) && <AttendanceForm roster={multi && !attendanceDate ? [] : callRoster}
+                callDate={attendanceDate ? callKey(attendanceDate) : undefined} finishOnly={multi && !attendanceDate}
+                action={completeShiftAction.bind(null, shift.id)} />}
+              {inRun && firstRelease <= shift.endDate && acceptedApps.filter(app => !app.releasedFrom).map(app =>
+                <form key={app.id} className="space-y-2 border-t border-line pt-3" action={releaseRemainingCallsAction.bind(null, shift.id, app.id)}>
+                  <h3 className="font-bold">Release remaining calls · {app.marshal.marshalProfile?.fullName}</h3>
+                  <label className="block">First call they will miss<input type="date" name="releaseDate" min={callKey(firstRelease)} max={callKey(shift.endDate)} required /></label>
+                  <p className="text-xs text-ink-muted">Use this once agreed with the marshal. They will be notified. Earlier calls keep their attendance record. Post any replacement calls as a new shift.</p>
+                  <Button variant="secondary" type="submit">Release from selected call</Button>
+                </form>)}
+              {inRun && !readyForCall && !canComplete && <p>Record attendance after each call wraps.</p>}
+              {!multi && active && bookedCount > 0 && shift.dailyEndTime < shift.dailyStartTime && !beforeCall(shift) && !canComplete &&
+                <p>The night call is in progress. Record attendance after wrap.</p>}
               {canRecordDropout && acceptedApps.map(app => {
                 const name = app.marshal.marshalProfile?.fullName ?? "Booked marshal";
                 return <ConfirmButton key={app.id} action={reopenAfterDropoutAction.bind(null, shift.id, app.id)}
@@ -325,7 +350,7 @@ export default async function ManagerShiftDetailPage({
                     />
                   )}
                   {canComplete && <p className="text-sm text-ink-muted">This booked shift has ended. Record attendance above instead of cancelling.</p>}
-                  {active && bookedCount > 0 && !canComplete && (
+                  {active && bookedCount > 0 && !canComplete && !inRun && (shift.dailyEndTime >= shift.dailyStartTime || beforeCall(shift)) && (
                     <ConfirmButton
                       action={close}
                       triggerLabel="Cancel shift"
@@ -363,7 +388,8 @@ export default async function ManagerShiftDetailPage({
               <Kicker className="mb-2">{shift.status === "COMPLETED" ? "Final attendance" : "Booked"}</Kicker>
               <ul className="text-sm text-ink">{acceptedApps.map(app => (
                 <li key={app.id}>{app.marshal.marshalProfile?.fullName ?? "Marshal"}
-                  {isAttendance(app.attendance) ? ` · ${attendanceLabels[app.attendance]}` : shift.status === "COMPLETED" ? " · Individual attendance unconfirmed" : ""}
+                  {shift.status === "COMPLETED" && ` · ${attendanceLabel(app.attendance)}`}
+                  <RunAttendance days={app.attendanceDays} releasedFrom={app.releasedFrom} />
                 </li>
               ))}</ul>
               <ButtonLink

@@ -164,7 +164,7 @@ async function main() {
     data: { status: "FILLED", startDate: past, endDate: past },
   });
   assert(
-    canCompleteShift({ endDate: past, dailyEndTime: "19:00", status: "FILLED" }),
+    canCompleteShift({ endDate: past, dailyStartTime: "07:00", dailyEndTime: "19:00", status: "FILLED" }),
     "filled past shift can complete",
   );
   const acceptedForCompletion = await prisma.application.findMany({

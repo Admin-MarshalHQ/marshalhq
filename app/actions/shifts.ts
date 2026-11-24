@@ -9,10 +9,13 @@ import {
   beforeCall,
   hasShiftEnded,
   isShiftSchedulable,
+  wrapDateTime,
 } from "@/lib/state";
 import { flushNotificationEmails, saveNotice, notifyPendingAfterDropout, type NotifyParams } from "@/lib/notify";
 import { lockShift } from "@/lib/booking-lock";
-import { attendanceLabels, isAttendance, confirmedWork } from "@/lib/attendance";
+import { attendanceLabel, isAttendance, confirmedWork } from "@/lib/attendance";
+import { callKey, nextAttendanceDate, recordedDays, runOutcome } from "@/lib/run-attendance";
+import { formatDate } from "@/lib/format";
 import { hasContactLeak } from "@/lib/contact-detect";
 
 async function requireManagerId() {
@@ -192,7 +195,7 @@ export async function closeShiftAction(id: string, expectedStatus: string, expec
     const confirmed = new Set(expectedBookings);
     if (confirmed.size !== accepted.length || accepted.some(app => !confirmed.has(app.id))) return "stale";
     // A booked shift that has wrapped must settle attendance, not cancel.
-    if (accepted.length > 0 && hasShiftEnded(current)) return "attendance";
+    if (accepted.length > 0 && (hasShiftEnded(current) || ((+current.startDate !== +current.endDate || current.dailyEndTime < current.dailyStartTime) && !beforeCall(current)))) return "attendance";
     // Auto-reject all APPLIED applications
     const rejected = await tx.application.findMany({
       where: { shiftId: id, status: "APPLIED" },
@@ -268,7 +271,10 @@ async function settleAttendance(id: string, form: FormData, managerId: string | 
   const saved = await prisma.$transaction(async (tx) => {
     await lockShift(tx, id);
     const shift = await tx.shift.findUnique({ where: { id } });
-    if (!shift || !hasShiftEnded(shift)) return false;
+    if (!shift) return false;
+    const wrapped = hasShiftEnded(shift);
+    const multi = +shift.startDate !== +shift.endDate;
+    if (!wrapped && (!multi || reviewerId)) return false;
     if (managerId) {
       if (shift.managerId !== managerId || !["OPEN", "FILLED"].includes(shift.status)) return false;
     } else if (shift.status !== "COMPLETED") return false;
@@ -280,24 +286,51 @@ async function settleAttendance(id: string, form: FormData, managerId: string | 
       },
     });
     if (!roster.length) return false;
-    const decisions = roster.map((application) => ({
-      application, outcome: form.get(application.id),
-    }));
-    if (decisions.some(({outcome}) => !isAttendance(outcome))) return false;
+    const requestedDay = form.get("callDate");
+    const daily = multi && (managerId !== null || roster[0].attendanceDays !== null);
+    const next = daily && managerId ? nextAttendanceDate(shift, roster) : null;
+    const date = daily && reviewerId && typeof requestedDay === "string" ? new Date(requestedDay) : next;
+    if (date && (!Number.isFinite(+date) || requestedDay !== callKey(date) ||
+        wrapDateTime(date, shift.dailyStartTime, shift.dailyEndTime) > new Date())) return false;
+    if (daily && reviewerId && !date) return false;
+    if (!date && (requestedDay || !wrapped)) return false;
+
     const reason = String(form.get("reason") ?? "").trim();
-    if (reviewerId && (!reason || reason.length > 500 || form.get("previous") !== (roster[0].attendance ?? "") ||
-        decisions[0].outcome === roster[0].attendance)) return false;
-    for (const {application, outcome} of decisions) {
-      if (!isAttendance(outcome)) throw new Error("Invalid attendance");
-      if (reviewerId) {
-        await tx.attendanceChange.create({ data: { applicationId: application.id, reviewerId,
-          previous: application.attendance, outcome, reason } });
+    if (reviewerId && (!reason || reason.length > 500)) return false;
+    const entries = [];
+    for (const application of roster) {
+      const days = recordedDays(application.attendanceDays);
+      const key = date && callKey(date);
+      const previous = key ? days[key] : application.attendance;
+      const excluded = date && application.releasedFrom && date >= application.releasedFrom;
+      if (!excluded && (!daily || key)) {
+        const selected = form.get(application.id);
+        if (!isAttendance(selected)) return false;
+        if (reviewerId && (form.get("previous") !== (previous ?? "") || previous === selected || (key && !previous))) return false;
+        if (key) days[key] = selected;
+        entries.push({ application, days, selected, previous: previous ?? null });
+      } else {
+        entries.push({ application, days, selected: null, previous: null });
       }
-      await tx.application.update({ where: { id: application.id }, data: { attendance: outcome } });
+    }
+    const finish = wrapped && (!daily || !nextAttendanceDate(shift,
+      entries.map(({ application, days }) => ({ ...application, attendanceDays: days }))));
+    const decisions = [];
+    for (const {application, days, selected, previous} of entries) {
+      if (reviewerId && selected) {
+        await tx.attendanceChange.create({ data: { applicationId: application.id, reviewerId,
+          previous, outcome: selected, reason, callDate: date } });
+      }
+      const outcome = daily ? runOutcome(days, application.releasedFrom) : selected;
+      if (!outcome) return false;
+      if (finish || selected) await tx.application.update({ where: { id: application.id },
+        data: { ...(daily && selected && { attendanceDays: days }), ...(finish && { attendance: outcome }) } });
+      if (!finish) continue;
+      decisions.push({outcome});
       const note: NotifyParams = {
         userId: application.marshalId, kind: "SHIFT_STATUS_CHANGED",
         subject: `Attendance update: ${shift.productionName}`,
-        body: `Recorded outcome: ${attendanceLabels[outcome]}. Contact Setru support if this needs review.`,
+        body: `Recorded outcome: ${attendanceLabel(outcome)}. Contact Setru support if this needs review.`,
       };
       queue.push(await saveNotice(tx, note, id));
       if (reviewerId) {
@@ -306,7 +339,8 @@ async function settleAttendance(id: string, form: FormData, managerId: string | 
         queue.push(await saveNotice(tx, update, id));
       }
     }
-    if (decisions.some(({outcome}) => outcome === "UNRESOLVED" || outcome === "WORKED_FLAGGED")) {
+    if (!finish) return true;
+    if (decisions.some(({outcome}) => outcome === "UNRESOLVED" || outcome === "WORKED_FLAGGED" || outcome === "PARTIAL_FLAGGED")) {
       const founders = (process.env.FOUNDER_EMAILS ?? "").split(",").map(email => email.trim().toLowerCase()).filter(Boolean);
       const recipients = await tx.user.findMany({ where: { email: { in: founders, mode: "insensitive" } }, select: { id: true } });
       for (const founder of recipients) {
@@ -374,4 +408,29 @@ export async function retryShiftEmailAction(id: string) {
   await flushNotificationEmails(jobs.map(job => job.id), true);
   revalidatePath(`/manager/shifts/${id}`);
   revalidatePath(`/manager/shifts/${id}/booking`);
+}
+
+// Keep past work on the original application when a marshal is released
+// mid-run. A replacement for the remaining calls gets a separate listing.
+export async function releaseRemainingCallsAction(id: string, bookingId: string, form: FormData) {
+  const managerId = await requireManagerId();
+  const raw = String(form.get("releaseDate") ?? "");
+  const date = new Date(raw);
+  const queue: string[] = [];
+  const saved = await prisma.$transaction(async tx => {
+    await lockShift(tx, id);
+    const shift = await tx.shift.findFirst({ where: { id, managerId, status: { in: ["OPEN", "FILLED"] } } });
+    if (!shift || beforeCall(shift) || !Number.isFinite(+date) || callKey(date) !== raw ||
+        date <= shift.startDate || date > shift.endDate || !beforeCall({ ...shift, startDate: date })) return false;
+    const booking = await tx.application.findFirst({ where: { id: bookingId, shiftId: id, status: "ACCEPTED", releasedFrom: null } });
+    if (!booking) return false;
+    await tx.application.update({ where: { id: bookingId }, data: { releasedFrom: date } });
+    queue.push(await saveNotice(tx, { userId: booking.marshalId, kind: "SHIFT_STATUS_CHANGED",
+      subject: `Remaining calls released: ${shift.productionName}`,
+      body: `Your manager released you from calls starting ${formatDate(date)} onwards. Earlier calls stay on your booking. Contact support if this was unexpected.` }, id));
+    return true;
+  });
+  await flushNotificationEmails(queue);
+  revalidatePath(`/manager/shifts/${id}`);
+  redirect(`/manager/shifts/${id}${saved ? "" : "?release=stale"}`);
 }

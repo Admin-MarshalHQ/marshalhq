@@ -4,15 +4,15 @@ const { randomUUID } = require("node:crypto");
 const { AsyncLocalStorage } = require("node:async_hooks");
 
 test("pilot scheduling, attendance and application cutoffs", () => {
-  const { validPilotWindow, shiftStartDateTime, classifyWithdraw } = require("../lib/state.ts");
+  const { validShiftWindow, shiftStartDateTime, classifyWithdraw } = require("../lib/state.ts");
   const { ShiftDraftSchema } = require("../lib/zod.ts");
   const { actionableApplicantCount } = require("../lib/workspace-shifts.ts");
   const { marshalApplicationOutcome } = require("../lib/application-outcome.ts");
   const { formatDate } = require("../lib/format.ts");
   const spring = new Date("2027-03-28"), autumn = new Date("2027-10-31");
-  assert.equal(validPilotWindow(spring, spring, "01:30", "02:30"), false);
-  assert.equal(validPilotWindow(spring, spring, "00:30", "01:30"), false);
-  assert.equal(validPilotWindow(autumn, autumn, "01:30", "02:30"), true);
+  assert.equal(validShiftWindow(spring, spring, "01:30", "02:30"), false);
+  assert.equal(validShiftWindow(spring, spring, "00:30", "01:30"), false);
+  assert.equal(validShiftWindow(autumn, autumn, "01:30", "02:30"), true);
   assert.equal(shiftStartDateTime(autumn, "01:30").toISOString(), "2027-10-31T00:30:00.000Z");
   const date = new Date("2027-06-01");
   const shift = { startDate: date, endDate: date, dailyStartTime: "00:30", dailyEndTime: "08:00", paused: false,
@@ -23,10 +23,27 @@ test("pilot scheduling, attendance and application cutoffs", () => {
   assert.equal(marshalApplicationOutcome("APPLIED", shift, null, call).label, "Not booked");
   assert.equal(classifyWithdraw({ status: "APPLIED" }, { ...shift, status: "FILLED" }, new Date(+call - 1)), "allowed");
   assert.equal(classifyWithdraw({ status: "APPLIED" }, shift, call), "stale");
+  const { hasShiftEnded, londonCallDate } = require("../lib/state.ts");
+  const { schedulesOverlap, shiftConflicts } = require("../lib/availability.ts");
+  const { formatShiftBlock } = require("../lib/format.ts");
+  const nights = { startDate:new Date("2027-06-01"), endDate:new Date("2027-06-03"), dailyStartTime:"20:00", dailyEndTime:"06:00" };
+  const morning = { startDate:new Date("2027-06-04"), endDate:new Date("2027-06-04"), dailyStartTime:"05:59", dailyEndTime:"11:00" };
+  assert(schedulesOverlap(nights, morning) && schedulesOverlap(morning, nights));
+  assert(!schedulesOverlap(nights, {...morning, dailyStartTime:"06:00"}));
+  assert(!schedulesOverlap(nights, {...nights, dailyStartTime:"08:00",dailyEndTime:"16:00"}));
+  assert.equal(shiftConflicts(nights,[],[morning]),"marked-unavailable");
+  assert.equal(shiftConflicts({...nights,dailyEndTime:"00:00"},[],[morning]),null);
+  assert.equal(londonCallDate(new Date("2027-06-01T23:30Z")).toISOString().slice(0,10),"2027-06-02");
+  assert(!hasShiftEnded(nights,new Date("2027-06-04T04:59:59Z")));
+  assert(hasShiftEnded(nights,new Date("2027-06-04T05:00:00Z")));
+  assert.match(formatShiftBlock(nights.startDate,nights.endDate,"20:00","06:00"),/Final wrap Fri,? 4 Jun 2027 at 06:00/);
+  assert(!validShiftWindow(new Date("2027-03-26"),new Date("2027-03-29"),"01:30","07:00"));
+  assert(!validShiftWindow(new Date("2027-03-27"),new Date("2027-03-27"),"20:00","01:30"));
+  assert(validShiftWindow(new Date("2027-03-27"),new Date("2027-03-28"),"20:00","06:00"));
   const draft = { productionName: "QA", location: "London", startDate: "2027-06-01", endDate: "2027-06-01",
     dailyStartTime: "06:00", dailyEndTime: "18:00", marshalsNeeded: 1, rate: 0.01, rateUnit: "HOUR", duties: "Unit base" };
   assert(ShiftDraftSchema.safeParse(draft).success);
-  for (const invalid of [{rate:0}, { endDate:"2027-06-02" }, {dailyEndTime:"02:00"}, { startDate:"2027-02-30",endDate:"2027-02-30" }]) {
+  for (const invalid of [{rate:0}, { endDate:"2027-05-31" }, {dailyEndTime:"06:00"}, { startDate:"2027-02-30",endDate:"2027-02-30" }]) {
     assert(!ShiftDraftSchema.safeParse({...draft,...invalid}).success);
   }
 });
@@ -83,6 +100,61 @@ test("logged workflow regressions against disposable PostgreSQL", async t => {
   const makeShift = async (status="OPEN") => db.shift.create({data:{ ...terms, startDate:new Date(terms.startDate),
     endDate:new Date(terms.endDate),marshalsNeeded:1,rate:20,status,managerId:manager.id }});
   const apply = (shift, person, status="APPLIED") => db.application.create({data:{shiftId:shift.id,marshalId:person.id,status}});
+  await t.test("publish and book a run of nights, then record and correct individual calls", async () => {
+    const fields = {...terms, startDate:"2098-05-01", endDate:"2098-05-03", dailyStartTime:"20:00", dailyEndTime:"06:00"};
+    const path = await redirectTo(manager, shifts.saveDraftShiftAction, null, form(fields));
+    const runId = path.split("/").at(-1);
+    const draft = await db.shift.findUniqueOrThrow({where:{id:runId}});
+    await redirectTo(manager,shifts.publishShiftAction,runId,draft.updatedAt.toISOString());
+    await redirectTo(marshal,hiring.applyToShiftAction,null,form({shiftId:runId}));
+    const booking = await db.application.findFirstOrThrow({where:{shiftId:runId,marshalId:marshal.id}});
+    await redirectTo(manager,hiring.acceptApplicationAction,booking.id);
+    const morning = await makeShift();
+    await db.shift.update({where:{id:morning.id},data:{startDate:new Date("2098-05-04"),endDate:new Date("2098-05-04"),dailyStartTime:"05:59",dailyEndTime:"09:00"}});
+    assert.match((await run(marshal,hiring.applyToShiftAction,null,form({shiftId:morning.id}))).error,/overlap/);
+    const candidate = await apply(morning,marshal);
+    assert.match(await redirectTo(manager,hiring.acceptApplicationAction,candidate.id),/conflict/);
+    await db.shift.update({where:{id:morning.id},data:{dailyStartTime:"06:00"}});
+    assert.match(await redirectTo(manager,hiring.acceptApplicationAction,candidate.id),/booking/);
+    await db.shift.update({where:{id:runId},data:{startDate:new Date("2020-05-01"),endDate:new Date("2020-05-03")}});
+    const attend = (date, outcome) => form({callDate:date,[booking.id]:outcome});
+    assert.match(await redirectTo(manager,shifts.completeShiftAction,runId,attend("2020-05-02","WORKED")),/stale/);
+    for (const [date, outcome] of [["2020-05-01","WORKED"],["2020-05-02","NOT_WORKED"],["2020-05-03","WORKED"]]) {
+      await redirectTo(manager,shifts.completeShiftAction,runId,attend(date,outcome));
+      assert.match(await redirectTo(manager,shifts.completeShiftAction,runId,attend(date,outcome)),/stale/);
+    }
+    const saved = () => db.application.findUniqueOrThrow({where:{id:booking.id}});
+    assert.equal((await saved()).attendance,"PARTIAL");
+    assert.equal((await saved()).attendanceDays["2020-05-02"],"NOT_WORKED");
+    const corrected = attend("2020-05-02","WORKED");
+    corrected.set("previous","NOT_WORKED"); corrected.set("applicationId",booking.id); corrected.set("reason","Confirmed with production");
+    await redirectTo(fresh,shifts.resolveAttendanceAction,runId,corrected);
+    assert.equal((await saved()).attendance,"WORKED");
+    assert.match(await redirectTo(fresh,shifts.resolveAttendanceAction,runId,corrected),/stale/);
+    const audit = await db.attendanceChange.findFirstOrThrow({where:{applicationId:booking.id}});
+    assert.equal(audit.callDate.toISOString().slice(0,10),"2020-05-02");
+  });
+  await t.test("mid-run release preserves worked calls and frees dates for replacement bookings", async () => {
+    const {dayAfter} = require("../lib/state.ts");
+    const today = new Date(new Date().toISOString().slice(0,10));
+    const startDate = dayAfter(today,-2), endDate = dayAfter(today,3), released = dayAfter(today,1);
+    const shift = await makeShift("FILLED");
+    await db.shift.update({where:{id:shift.id},data:{startDate,endDate}});
+    const booking = await apply(shift,marshal,"ACCEPTED");
+    const attendance = form({callDate:startDate.toISOString().slice(0,10),[booking.id]:"WORKED"});
+    await redirectTo(manager,shifts.completeShiftAction,shift.id,attendance);
+    assert.match(await redirectTo(manager,shifts.closeShiftAction,shift.id,"FILLED",[booking.id]),/close=attendance/);
+    const fields = form({releaseDate:released.toISOString().slice(0,10)});
+    await redirectTo(manager,shifts.releaseRemainingCallsAction,shift.id,booking.id,fields);
+    assert.match(await redirectTo(manager,shifts.releaseRemainingCallsAction,shift.id,booking.id,fields),/stale/);
+    const saved = await db.application.findUniqueOrThrow({where:{id:booking.id}});
+    assert.equal(+saved.releasedFrom,+released);
+    assert.equal(saved.attendanceDays[startDate.toISOString().slice(0,10)],"WORKED");
+    const next = await makeShift();
+    await db.shift.update({where:{id:next.id},data:{startDate:released,endDate:released}});
+    const app = await apply(next,marshal);
+    assert.match(await redirectTo(manager,hiring.acceptApplicationAction,app.id),/booking/);
+  });
   await t.test("stale edits, publication and historical terms", async () => {
     const shift = await makeShift("DRAFT");
     const revision = shift.updatedAt.toISOString();

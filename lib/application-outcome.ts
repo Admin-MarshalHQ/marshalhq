@@ -77,6 +77,7 @@ export function marshalApplicationOutcome(
     if (attendance === "UNRESOLVED") return { label: "Attendance under review", tone: "neutral", detail: "Contact support about your booking. Work history is pending." } as const;
     if (attendance === "NOT_WORKED") return { label: "Did not work", tone: "neutral", detail: "This booking has no completion credit. Contact support if this is incorrect." } as const;
     if (status !== "ACCEPTED") return outcomes.shiftCompleted;
+    if (attendance === "PARTIAL" || attendance === "PARTIAL_FLAGGED") return { label: "Worked part of the run", tone: "neutral", detail: "Your booking lists the individual calls you worked. This run does not count as fully completed." } as const;
     if (attendance === "WORKED_FLAGGED") return { label: "Worked · feedback withheld", tone: "neutral", detail: "Your work is recorded. Feedback is under review." } as const;
     if (attendance === "WORKED") return outcomes.completed;
     return { label: "Attendance unconfirmed", tone: "neutral", detail: "The shift ended. Individual attendance was not confirmed. This booking has no work-history credit." } as const;

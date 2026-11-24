@@ -1,3 +1,4 @@
+import { bookedSchedule } from "./availability";
 import { hasOpenSlot } from "@/lib/capacity";
 import { isShiftSchedulable, canCompleteShift, hasShiftEnded, shiftStartDateTime } from "@/lib/state";
 
@@ -46,11 +47,12 @@ export function managerAttention<T extends ManagerShift>(shifts: T[], now: Date)
   return [...reviews, ...closeouts];
 }
 
-export function currentBookings<T extends { status: string; shift: ScheduledShift }>(
+export function currentBookings<T extends { status: string; shift: ScheduledShift; releasedFrom?: Date | null }>(
   applications: T[],
   now: Date,
 ): T[] {
   return applications
+    .map(application => ({...application, shift: bookedSchedule(application)}))
     .filter(({ status, shift }) =>
       status === "ACCEPTED" &&
       (shift.status === "OPEN" || shift.status === "FILLED") &&

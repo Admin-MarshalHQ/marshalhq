@@ -1,5 +1,6 @@
 "use server";
 
+import { conflictingBooking } from "@/lib/booking-conflict";
 import { prisma } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -48,11 +49,7 @@ export async function applyToShiftAction(
       }
       const booked = await tx.application.count({ where: { shiftId, status: "ACCEPTED" } });
       if (booked >= shift.marshalsNeeded) return { error: "This shift is already filled." };
-      const conflict = await tx.application.findFirst({
-        where: { marshalId: user.id, status: "ACCEPTED", shiftId: { not: shiftId },
-          shift: { status: { in: ["OPEN", "FILLED"] }, startDate: { lte: shift.endDate }, endDate: { gte: shift.startDate } } },
-        select: { shift: { select: { productionName: true } } },
-      });
+      const conflict = await conflictingBooking(tx, user.id, shift);
       if (conflict) return { error: `These dates overlap your booking on ${conflict.shift.productionName}.` };
       await tx.application.create({
         data: {
@@ -228,14 +225,7 @@ export async function acceptApplicationAction(applicationId: string) {
       if (!freshProfile || freshProfile.paused || !canMarshalApply(freshProfile.availability)) {
         throw new StaleAcceptStateError();
       }
-      const conflict = await tx.application.findFirst({
-        where: {
-          marshalId: freshApp.marshalId, status: "ACCEPTED", shiftId: { not: shiftId },
-          shift: { status: { in: ["OPEN", "FILLED"] },
-            startDate: { lte: freshShift.endDate }, endDate: { gte: freshShift.startDate } },
-        },
-        select: { id: true },
-      });
+      const conflict = await conflictingBooking(tx, freshApp.marshalId, freshShift);
       if (conflict) throw new StaleAcceptStateError("date-conflict");
 
       assertApplicationTransition(freshApp.status, "ACCEPTED");

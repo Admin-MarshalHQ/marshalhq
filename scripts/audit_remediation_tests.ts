@@ -340,8 +340,8 @@ check(
   "F: past date is not schedulable",
 );
 check(
-  !isShiftSchedulable({ startDate: future, endDate: future, dailyStartTime: "20:00", dailyEndTime: "08:00" }),
-  "F: end-before-start is not schedulable",
+  isShiftSchedulable({ startDate: future, endDate: future, dailyStartTime: "20:00", dailyEndTime: "08:00" }),
+  "F: overnight wrap is schedulable",
 );
 check(
   !isShiftSchedulable({ startDate: future, endDate: future, dailyStartTime: "09:00", dailyEndTime: "09:00" }),
@@ -432,7 +432,7 @@ check(
 // classify through shiftConflicts; the overlap rule itself is datesOverlap.
 {
   const d = (s: string) => new Date(`${s}T00:00:00.000Z`);
-  const block = (a: string, b: string) => ({ startDate: d(a), endDate: d(b) });
+  const block = (a: string, b: string) => ({ startDate: d(a), endDate: d(b), dailyStartTime: "07:00", dailyEndTime: "19:00" });
 
   check(
     datesOverlap(d("2026-08-01"), d("2026-08-03"), d("2026-08-03"), d("2026-08-05")),
