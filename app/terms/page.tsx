@@ -9,7 +9,7 @@ export default function Page() {
     <div className="mx-auto max-w-3xl">
       <PageHeader title="Terms of use" />
       <div className="prose-plain max-w-none text-[15px]">
-        <p>Setru is in development for UK film and TV locations teams. Anyone can explore the <Link href="/demo">public demo</Link>. Its people and vacancies are examples. Applying or accepting there creates no real booking.</p>
+        <p>Samuel Blake operates Setru for UK film and TV locations teams. The service is in development. Anyone can explore the <Link href="/demo">public demo</Link>. Its people and vacancies are examples. Applying or accepting there creates no real booking.</p>
         <h2>Using Setru</h2>
         <p>Use your own account, keep your sign-in details private and provide accurate information. Use Support to report an account problem. Follow the <Link href="/rules">platform rules</Link> when posting content or handling someone else’s details.</p>
         <h2>Hiring access</h2>
