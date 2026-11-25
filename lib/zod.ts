@@ -120,13 +120,6 @@ export const MarshalProfileSchema = z.object({
     .union([z.literal("true"), z.literal("false"), z.literal(""), z.undefined()])
     .optional(),
   training: optionalNoContactLeak(z.string().trim().max(500)),
-  photoUrl: z
-    .string()
-    .trim()
-    .url("Must be a URL")
-    .startsWith("https://", "Must be an https:// URL")
-    .optional()
-    .or(z.literal("")),
 });
 
 export const PhoneSchema = z.object({

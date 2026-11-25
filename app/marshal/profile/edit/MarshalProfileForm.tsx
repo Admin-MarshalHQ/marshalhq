@@ -24,7 +24,8 @@ function boolDefault(v: boolean | null | undefined) {
 export default function MarshalProfileForm({
   profile,
 }: {
-  profile: MarshalProfile | null;
+  profile: Pick<MarshalProfile, "fullName" | "baseLocation" | "travelRadiusMiles" | "experienceSummary" |
+    "availability" | "hasTransport" | "hasDriversLicence" | "training"> | null;
 }) {
   const [state, action] = useFormState(saveMarshalProfileAction, null);
   const [summaryLen, setSummaryLen] = useState(
@@ -149,18 +150,6 @@ export default function MarshalProfileForm({
             </select>
           </Field>
         </div>
-        <Field
-          label="Photo URL"
-          hint="Optional. This photo is private to your own profile."
-          error={state?.fieldErrors?.photoUrl}
-        >
-          <input
-            type="url"
-            name="photoUrl"
-            defaultValue={profile?.photoUrl ?? ""}
-            placeholder="https://…"
-          />
-        </Field>
       </FormSection>
 
       <div className="border-t border-line pt-4">

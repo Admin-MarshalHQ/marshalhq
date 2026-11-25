@@ -7,6 +7,10 @@ export default async function EditMarshalProfilePage() {
   const user = await requireRole("MARSHAL");
   const profile = await prisma.marshalProfile.findUnique({
     where: { userId: user.id },
+    select: {
+      fullName: true, baseLocation: true, travelRadiusMiles: true, experienceSummary: true,
+      availability: true, hasTransport: true, hasDriversLicence: true, training: true,
+    },
   });
   return (
     <div className="mx-auto max-w-2xl">

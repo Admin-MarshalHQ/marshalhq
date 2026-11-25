@@ -1,9 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  // No remote image patterns: the only user-supplied image (marshal profile
-  // photo) is rendered as a plain <img>, so the image optimizer never fetches
-  // third-party hosts.
   async headers() {
     // Baseline security headers. CSP is deliberately absent for now: a
     // meaningful policy needs nonce/hash plumbing for Next's inline runtime
