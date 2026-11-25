@@ -11,6 +11,7 @@ export type ShiftStatus =
   | "DRAFT"
   | "OPEN"
   | "FILLED"
+  | "RECRUITMENT_STOPPED"
   | "CLOSED"
   | "COMPLETED";
 export type ApplicationStatus =
@@ -68,7 +69,7 @@ export const SUPPORT_CATEGORY_LABEL: Record<SupportCategory, string> = {
 // reuse the Role / Availability unions above: the waitlist captures interest
 // before any account exists, so it has its own narrow vocabulary.
 export type WaitlistRole = "MANAGER" | "MARSHAL" | "OTHER";
-export type WaitlistStatus = "NEW" | "REVIEWED" | "CONTACTED" | "ARCHIVED";
+export type WaitlistStatus = "NEW" | "REVIEWED" | "CONTACTED" | "ARCHIVED" | "WITHDRAWN";
 export type WaitlistExpectedNeed =
   | "URGENT"
   | "OCCASIONAL"
@@ -117,4 +118,5 @@ export const WAITLIST_STATUS_LABEL: Record<WaitlistStatus, string> = {
   REVIEWED: "Reviewed",
   CONTACTED: "Contacted",
   ARCHIVED: "Archived",
+  WITHDRAWN: "Withdrawn",
 };

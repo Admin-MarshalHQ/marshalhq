@@ -54,6 +54,10 @@ test("logged workflow regressions against disposable PostgreSQL", async t => {
   assert.equal(dbUrl.pathname, "/setru_qa");
   process.env.SETRU_FIXTURE_INTAKE = "1";
   const { PrismaClient } = require("@prisma/client");
+  // These scheduling regressions move fixture dates directly. Isolate vacancy
+  // clearance; its actual authorisation and stale-brief behaviour have a separate DB suite.
+  const clearance = require("../lib/vacancy-brief.ts");
+  require.cache[require.resolve("../lib/vacancy-brief.ts")].exports = { ...clearance, clearedFor: () => true, briefVersion: () => "synthetic-brief" };
   const actor = new AsyncLocalStorage();
   let failNotice;
   const db = new PrismaClient().$extends({ query: { mailDelivery: { async create({ args, query }) {
@@ -100,19 +104,19 @@ test("logged workflow regressions against disposable PostgreSQL", async t => {
     dailyStartTime:"07:00",dailyEndTime:"18:00",marshalsNeeded:"1",rate:"20",rateUnit:"HOUR",duties:"Unit base" };
   const makeShift = async (status="OPEN") => db.shift.create({data:{ ...terms, startDate:new Date(terms.startDate),
     endDate:new Date(terms.endDate),marshalsNeeded:1,rate:20,status,managerId:manager.id }});
-  const apply = (shift, person, status="APPLIED") => db.application.create({data:{shiftId:shift.id,marshalId:person.id,status}});
+  const apply = (shift, person, status="APPLIED") => db.application.create({data:{shiftId:shift.id,marshalId:person.id,status,termsVersion:"synthetic-brief"}});
   await t.test("publish and book a run of nights, then record and correct individual calls", async () => {
     const fields = {...terms, startDate:"2098-05-01", endDate:"2098-05-03", dailyStartTime:"20:00", dailyEndTime:"06:00"};
     const path = await redirectTo(manager, shifts.saveDraftShiftAction, null, form(fields));
     const runId = path.split("/").at(-1);
     const draft = await db.shift.findUniqueOrThrow({where:{id:runId}});
     await redirectTo(manager,shifts.publishShiftAction,runId,draft.updatedAt.toISOString());
-    await redirectTo(marshal,hiring.applyToShiftAction,null,form({shiftId:runId}));
+    await redirectTo(marshal,hiring.applyToShiftAction,null,form({shiftId:runId,briefVersion:"synthetic-brief",noticeVersion:clearance.applicationNoticeVersion}));
     const booking = await db.application.findFirstOrThrow({where:{shiftId:runId,marshalId:marshal.id}});
     await redirectTo(manager,hiring.acceptApplicationAction,booking.id);
     const morning = await makeShift();
     await db.shift.update({where:{id:morning.id},data:{startDate:new Date("2098-05-04"),endDate:new Date("2098-05-04"),dailyStartTime:"05:59",dailyEndTime:"09:00"}});
-    assert.match((await run(marshal,hiring.applyToShiftAction,null,form({shiftId:morning.id}))).error,/overlap/);
+    assert.match((await run(marshal,hiring.applyToShiftAction,null,form({shiftId:morning.id,briefVersion:"synthetic-brief",noticeVersion:clearance.applicationNoticeVersion}))).error,/overlap/);
     const candidate = await apply(morning,marshal);
     assert.match(await redirectTo(manager,hiring.acceptApplicationAction,candidate.id),/conflict/);
     await db.shift.update({where:{id:morning.id},data:{dailyStartTime:"06:00"}});
@@ -155,6 +159,78 @@ test("logged workflow regressions against disposable PostgreSQL", async t => {
     await db.shift.update({where:{id:next.id},data:{startDate:released,endDate:released}});
     const app = await apply(next,marshal);
     assert.match(await redirectTo(manager,hiring.acceptApplicationAction,app.id),/booking/);
+  });
+  await t.test("fresh pair lookup enforces both accounts, current roster, releases and wrap expiry", async () => {
+    const { bookedManagerContact, bookedMarshalContacts, bookingContactEndsAt } = require("../lib/booking-contacts.ts");
+    const d = date => new Date(date);
+    const shift = await db.shift.update({ where: { id: (await makeShift()).id }, data: {
+      status: "RECRUITMENT_STOPPED", startDate: d("2027-03-26"), endDate: d("2027-03-29"),
+      dailyStartTime: "20:00", dailyEndTime: "06:00",
+    } });
+    const a = await apply(shift, marshal, "ACCEPTED");
+    const outsiderApp = await apply(shift, waiting);
+    const cutoff = d("2027-04-06T05:00Z");
+    assert.equal(+bookingContactEndsAt(shift, null), +cutoff);
+    const before = new Date(+cutoff-1);
+    const asMarshal = (when=before, booking=a) => bookedManagerContact(marshal.id, shift, booking, when);
+    const asManager = (when=before, booking=a) => bookedMarshalContacts(manager.id, shift, [booking, outsiderApp], when);
+    assert.equal((await asMarshal()).email, manager.email);
+    assert.deepEqual((await asManager()).map(x=>x.id), [marshal.id]);
+    assert.equal(await asMarshal(cutoff), null);
+    assert.deepEqual(await asManager(cutoff), []);
+    assert.equal(await bookedManagerContact(waiting.id, shift, a, before), null);
+    assert.deepEqual(await bookedMarshalContacts(waiting.id, shift, [a], before), []);
+    for (const actor of [manager,marshal]) {
+      await db.user.update({where:{id:actor.id},data:{disabledAt:new Date()}});
+      assert.equal(await asMarshal(), null);
+      assert.deepEqual(await asManager(), []);
+      await db.user.update({where:{id:actor.id},data:{disabledAt:null}});
+    }
+    await db.marshalProfile.update({where:{userId:marshal.id},data:{paused:true}});
+    assert.equal(await asMarshal(), null);
+    assert.deepEqual(await asManager(), []);
+    await db.marshalProfile.update({where:{userId:marshal.id},data:{paused:false}});
+    await db.shift.update({where:{id:shift.id},data:{paused:true}});
+    assert.deepEqual(await asManager(), []);
+    assert.equal(await asMarshal(), null);
+    await db.shift.update({where:{id:shift.id},data:{paused:false}});
+    const released = await db.application.update({where:{id:a.id},data:{releasedFrom:d("2027-03-28")}});
+    const retainedWrap = d("2027-03-28T05:00Z");
+    assert.equal(+bookingContactEndsAt(shift, released.releasedFrom), +retainedWrap);
+    assert.equal(await asMarshal(new Date(+retainedWrap-1)), null);
+    assert.deepEqual(await asManager(new Date(+retainedWrap-1)), []);
+    assert.equal((await asMarshal(new Date(+retainedWrap-1),released)).email,manager.email);
+    assert.equal(await asMarshal(retainedWrap,released),null);
+    assert.deepEqual(await asManager(retainedWrap,released),[]);
+    for (const status of ["WITHDRAWN","PRODUCTION_CANCELLED"]) {
+      await db.application.update({where:{id:a.id},data:{releasedFrom:null,status}});
+      assert.equal(await asMarshal(),null);
+      assert.deepEqual(await asManager(),[]);
+    }
+  });
+  await t.test("a mistaken release requires current agreement and a conflict-free future schedule", async () => {
+    const { restoreFutureCallsAction } = require("../app/actions/release-correction.ts");
+    const { dayAfter, londonCallDate } = require("../lib/state.ts");
+    const { callKey } = require("../lib/run-attendance.ts");
+    const today = londonCallDate(), start = dayAfter(today,-1), from = dayAfter(today,20);
+    const shift = await db.shift.update({where:{id:(await makeShift()).id}, data:{startDate:start,endDate:from}});
+    const booking = await apply(shift,marshal,"ACCEPTED");
+    const release = () => redirectTo(manager,shifts.releaseRemainingCallsAction,shift.id,booking.id,form({releaseDate:callKey(from)}));
+    await release();
+    const releaseId = async () => (await db.attendanceChange.findFirstOrThrow({where:{applicationId:booking.id,outcome:"CALLS_RELEASED"},orderBy:{createdAt:"desc"}})).id;
+    const request = form({expectedDate:callKey(from),expectedRelease:await releaseId(),reason:"Confirmed synthetic recording error",confirmed:"yes"});
+    const restore = () => redirectTo(fresh,restoreFutureCallsAction,shift.id,booking.id,request);
+    const clash = await db.shift.update({where:{id:(await makeShift()).id},data:{startDate:from,endDate:from}});
+    const b = await apply(clash,marshal,"ACCEPTED");
+    assert.match(await restore(),/restore=conflict/);
+    await db.application.update({where:{id:b.id},data:{status:"WITHDRAWN"}});
+    assert.match(await restore(),/restore=saved/);
+    assert.match(await restore(),/restore=stale/);
+    assert.equal((await db.application.findUniqueOrThrow({where:{id:booking.id}})).releasedFrom,null);
+    const notices = await db.notification.findMany({where:{subject:"Call release corrected: "+nonce}});
+    assert.deepEqual(notices.map(n=>n.userId).sort(),[manager.id,marshal.id].sort());
+    await release();
+    assert.match(await restore(),/restore=stale/);
   });
   await t.test("stale edits, publication and historical terms", async () => {
     const shift = await makeShift("DRAFT");
@@ -216,7 +292,7 @@ test("logged workflow regressions against disposable PostgreSQL", async t => {
     const runDate = new Date("2096-09-01");
     await db.shift.update({ where: { id: shift.id }, data: { startDate: runDate, endDate: runDate } });
     mailOK = false;
-    await redirectTo(waiting, hiring.applyToShiftAction, null, form({ shiftId: shift.id }));
+    await redirectTo(waiting, hiring.applyToShiftAction, null, form({ shiftId: shift.id, briefVersion: "synthetic-brief", noticeVersion: clearance.applicationNoticeVersion }));
     const app = await db.application.findFirstOrThrow({ where: { shiftId: shift.id, marshalId: waiting.id } });
     const managerJob = await db.mailDelivery.findFirstOrThrow({ where: {
       shiftId: shift.id, notification: { userId: manager.id, kind: "APPLICATION_SUBMITTED" },
@@ -267,6 +343,15 @@ test("logged workflow regressions against disposable PostgreSQL", async t => {
     await dispatchDelivery(newJob.id, true);
     assert.ok((await db.mailDelivery.findUniqueOrThrow({ where: { id: newJob.id } })).sentAt);
     assert.equal(sent.length, afterAcceptance + 1);
+    // A manager may still owe attendance after wrap; that does not make a delayed call current.
+    await db.shift.update({ where: { id: shift.id }, data: {
+      startDate: new Date("2020-01-01"), endDate: new Date("2020-01-02"),
+      dailyStartTime: "20:00", dailyEndTime: "06:00",
+    } });
+    await db.mailDelivery.update({ where: { id: newJob.id }, data: { sentAt: null } });
+    await dispatchDelivery(newJob.id, true);
+    assert.equal(sent.length, afterAcceptance + 1);
+    assert.equal(await db.mailDelivery.findUnique({ where: { id: newJob.id } }), null);
   });
   await t.test("review and receipt commit together, including ratings without comments", async () => {
     const shift=await makeShift("COMPLETED");
@@ -279,6 +364,13 @@ test("logged workflow regressions against disposable PostgreSQL", async t => {
     failNotice=null;
     await redirectTo(manager,submitReviewAction,null,fields);
     await redirectTo(marshal,submitReviewAction,null,form({shiftId:shift.id,rating:"5"}));
+    const other = await apply(shift,waiting,"ACCEPTED");
+    const otherReview = form({shiftId:shift.id,marshalId:waiting.id,rating:"5"});
+    assert((await run(manager,submitReviewAction,null,otherReview)).error);
+    await db.application.update({where:{id:other.id},data:{attendance:"WORKED"}});
+    await redirectTo(manager,submitReviewAction,null,otherReview);
+    assert.match((await run(manager,submitReviewAction,null,otherReview)).error,/already reviewed/);
+    assert.equal(await db.review.count({where:{shiftId:shift.id,authorId:manager.id}}),2);
     const notes=await db.notification.findMany({where:{kind:"REVIEW_RECEIVED",subject:"New review: "+nonce}});
     for(const review of await db.review.findMany({where:{shiftId:shift.id}})) {
       const base=review.subjectId===manager.id?"/manager/reviews":"/marshal/profile";
@@ -321,4 +413,46 @@ test("logged workflow regressions against disposable PostgreSQL", async t => {
     assert.equal(await db.waitlistEntry.count({where:{email}}),1);
     assert.equal(sent.filter(m=>m.to===email).length,2);
   });
+  await t.test("verified waitlist withdrawal suppresses all roles and cancels a pending retry", async () => {
+    const { withdrawWaitlistByRequest } = require("../app/actions/founder.ts");
+    const email = `withdraw-${nonce}@example.invalid`;
+    mailOK = false;
+    const intake = role => form({ email, name: "Synthetic withdrawal", role });
+    await redirectTo(null, submitWaitlistEntryAction, null, intake("MANAGER"));
+    const request = await db.supportRequest.create({ data: {
+      email, name: "Synthetic", category: "PRIVACY_DELETION", message: "Remove my waitlist request.",
+    } });
+    await redirectTo(fresh, withdrawWaitlistByRequest, request.id, request.revision);
+    const saved = await db.waitlistEntry.findFirstOrThrow({ where: { email }, include: { delivery: true } });
+    assert.equal(saved.status, "WITHDRAWN");
+    assert(saved.withdrawnAt);
+    assert.equal(saved.withdrawalCaseId, request.id);
+    assert.equal(saved.delivery, null);
+    const mailCount = sent.length;
+    mailOK = true;
+    await redirectTo(null, submitWaitlistEntryAction, null, intake("MARSHAL"));
+    assert.equal(await db.waitlistEntry.count({ where: { email } }), 1);
+    assert.equal(sent.length, mailCount);
+  });
+  await t.test("stopping a partly filled vacancy retains individual bookings and prevents reopening", async () => {
+    const shift = await makeShift();
+    await db.shift.update({ where: { id: shift.id }, data: { marshalsNeeded: 3 } });
+    const booking = await apply(shift, marshal, "ACCEPTED");
+    const applicant = await apply(shift, waiting);
+    const roster = () => db.shift.findUniqueOrThrow({ where: { id: shift.id }, include: { applications: true } });
+    await redirectTo(manager, shifts.stopRecruitmentAction, shift.id);
+    const stopped = await roster();
+    assert.equal(stopped.status, "RECRUITMENT_STOPPED");
+    assert.equal(stopped.applications.find(a => a.id === booking.id).status, "ACCEPTED");
+    assert.equal(stopped.applications.find(a => a.id === applicant.id).status, "REJECTED");
+    assert.match(await redirectTo(manager, hiring.acceptApplicationAction, applicant.id), /stale/);
+    assert.match(await redirectTo(manager, shifts.stopRecruitmentAction, shift.id), /close=stale/);
+    const other = await makeShift();
+    const candidate = await apply(other, marshal);
+    assert.match(await redirectTo(manager, hiring.acceptApplicationAction, candidate.id), /conflict/);
+    await redirectTo(marshal, hiring.withdrawApplicationAction, booking.id);
+    assert.equal((await roster()).status, "CLOSED");
+    assert.equal(await db.notification.count({ where: {userId: waiting.id, subject: `Recruitment closed: ${shift.productionName}`} }), 1);
+  });
+
 });

@@ -79,6 +79,7 @@ export const ShiftDraftSchema = z
     duties: noContactLeak(
       z.string().trim().min(1, "Describe the duties").max(2000),
     ),
+    engagementTerms: optionalNoContactLeak(z.string().trim().max(3000)),
     parkingTravel: optionalNoContactLeak(z.string().trim().max(500)),
     experienceNotes: optionalNoContactLeak(z.string().trim().max(500)),
   })
@@ -219,7 +220,7 @@ export const SupportRequestSchema = z.object({
   message: z
     .string()
     .trim()
-    .min(10, "Tell us what's happening so we can help")
+    .min(1, "Enter a short request or case reference")
     .max(4000),
 });
 

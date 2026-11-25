@@ -134,6 +134,13 @@ export const APPLY_UNAVAILABLE_DATES_REMINDER =
 export const WAITLIST_NEXT_STEP =
   "We’ll send one update when private beta places open for your role.";
 
+export function notificationInboxText(notice: { kind: string; subject: string; body: string; link: string | null }) {
+  if (notice.kind === "APPLICATION_SUBMITTED" && !notice.link) {
+    return { subject: "Application submitted", body: "An earlier application was recorded. Check your workspace for its current status." };
+  }
+  return { subject: notice.subject, body: notificationDisplayBody(notice.kind, notice.body) };
+}
+
 // Previously stored messages keep their original content in the database.
 export function notificationDisplayBody(kind: string, body: string) {
   if (kind === "REVIEW_RECEIVED") return "A review was submitted for this shift.";

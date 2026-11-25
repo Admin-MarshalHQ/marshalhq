@@ -195,10 +195,9 @@ export async function submitSupportRequestAction(
   // don't break validation when their inputs aren't rendered.
   const rawEmail =
     loggedInEmail ?? (formData.get("email") ? String(formData.get("email")) : "");
-  const rawName = formData.get("name");
   const parsed = SupportRequestSchema.safeParse({
     email: rawEmail,
-    name: rawName ? String(rawName) : "",
+    name: "",
     category: formData.get("category"),
     message: formData.get("message") ? String(formData.get("message")) : "",
   });

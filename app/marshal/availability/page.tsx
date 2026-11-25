@@ -20,7 +20,7 @@ export default async function AvailabilityPage() {
       where: {
         marshalId: user.id,
         status: "ACCEPTED",
-        shift: { status: { in: ["OPEN", "FILLED"] } },
+        shift: { status: { in: ["OPEN", "FILLED", "RECRUITMENT_STOPPED"] } },
       },
       orderBy: { shift: { startDate: "asc" } },
       include: { shift: true },

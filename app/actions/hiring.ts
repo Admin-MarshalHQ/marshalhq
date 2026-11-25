@@ -1,6 +1,8 @@
 "use server";
 
 import { conflictingBooking } from "@/lib/booking-conflict";
+import { managerApplicationAccess } from "@/lib/manager-application-access";
+import { applicationNoticeVersion, briefVersion, clearedFor, vacancyBrief } from "@/lib/vacancy-brief";
 import { prisma } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -48,6 +50,12 @@ export async function applyToShiftAction(
       if (!shift || shift.paused || shift.status !== "OPEN" || !isShiftSchedulable(shift)) {
         return { error: "This shift is no longer open for applications." };
       }
+      const release = await tx.vacancyRelease.findUnique({ where: { activeSlot: "GB-pilot" } });
+      if (!clearedFor(shift, release, "apply", user.id)) return { error: "A named application to this hirer has not been cleared. No application was shared." };
+      const version = briefVersion(shift);
+      if (formData.get("briefVersion") !== version || formData.get("noticeVersion") !== applicationNoticeVersion) {
+        return { error: "Review the current brief and application notice before applying." };
+      }
       const booked = await tx.application.count({ where: { shiftId, status: "ACCEPTED" } });
       if (booked >= shift.marshalsNeeded) return { error: "This shift is already filled." };
       const conflict = await conflictingBooking(tx, user.id, shift);
@@ -57,6 +65,7 @@ export async function applyToShiftAction(
         data: {
           shiftId,
           marshalId: user.id,
+          termsVersion: version, appliedBrief: vacancyBrief(shift), noticeVersion: applicationNoticeVersion,
           coverNote: coverNote || null,
           status: "APPLIED",
         },
@@ -151,17 +160,19 @@ export async function withdrawApplicationAction(applicationId: string) {
       const reopen = await tx.shift.updateMany({
         where: {
           id: app.shiftId,
-          status: { in: ["OPEN", "FILLED"] },
+          status: { in: ["OPEN", "FILLED", "RECRUITMENT_STOPPED"] },
         },
         data: {
-          status: acceptedCount < shift.marshalsNeeded ? "OPEN" : shift.status,
+          status: current.status === "RECRUITMENT_STOPPED"
+            ? (acceptedCount ? current.status : "CLOSED")
+            : (acceptedCount < current.marshalsNeeded ? "OPEN" : current.status),
         },
       });
       if (reopen.count !== 1) throw new Error("WITHDRAW_STALE");
       emailQueue.push(await saveNotice(tx, {
         userId: shift.managerId, kind: "SHIFT_STATUS_CHANGED",
         subject: `Accepted marshal withdrew: ${shift.productionName}`,
-        body: "An accepted marshal withdrew. A place has reopened on your shift.",
+        body: current.status === "RECRUITMENT_STOPPED" ? "An accepted marshal withdrew. Recruitment remains closed." : "An accepted marshal withdrew. A place has reopened on your shift.",
         link: `/manager/shifts/${shift.id}`,
       }, shift.id));
       if (current.status === "FILLED") emailQueue.push(...await notifyPendingAfterDropout(tx, shift));
@@ -227,8 +238,10 @@ export async function acceptApplicationAction(applicationId: string) {
       if (!freshApp || freshApp.shiftId !== shiftId || freshApp.status !== "APPLIED") {
         throw new StaleAcceptStateError();
       }
-      const freshProfile = await tx.marshalProfile.findUnique({
-        where: { userId: freshApp.marshalId },
+      const release = await tx.vacancyRelease.findUnique({ where: { activeSlot: "GB-pilot" } });
+      if (!clearedFor(freshShift, release, "book", freshApp.marshalId) || freshApp.termsVersion !== briefVersion(freshShift)) throw new StaleAcceptStateError();
+      const freshProfile = await tx.marshalProfile.findFirst({
+        where: { userId: freshApp.marshalId, user: { disabledAt: null } },
       });
       if (!freshProfile || freshProfile.paused || !canMarshalApply(freshProfile.availability)) {
         throw new StaleAcceptStateError();
@@ -325,8 +338,9 @@ export async function rejectApplicationAction(applicationId: string) {
   const emailQueue: string[] = [];
   const changed = await prisma.$transaction(async (tx) => {
     await lockShift(tx, app.shiftId);
+    const visible = await managerApplicationAccess(managerId, tx);
     const result = await tx.application.updateMany({
-      where: { id: app.id, status: "APPLIED", shift: { managerId, status: { in: ["OPEN", "FILLED"] } } },
+      where: { AND: [visible], id: app.id, status: "APPLIED", shift: { managerId, status: { in: ["OPEN", "FILLED"] } } },
       data: { status: "REJECTED", decidedAt: new Date() },
     });
     if (!result.count) return false;

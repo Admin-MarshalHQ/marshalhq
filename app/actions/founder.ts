@@ -165,3 +165,32 @@ export async function correctPilotRoleAction(id: string, previous: string, form:
   revalidatePath("/founder/users");
   redirect(saved ? "/founder/users?role=saved" : "/founder/users?role=blocked");
 }
+
+export async function withdrawWaitlistByRequest(requestId: string, revision: number) {
+  const path = `/founder/support/${requestId}`;
+  await requireFounder(true, path);
+  const result = await prisma.$transaction(async tx => {
+    const request = await tx.supportRequest.findFirst({ where: { id: requestId, revision, resolvedAt: null } });
+    if (!request) return "conflict";
+    const email = request.email.trim().toLowerCase();
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${"waitlist:" + email}, 0))`;
+    const entries = await tx.waitlistEntry.findMany({
+      where: { email: { equals: email, mode: "insensitive" }, withdrawnAt: null },
+      select: { id: true },
+    });
+    if (!entries.length) return "no-active-entry";
+    const checked = await tx.supportRequest.updateMany({
+      where: { id: requestId, revision, resolvedAt: null }, data: { revision: { increment: 1 } },
+    });
+    if (!checked.count) return "conflict";
+    const ids = entries.map(entry => entry.id);
+    await tx.waitlistEntry.updateMany({ where: { id: { in: ids } }, data: {
+      status: "WITHDRAWN", consentToContact: false, withdrawnAt: new Date(), withdrawalCaseId: requestId,
+    } });
+    await tx.mailDelivery.deleteMany({ where: { waitlistId: { in: ids }, sentAt: null } });
+    return "withdrawn";
+  });
+  revalidatePath("/founder/waitlist");
+  revalidatePath(path);
+  redirect(path + "?triage=" + result);
+}

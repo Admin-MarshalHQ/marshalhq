@@ -83,6 +83,8 @@ export async function submitWaitlistEntryAction(
   try {
     const created = await prisma.$transaction(async tx => {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${"waitlist:" + v.email}, 0))`;
+      const withdrawn = await tx.waitlistEntry.count({ where: { email: { equals: v.email, mode: "insensitive" }, withdrawnAt: { not: null } } });
+      if (withdrawn) return null;
       const exists = await tx.waitlistEntry.findFirst({ where: { email: v.email, role: v.role }, select: { id: true, delivery: { select: { id: true } } } });
       if (exists) {
         // Historical confirmations have no trustworthy dispatch status.

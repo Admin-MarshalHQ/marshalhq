@@ -91,6 +91,8 @@ model Shift {
   rate                  Float
   rateUnit              String   @default("HOUR") // RateUnit: HOUR | DAY
   duties                String
+  engagementTerms       String?
+  vacancyReleases       VacancyRelease[]
   parkingTravel         String?
   experienceNotes       String?
   status                String   @default("DRAFT") // ShiftStatus
@@ -106,6 +108,25 @@ model Shift {
   reviews      Review[]
 }
 
+// At most one current vacancy. Past editions remain attributable after a hold.
+model VacancyRelease {
+  id           String @id @default(cuid())
+  shiftId      String
+  shift        Shift @relation(fields: [shiftId], references: [id], onDelete: Cascade)
+  activeSlot   String? @unique
+  briefVersion String
+  evidenceRef  String
+  reviewerId   String
+  viewers      String[]
+  applicants   String[]
+  bookable     String[]
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+  retiredAt    DateTime?
+  retiredBy    String?
+  @@index([shiftId, createdAt])
+}
+
 model Application {
   id         String    @id @default(cuid())
   shiftId    String
@@ -114,6 +135,9 @@ model Application {
   attendanceDays Json?    // Individual outcomes keyed by the London call date.
   releasedFrom DateTime?  // First call date released by agreement, inclusive.
   attendanceChanges AttendanceChange[]
+  appliedBrief Json?
+  termsVersion String?
+  noticeVersion String?
   coverNote  String?
   status     String    @default("APPLIED") // ApplicationStatus
   appliedAt  DateTime  @default(now())
@@ -236,6 +260,8 @@ model MailDelivery {
 }
 
 model WaitlistEntry {
+  withdrawnAt       DateTime?
+  withdrawalCaseId  String?
   delivery MailDelivery?
   id                String   @id @default(cuid())
   createdAt         DateTime @default(now())
@@ -260,7 +286,7 @@ model WaitlistEntry {
 // Two-way reviews. After a shift reaches COMPLETED, the manager and the booked
 // marshal can each leave one rating (1-5) plus an optional comment. `direction`
 // records which side wrote it. The unique constraint enforces one review per
-// side per shift; aggregate averages are computed on read for now (small data),
+// direction per booked pair; aggregate averages are computed on read for now (small data),
 // with denormalised counts left as a later perf step. Comments are run through
 // the contact-leak guard at the edge like every other public free-text field.
 model Review {
@@ -277,7 +303,7 @@ model Review {
   author  User  @relation("ReviewAuthor", fields: [authorId], references: [id], onDelete: Cascade)
   subject User  @relation("ReviewSubject", fields: [subjectId], references: [id], onDelete: Cascade)
 
-  @@unique([shiftId, authorId, direction])
+  @@unique([shiftId, authorId, subjectId, direction])
   @@index([subjectId])
 }
 

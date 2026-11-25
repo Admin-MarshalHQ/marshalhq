@@ -21,3 +21,10 @@ export function isPilotParticipant(address?: string | null, role?: string | null
   if (intended) return intended !== "CONFLICT" && intended === role;
   return listed(email, process.env.PILOT_PARTICIPANT_EMAILS);
 }
+
+
+// The vacancy screen only needs accounts with an unambiguous role-bound invitation.
+export function invitedMarshalAddresses() {
+  return (process.env.PILOT_MARSHAL_EMAILS ?? "").split(",")
+    .map(entry => entry.trim().toLowerCase()).filter(email => invitedRole(email) === "MARSHAL");
+}

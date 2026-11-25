@@ -256,6 +256,7 @@ export function StatusBadge({ label, tone }: { label: string; tone: BadgeTone })
 const SHIFT_STATUS_TONE: Record<ShiftStatus, BadgeTone> = {
   DRAFT: "neutral",
   OPEN: "ok",
+  RECRUITMENT_STOPPED: "booked",
   FILLED: "booked",
   CLOSED: "neutral",
   COMPLETED: "ok",

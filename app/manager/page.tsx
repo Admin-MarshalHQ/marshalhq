@@ -1,3 +1,4 @@
+import { managerApplicationAccess } from "@/lib/manager-application-access";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { prisma } from "@/lib/db";
@@ -23,6 +24,7 @@ export const metadata: Metadata = { title: "Production dashboard" };
 
 export default async function ManagerDashboard() {
   const user = await requireRole("MANAGER");
+  const visibleApplications = await managerApplicationAccess(user.id);
   const profile = await prisma.managerProfile.findUnique({
     where: { userId: user.id },
   });
@@ -31,6 +33,7 @@ export default async function ManagerDashboard() {
     orderBy: [{ startDate: "asc" }, { createdAt: "desc" }],
     include: {
       applications: {
+        where: visibleApplications,
         select: {
           status: true,
           marshal: { select: { marshalProfile: { select: { paused: true } } } },
@@ -50,7 +53,7 @@ export default async function ManagerDashboard() {
 
   const byGroup = {
     active: shifts.filter(
-      (s) => s.status === "DRAFT" || s.status === "OPEN" || s.status === "FILLED",
+      (s) => s.status === "DRAFT" || s.status === "OPEN" || s.status === "FILLED" || s.status === "RECRUITMENT_STOPPED",
     ),
     archive: shifts.filter(
       (s) => s.status === "COMPLETED" || s.status === "CLOSED",
