@@ -70,7 +70,7 @@ export default async function ManagerShiftDetailPage({
     include: {
       _count: { select: { applications: true } },
       applications: {
-        where: { ...visibleApplications, status: { in: ["APPLIED", "ACCEPTED"] } },
+        where: { AND: [visibleApplications], status: { in: ["APPLIED", "ACCEPTED"] } },
         include: {
           marshal: { select: { marshalProfile: { select: { fullName: true, paused: true } } } },
         },

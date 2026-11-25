@@ -8,11 +8,12 @@ import { clearedFor } from "@/lib/vacancy-brief";
 // that same row again prevents a stale first read from authorising disclosure.
 export async function managerApplicationAccess(
   managerId: string,
+  db: Pick<Prisma.TransactionClient, "vacancyRelease"> = prisma,
 ): Promise<Prisma.ApplicationWhereInput> {
   const bookings: Prisma.ApplicationWhereInput = {
     status: { in: ["ACCEPTED", "PRODUCTION_CANCELLED"] },
   };
-  const release = await prisma.vacancyRelease.findUnique({
+  const release = await db.vacancyRelease.findUnique({
     where: { activeSlot: "GB-pilot" },
     include: {
       shift: {

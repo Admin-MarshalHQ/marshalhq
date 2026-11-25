@@ -27,6 +27,7 @@ test("one scoped vacancy, individual stages and durable brief across a hold", as
   const {
     applyToShiftAction,
     acceptApplicationAction,
+    rejectApplicationAction,
   } = require("../app/actions/hiring.ts");
   const tag = randomUUID();
   async function user(role, name) {
@@ -229,6 +230,18 @@ test("one scoped vacancy, individual stages and durable brief across a hold", as
   } = require("../lib/manager-application-access.ts");
   const applicants = async (where) =>
     db.application.findMany({ where, select: { id: true } });
+  global.React = require("react");
+  const managerRoster = require("../app/manager/shifts/[id]/page.tsx").default;
+  async function rendersPendingName() {
+    const tree = await session.run(manager, () => managerRoster({ params: { id: shift.id }, searchParams: {} }));
+    function showsName(node) {
+      if (Array.isArray(node)) return node.some(showsName);
+      if (global.React.isValidElement(node)) return showsName(node.props.children);
+      return node === "permitted";
+    }
+    return showsName(tree);
+  }
+  assert.equal(await rendersPendingName(), true);
   const staleRead = await managerApplicationAccess(manager.id);
   assert.equal((await applicants(staleRead)).length, 1);
   const beforeHold = await release();
@@ -241,6 +254,8 @@ test("one scoped vacancy, individual stages and durable brief across a hold", as
     form({ decision: "hold" }),
   );
   assert.deepEqual(await applicants(staleRead), []);
+  assert.equal(await rendersPendingName(), false);
+  assert.match(await act(manager, rejectApplicationAction, booking.id), /stale/);
   assert.deepEqual(
     await applicants(await managerApplicationAccess(manager.id)),
     [],

@@ -1,6 +1,7 @@
 "use server";
 
 import { conflictingBooking } from "@/lib/booking-conflict";
+import { managerApplicationAccess } from "@/lib/manager-application-access";
 import { applicationNoticeVersion, briefVersion, clearedFor, vacancyBrief } from "@/lib/vacancy-brief";
 import { prisma } from "@/lib/db";
 import { revalidatePath } from "next/cache";
@@ -327,8 +328,9 @@ export async function rejectApplicationAction(applicationId: string) {
   const emailQueue: string[] = [];
   const changed = await prisma.$transaction(async (tx) => {
     await lockShift(tx, app.shiftId);
+    const visible = await managerApplicationAccess(managerId, tx);
     const result = await tx.application.updateMany({
-      where: { id: app.id, status: "APPLIED", shift: { managerId, status: { in: ["OPEN", "FILLED"] } } },
+      where: { AND: [visible], id: app.id, status: "APPLIED", shift: { managerId, status: { in: ["OPEN", "FILLED"] } } },
       data: { status: "REJECTED", decidedAt: new Date() },
     });
     if (!result.count) return false;

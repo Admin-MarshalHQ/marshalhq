@@ -14,6 +14,7 @@ test("real booking actions serialise decisions and credit each worker once", asy
   // are exercised independently against PostgreSQL in vacancy-release.test.cjs.
   const clearance = require("../lib/vacancy-brief.ts");
   require.cache[require.resolve("../lib/vacancy-brief.ts")].exports = { ...clearance, clearedFor: () => true };
+  require.cache[require.resolve("../lib/manager-application-access.ts")] = { exports: { managerApplicationAccess: async managerId => ({ shift: { managerId } }) } };
   const actor = new AsyncLocalStorage();
   const authModule = require.resolve("../lib/auth.ts");
   require.cache[authModule] = { exports: { auth: async () => ({ user: actor.getStore() }) } };
