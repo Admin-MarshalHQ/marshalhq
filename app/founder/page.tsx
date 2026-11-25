@@ -1,3 +1,4 @@
+import { disputedRelease } from "@/lib/attendance";
 import { requireFounder } from "@/lib/access";
 import Link from "next/link";
 import { prisma } from "@/lib/db";
@@ -29,7 +30,7 @@ export default async function FounderOverviewPage() {
     prisma.application.count(),
     prisma.supportRequest.count({ where: { resolvedAt: null } }),
     prisma.supportRequest.count(),
-    prisma.shift.count({ where: { applications: { some: { status: "ACCEPTED", attendance: { in: ["UNRESOLVED", "WORKED_FLAGGED", "PARTIAL_FLAGGED"] } } } } }),
+    prisma.shift.count({ where: { applications: { some: { status: "ACCEPTED", attendance: { in: ["UNRESOLVED", "WORKED_FLAGGED", "PARTIAL_FLAGGED", disputedRelease] } } } } }),
     prisma.supportRequest.findMany({
       orderBy: { createdAt: "desc" },
       take: 5,

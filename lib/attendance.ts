@@ -1,3 +1,5 @@
+export const disputedRelease = "RELEASE_DISPUTED";
+
 export const attendanceLabels = {
   WORKED: "Worked as agreed",
   WORKED_FLAGGED: "Worked — feedback withheld",
@@ -19,6 +21,7 @@ export const confirmedCount = { select: { applications: { where: confirmedWork }
 
 export type Attendance = keyof typeof attendanceLabels;
 export function attendanceLabel(value: string | null) {
+  if (value === disputedRelease) return "Call release under review";
   if (value === "PARTIAL") return "Worked part of the run";
   if (value === "PARTIAL_FLAGGED") return "Worked part of the run · feedback withheld";
   return isAttendance(value) ? attendanceLabels[value] : "Individual attendance unconfirmed";

@@ -32,7 +32,7 @@ export default async function MarshalHome() {
   const booked = currentBookings(apps, new Date());
   const awaitingDecision = apps.filter((a) => a.status === "APPLIED" && hiringOpen(a.shift));
   const nextBooking = booked[0];
-  const featuredOutcome = nextBooking && marshalApplicationOutcome(nextBooking.status, nextBooking.shift);
+  const featuredOutcome = nextBooking && marshalApplicationOutcome(nextBooking.status, nextBooking.shift, nextBooking.attendance);
   const recentApplications = apps.slice(0, 10);
 
   return (

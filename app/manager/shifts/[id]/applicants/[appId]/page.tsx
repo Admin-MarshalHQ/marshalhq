@@ -3,7 +3,7 @@ import { AppliedBriefDownload } from "@/components/AppliedBriefDownload";
 import { confirmedCount } from "@/lib/attendance";
 import { recordedReviews } from "@/lib/recorded-reviews";
 import { notFound } from "next/navigation";
-import { requireRole } from "@/lib/access";
+import { requireAgreedRole } from "@/lib/access";
 import { conflictingBooking } from "@/lib/booking-conflict";
 import { prisma } from "@/lib/db";
 import {
@@ -43,7 +43,7 @@ export default async function ApplicantDetailPage({
   params: { id: string; appId: string };
   searchParams: { stale?: string; conflict?: string };
 }) {
-  const user = await requireRole("MANAGER");
+  const user = await requireAgreedRole("MANAGER");
   const visibleApplications = await managerApplicationAccess(user.id);
   const shift = await prisma.shift.findUnique({ where: { id: params.id } });
   if (!shift || shift.managerId !== user.id) notFound();

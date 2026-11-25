@@ -4,7 +4,7 @@ import { marshalApplicationOutcome } from "@/lib/application-outcome";
 import { recordedReviews } from "@/lib/recorded-reviews";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { requireRole } from "@/lib/access";
+import { requireAgreedRole } from "@/lib/access";
 import { prisma } from "@/lib/db";
 import {
   Alert,
@@ -39,7 +39,7 @@ export default async function MarshalShiftDetailPage({
   params: { id: string };
   searchParams: { applied?: string };
 }) {
-  const user = await requireRole("MARSHAL");
+  const user = await requireAgreedRole("MARSHAL");
   const shift = await prisma.shift.findUnique({
     where: { id: params.id },
     include: {

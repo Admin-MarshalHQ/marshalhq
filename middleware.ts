@@ -17,6 +17,7 @@ const accountMiddleware = auth((req) => {
     path === "/login" ||
     path === "/login/founder" ||
     path === "/signup" ||
+    path === "/pilot/join" ||
     path === "/verify-email" ||
     path.startsWith("/verify-email/") ||
     path === "/terms" ||

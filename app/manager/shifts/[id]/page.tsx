@@ -2,7 +2,7 @@ import { managerApplicationAccess } from "@/lib/manager-application-access";
 import { hiringOpen } from "@/lib/workspace-shifts";
 import { ShiftEmailStatus } from "@/components/ShiftEmailStatus";
 import { RunAttendance } from "@/components/RunAttendance";
-import { nextAttendanceDate, callKey } from "@/lib/run-attendance";
+import { nextAttendanceDate, callKey, recordedDays } from "@/lib/run-attendance";
 import { attendanceLabel } from "@/lib/attendance";
 import { AttendanceForm } from "@/components/AttendanceForm";
 import { beforeCall, hasShiftEnded, dayAfter, londonCallDate, wrapDateTime } from "@/lib/state";
@@ -97,7 +97,7 @@ export default async function ManagerShiftDetailPage({
   const multi = +shift.startDate !== +shift.endDate;
   const attendanceDate = multi && active ? nextAttendanceDate(shift, acceptedApps) : null;
   const readyForCall = attendanceDate && wrapDateTime(attendanceDate, shift.dailyStartTime, shift.dailyEndTime) <= new Date();
-  const callRoster = acceptedApps.filter(app => !app.releasedFrom || !attendanceDate || app.releasedFrom > attendanceDate);
+  const callRoster = acceptedApps.filter(app => !attendanceDate || ((!app.releasedFrom || app.releasedFrom > attendanceDate) && !recordedDays(app.attendanceDays)[callKey(attendanceDate)]));
   const localDay = londonCallDate();
   const firstRelease = beforeCall({ ...shift, startDate: localDay }) ? localDay : dayAfter(localDay);
   const inRun = multi && active && bookedCount > 0 && !beforeCall(shift);
@@ -405,7 +405,7 @@ export default async function ManagerShiftDetailPage({
               <ul className="text-sm text-ink">{acceptedApps.map(app => (
                 <li key={app.id}>{app.marshal.marshalProfile?.fullName ?? "Marshal"}
                   {shift.status === "COMPLETED" && ` · ${attendanceLabel(app.attendance)}`}
-                  <RunAttendance days={app.attendanceDays} releasedFrom={app.releasedFrom} />
+                  <RunAttendance attendance={app.attendance} days={app.attendanceDays} releasedFrom={app.releasedFrom} />
                 </li>
               ))}</ul>
               <ButtonLink

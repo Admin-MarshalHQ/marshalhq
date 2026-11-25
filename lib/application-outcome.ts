@@ -1,3 +1,4 @@
+import { disputedRelease } from "./attendance";
 import { beforeCall } from "./state";
 
 const outcomes = {
@@ -67,6 +68,7 @@ export function marshalApplicationOutcome(
   // Closing a shift stores cancellations as WITHDRAWN and pending closures
   // as REJECTED. Those same states can predate a closure, so use the known
   // shift outcome without attributing an action to the marshal or manager.
+  if (status === "ACCEPTED" && attendance === disputedRelease) return { label: "Call release under review", tone: "neutral", detail: "Setru is checking the release date. This booking’s completion and reviews are on hold. Contact Support about the disputed calls." } as const;
   if (status === "PRODUCTION_CANCELLED") return { label: "Cancelled by production", tone: "neutral", detail: "Production cancelled your booking. This has no attendance or reliability effect." } as const;
   if (shift.status === "CLOSED") {
     return status === "ACCEPTED" ? outcomes.cancelled : outcomes.closed;

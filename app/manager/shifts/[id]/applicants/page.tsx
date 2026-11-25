@@ -3,7 +3,7 @@ import { hiringOpen } from "@/lib/workspace-shifts";
 import { confirmedCount } from "@/lib/attendance";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { requireRole } from "@/lib/access";
+import { requireAgreedRole } from "@/lib/access";
 import { prisma } from "@/lib/db";
 import {
   ApplicationStatusBadge,
@@ -22,7 +22,7 @@ export default async function ApplicantReviewPage({
 }: {
   params: { id: string };
 }) {
-  const user = await requireRole("MANAGER");
+  const user = await requireAgreedRole("MANAGER");
   const visibleApplications = await managerApplicationAccess(user.id);
   // Contact-release invariant, enforced structurally: this page must never
   // show an applicant's email or phone, so the query never selects them. The

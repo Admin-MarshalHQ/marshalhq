@@ -57,6 +57,7 @@ export default async function SettingsPage() {
       <Card className="mt-4">
         <Kicker className="mb-3">Contact phone</Kicker>
         <PhoneForm phone={user.phone} />
+        <p><Link className="underline" href="/pilot/agreement">Your private pilot terms and saved copies</Link></p>
         {user.role === "MANAGER" && <Link href="/manager/reviews" className="underline">Reviews from marshals</Link>}
       </Card>
       <Card className="mt-4" variant="sunken">

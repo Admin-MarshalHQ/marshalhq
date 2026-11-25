@@ -13,7 +13,7 @@ export default function Privacy() {
     <div className="mx-auto max-w-3xl">
       <PageHeader title="Privacy" />
       <div className="prose-plain max-w-none text-[15px]">
-        <p>Samuel Blake operates Setru and is the controller of the information described here. Use <Link href="/support">Support</Link> to contact him about your information. This notice covers the public demo, existing accounts and waitlist entries, and support requests. New registrations and waitlist entries are paused.</p>
+        <p>Samuel Blake operates Setru and is the controller of the information described here. Use <Link href="/support">Support</Link> to contact him about your information. This notice covers the public demo, existing accounts and waitlist entries, and support requests. New public registrations and waitlist entries are paused. An individually invited participant receives the private pilot notice before registration.</p>
         <h2>Public demo and browser storage</h2>
         <p>The <Link href="/demo">demo</Link> uses sample people and shifts. It saves your choices in this browser tab’s session storage so you can move between screens. Use Reset demo to start again. You can explore without an account.</p>
         <p>Setru uses first-party cookies to protect sign-in requests, remember the page to return to and keep you signed in. The security and return-page cookies last for the browser session. Clearing cookies can sign you out.</p>

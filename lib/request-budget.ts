@@ -6,6 +6,7 @@ const limits = {
   password: [40, 10, 1000],
   founderIssue: [10, 6, 100],
   founderVerify: [30, 15, 200],
+  pilotJoin: [12, 3, 80],
   reset: [12, 3, 150],
   support: [15, 5, 100],
   waitlist: [30, 4, 200],

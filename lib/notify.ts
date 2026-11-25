@@ -1,3 +1,4 @@
+import { pilotDocuments } from "@/lib/pilot-documents";
 import { randomUUID } from "node:crypto";
 import type { Prisma } from "@prisma/client";
 import { isPilotParticipant } from "@/lib/pilot-participant";
@@ -50,6 +51,11 @@ async function canSendApplicationNotice(notice: { kind: string; userId: string; 
   if (!managerNotice && notice.link !== `/marshal/applications/${applicationId}`) return false;
 
   const booking = notice.kind === "APPLICATION_ACCEPTED";
+  const docs = booking ? null : pilotDocuments();
+  if (!booking && !docs) return false;
+  const agreement = (role: string) => docs ? { pilotAgreements: { some: {
+    role, termsVersion: docs.termsVersion, noticeVersion: docs.noticeVersion,
+  } } } : {};
   const activeAccount = { disabledAt: null, emailVerifiedAt: { not: null } };
   const application = await prisma.application.findFirst({
     where: {
@@ -57,12 +63,12 @@ async function canSendApplicationNotice(notice: { kind: string; userId: string; 
       shiftId,
       status: booking ? "ACCEPTED" : "APPLIED",
       marshalId: managerNotice ? undefined : notice.userId,
-      marshal: { ...activeAccount, role: "MARSHAL", marshalProfile: { paused: false } },
+      marshal: { ...activeAccount, ...agreement("MARSHAL"), role: "MARSHAL", marshalProfile: { paused: false } },
       shift: {
         managerId: managerNotice ? notice.userId : undefined,
         paused: false,
         status: { in: booking ? ["OPEN", "FILLED", "RECRUITMENT_STOPPED"] : ["OPEN", "FILLED"] },
-        manager: { ...activeAccount, role: "MANAGER" },
+        manager: { ...activeAccount, ...agreement("MANAGER"), role: "MANAGER" },
       },
     },
     select: {

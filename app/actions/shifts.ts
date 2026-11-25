@@ -4,7 +4,7 @@ import { clearedFor } from "@/lib/vacancy-brief";
 import { prisma } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { requireRole, requireFounder } from "@/lib/access";
+import { requireAgreedRole, requireRole, requireFounder } from "@/lib/access";
 import { ShiftDraftSchema } from "@/lib/zod";
 import {
   beforeCall,
@@ -14,7 +14,7 @@ import {
 } from "@/lib/state";
 import { flushNotificationEmails, saveNotice, notifyPendingAfterDropout, type NotifyParams } from "@/lib/notify";
 import { lockShift } from "@/lib/booking-lock";
-import { attendanceLabel, isAttendance, confirmedWork } from "@/lib/attendance";
+import { disputedRelease, attendanceLabel, isAttendance, confirmedWork } from "@/lib/attendance";
 import { callKey, nextAttendanceDate, recordedDays, runOutcome } from "@/lib/run-attendance";
 import { formatDate } from "@/lib/format";
 import { hasContactLeak } from "@/lib/contact-detect";
@@ -151,7 +151,7 @@ export async function updateDraftShiftAction(
 }
 
 export async function publishShiftAction(id: string, revision: string) {
-  const managerId = await requireManagerId();
+  const { id: managerId } = await requireAgreedRole("MANAGER");
   const result = await prisma.$transaction(async tx => {
     await lockShift(tx, id);
     const shift = await tx.shift.findFirst({ where: { id, managerId, status: "DRAFT", paused: false } });
@@ -314,7 +314,7 @@ async function settleAttendance(id: string, form: FormData, managerId: string | 
     const applicationId = form.get("applicationId");
     if (!managerId && typeof applicationId !== "string") return false;
     const roster = await tx.application.findMany({
-      where: { shiftId: id, status: "ACCEPTED", ...(managerId && { attendance: null }),
+      where: { shiftId: id, status: "ACCEPTED", ...(managerId && { OR: [{ attendance: null }, { attendance: disputedRelease }] }),
         ...(!managerId && typeof applicationId === "string" ? { id: applicationId } : {}),
       },
     });
@@ -336,7 +336,9 @@ async function settleAttendance(id: string, form: FormData, managerId: string | 
       const key = date && callKey(date);
       const previous = key ? days[key] : application.attendance;
       const excluded = date && application.releasedFrom && date >= application.releasedFrom;
-      if (!excluded && (!daily || key)) {
+      // A sibling can still need a date already recorded for this person.
+      const alreadyRecorded = managerId && key && previous;
+      if (!excluded && !alreadyRecorded && (!daily || key)) {
         const selected = form.get(application.id);
         if (!isAttendance(selected)) return false;
         if (reviewerId && (form.get("previous") !== (previous ?? "") || previous === selected || (key && !previous))) return false;
@@ -354,7 +356,7 @@ async function settleAttendance(id: string, form: FormData, managerId: string | 
         await tx.attendanceChange.create({ data: { applicationId: application.id, reviewerId,
           previous, outcome: selected, reason, callDate: date } });
       }
-      const outcome = daily ? runOutcome(days, application.releasedFrom) : selected;
+      const outcome = application.attendance === disputedRelease ? disputedRelease : daily ? runOutcome(days, application.releasedFrom) : selected;
       if (!outcome) return false;
       if (finish || selected) await tx.application.update({ where: { id: application.id },
         data: { ...(daily && selected && { attendanceDays: days }), ...(finish && { attendance: outcome }) } });

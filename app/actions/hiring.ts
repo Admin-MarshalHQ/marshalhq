@@ -6,7 +6,8 @@ import { applicationNoticeVersion, briefVersion, clearedFor, vacancyBrief } from
 import { prisma } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { requireRole } from "@/lib/access";
+import { hasPilotAgreement } from "@/lib/pilot-agreement";
+import { requireRole, requireAgreedRole } from "@/lib/access";
 import {
   assertApplicationTransition,
   assertShiftTransition,
@@ -24,7 +25,7 @@ export async function applyToShiftAction(
   _prev: { error?: string } | null,
   formData: FormData,
 ): Promise<{ error?: string } | null> {
-  const user = await requireRole("MARSHAL");
+  const user = await requireAgreedRole("MARSHAL");
 
   const parsed = ApplySchema.safeParse({
     shiftId: formData.get("shiftId"),
@@ -56,6 +57,7 @@ export async function applyToShiftAction(
       if (formData.get("briefVersion") !== version || formData.get("noticeVersion") !== applicationNoticeVersion) {
         return { error: "Review the current brief and application notice before applying." };
       }
+      if (!await hasPilotAgreement(shift.managerId, "MANAGER", tx)) return { error: "This hirer cannot currently receive applications." };
       const booked = await tx.application.count({ where: { shiftId, status: "ACCEPTED" } });
       if (booked >= shift.marshalsNeeded) return { error: "This shift is already filled." };
       const conflict = await conflictingBooking(tx, user.id, shift);
@@ -197,7 +199,7 @@ class StaleAcceptStateError extends Error {
 }
 
 export async function acceptApplicationAction(applicationId: string) {
-  const { id: managerId } = await requireRole("MANAGER");
+  const { id: managerId } = await requireAgreedRole("MANAGER");
 
   const app = await prisma.application.findUnique({
     where: { id: applicationId },
@@ -216,7 +218,7 @@ export async function acceptApplicationAction(applicationId: string) {
       const [marshal] = await tx.$queryRaw<{ email: string }[]>`
         SELECT email FROM "User" WHERE id = ${app.marshalId} AND role = 'MARSHAL'
           AND "disabledAt" IS NULL AND "emailVerifiedAt" IS NOT NULL FOR UPDATE`;
-      if (!marshal || !isPilotParticipant(marshal.email, "MARSHAL")) throw new StaleAcceptStateError();
+      if (!marshal || !isPilotParticipant(marshal.email, "MARSHAL") || !await hasPilotAgreement(app.marshalId, "MARSHAL", tx)) throw new StaleAcceptStateError();
       await tx.$queryRaw`SELECT id FROM "MarshalProfile" WHERE "userId" = ${app.marshalId} FOR UPDATE`;
       const freshShift = await tx.shift.findUnique({ where: { id: shiftId } });
       const acceptedBefore = await tx.application.count({

@@ -104,7 +104,7 @@ export default async function BookingPage({
         {accepted.map((app) => {
           const p = app.marshal.marshalProfile;
           const contact = contactByMarshal.get(app.marshalId);
-          if (!contact) return <Alert key={app.id} tone="warn">{isCompleted && <p>{marshalApplicationOutcome(app.status, shift, app.attendance).label}</p>}<RunAttendance days={app.attendanceDays} releasedFrom={app.releasedFrom} />Contact details for {p?.fullName ?? "this marshal"} are unavailable. <a href="/support">Contact Setru support about this booking.</a></Alert>;
+          if (!contact) return <Alert key={app.id} tone="warn">{isCompleted && <p>{marshalApplicationOutcome(app.status, shift, app.attendance).label}</p>}<RunAttendance attendance={app.attendance} days={app.attendanceDays} releasedFrom={app.releasedFrom} />Contact details for {p?.fullName ?? "this marshal"} are unavailable. <a href="/support">Contact Setru support about this booking.</a></Alert>;
           return (
             <ContactCard
               key={app.id}
@@ -122,7 +122,7 @@ export default async function BookingPage({
                 { label: "Phone", value: contact.phone ? <a className="underline" href={`tel:${contact.phone}`}>{formatPhone(contact.phone)}</a> : "No phone number provided" },
               ]}
             >
-              <RunAttendance days={app.attendanceDays} releasedFrom={app.releasedFrom} />
+              <RunAttendance attendance={app.attendance} days={app.attendanceDays} releasedFrom={app.releasedFrom} />
               {p?.training && (
                 <div className="mt-3">
                   <Kicker className="mb-0.5">Training / credentials</Kicker>

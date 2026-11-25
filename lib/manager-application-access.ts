@@ -1,3 +1,4 @@
+import { pilotDocuments } from "@/lib/pilot-documents";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { invitedMarshalAddresses, invitedRole } from "@/lib/pilot-participant";
@@ -30,9 +31,10 @@ export async function managerApplicationAccess(
       },
     },
   });
+  const docs = pilotDocuments();
   const owned = { shift: { managerId } };
   if (
-    !release ||
+    !docs || !release ||
     release.shift.managerId !== managerId ||
     !clearedFor(release.shift, release, "advert") ||
     release.shift.manager.disabledAt ||
@@ -41,6 +43,7 @@ export async function managerApplicationAccess(
   ) {
     return { ...owned, ...bookings };
   }
+  const versions = { termsVersion: docs.termsVersion, noticeVersion: docs.noticeVersion };
   return {
     ...owned,
     OR: [
@@ -54,6 +57,7 @@ export async function managerApplicationAccess(
         },
         marshal: {
           role: "MARSHAL",
+          pilotAgreements: { some: { role: "MARSHAL", ...versions } },
           disabledAt: null,
           emailVerifiedAt: { not: null },
           email: { in: invitedMarshalAddresses() },
@@ -63,6 +67,7 @@ export async function managerApplicationAccess(
           paused: false,
           manager: {
             role: "MANAGER",
+            pilotAgreements: { some: { role: "MANAGER", ...versions } },
             disabledAt: null,
             emailVerifiedAt: { not: null },
           },

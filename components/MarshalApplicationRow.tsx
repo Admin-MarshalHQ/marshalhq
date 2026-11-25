@@ -1,3 +1,4 @@
+import { disputedRelease } from "@/lib/attendance";
 import Link from "next/link";
 import type { Application, Shift } from "@prisma/client";
 import { DateBlock, StatusBadge } from "@/components/ui";
@@ -29,7 +30,7 @@ export function MarshalApplicationRow({ application }: {
               shift.dailyEndTime,
             )}
           </p>
-          {application.releasedFrom && <p>Released from calls starting {formatDate(application.releasedFrom)}.</p>}
+          {application.releasedFrom && <p>{application.attendance === disputedRelease ? "Release under review for calls from" : "Released from calls starting"} {formatDate(application.releasedFrom)}.</p>}
           <p className="mt-1 text-sm text-ink-muted">{outcome.detail}</p>
         </div>
       </div>

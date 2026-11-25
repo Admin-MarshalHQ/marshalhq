@@ -1,6 +1,6 @@
 import { recordedReviews } from "@/lib/recorded-reviews";
 import { RunAttendance } from "@/components/RunAttendance";
-import { worked } from "@/lib/attendance";
+import { disputedRelease, worked } from "@/lib/attendance";
 import { requireRole } from "@/lib/access";
 import { prisma } from "@/lib/db";
 import {
@@ -19,7 +19,7 @@ export default async function CompletionHistoryPage() {
   const ratingSummaryValue = ratingSummary(reviews);
   const completed = await prisma.application.findMany({
     where: {
-      attendance: { in: ["WORKED", "WORKED_FLAGGED", "PARTIAL", "PARTIAL_FLAGGED"] },
+      attendance: { in: ["WORKED", "WORKED_FLAGGED", "PARTIAL", "PARTIAL_FLAGGED", disputedRelease] },
       marshalId: user.id,
       status: "ACCEPTED",
       shift: { status: "COMPLETED" },
@@ -42,7 +42,7 @@ export default async function CompletionHistoryPage() {
       <PageHeader
         kicker="Completion history"
         title="Your record"
-        subtitle="Bookings with an individual record of work. Use Support to ask for a correction."
+        subtitle="Your individual work records and disputed releases. Use Support to ask for a correction."
       />
 
       <Card className="mb-4">
@@ -79,7 +79,7 @@ export default async function CompletionHistoryPage() {
                       a.shift.dailyEndTime,
                     )}
                   </p>
-                  <RunAttendance days={a.attendanceDays} releasedFrom={a.releasedFrom} />
+                  <RunAttendance attendance={a.attendance} days={a.attendanceDays} releasedFrom={a.releasedFrom} />
                 </div>
 
               </div>
