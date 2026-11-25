@@ -22,7 +22,16 @@ export async function recordVacancyRelease(
       await lockShift(tx, shiftId);
       const shift = await tx.shift.findUniqueOrThrow({
         where: { id: shiftId },
-        include: { manager: { select: { role: true, email: true, disabledAt: true, emailVerifiedAt: true } } },
+        include: {
+          manager: {
+            select: {
+              role: true,
+              email: true,
+              disabledAt: true,
+              emailVerifiedAt: true,
+            },
+          },
+        },
       });
       const current = await tx.vacancyRelease.findUnique({
         where: { activeSlot: "GB-pilot" },
@@ -46,6 +55,18 @@ export async function recordVacancyRelease(
           });
         return "held";
       }
+      // A held advert can still have people booked. Keep support available
+      // for that roster before allowing a different vacancy to take its place.
+      const otherRoster = await tx.shift.findFirst({
+        where: {
+          id: { not: shiftId },
+          status: { notIn: ["CLOSED", "COMPLETED"] },
+          vacancyReleases: { some: {} },
+          applications: { some: { status: "ACCEPTED" } },
+        },
+        select: { id: true },
+      });
+      if (otherRoster) return "roster";
       const evidence = String(form.get("evidenceRef") ?? "").trim();
       const expiryText = String(form.get("expiresAt") ?? "");
       const expiry = new Date(expiryText);

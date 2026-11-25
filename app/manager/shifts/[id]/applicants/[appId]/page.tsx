@@ -1,3 +1,4 @@
+import { managerApplicationAccess } from "@/lib/manager-application-access";
 import { AppliedBriefDownload } from "@/components/AppliedBriefDownload";
 import { confirmedCount } from "@/lib/attendance";
 import { recordedReviews } from "@/lib/recorded-reviews";
@@ -43,6 +44,7 @@ export default async function ApplicantDetailPage({
   searchParams: { stale?: string; conflict?: string };
 }) {
   const user = await requireRole("MANAGER");
+  const visibleApplications = await managerApplicationAccess(user.id);
   const shift = await prisma.shift.findUnique({ where: { id: params.id } });
   if (!shift || shift.managerId !== user.id) notFound();
   const acceptedCount = await prisma.application.count({
@@ -53,8 +55,8 @@ export default async function ApplicantDetailPage({
   // Contact-release invariant, enforced structurally: pre-acceptance review
   // must never show the applicant's email or phone, so the query never
   // selects them. Contact renders only on the booking page after acceptance.
-  const app = await prisma.application.findUnique({
-    where: { id: params.appId },
+  const app = await prisma.application.findFirst({
+    where: { ...visibleApplications, id: params.appId, shiftId: shift.id },
     select: {
       id: true,
       shiftId: true,

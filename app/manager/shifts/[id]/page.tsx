@@ -1,3 +1,4 @@
+import { managerApplicationAccess } from "@/lib/manager-application-access";
 import { hiringOpen } from "@/lib/workspace-shifts";
 import { ShiftEmailStatus } from "@/components/ShiftEmailStatus";
 import { RunAttendance } from "@/components/RunAttendance";
@@ -63,12 +64,13 @@ export default async function ManagerShiftDetailPage({
   searchParams: { release?: string; dropout?: string; close?: string; attendance?: string; revertBlocked?: string; publishBlocked?: string };
 }) {
   const user = await requireRole("MANAGER");
-  const shift = await prisma.shift.findUnique({
-    where: { id: params.id },
+  const visibleApplications = await managerApplicationAccess(user.id);
+  const shift = await prisma.shift.findFirst({
+    where: { id: params.id, managerId: user.id },
     include: {
       _count: { select: { applications: true } },
       applications: {
-        where: { status: { in: ["APPLIED", "ACCEPTED"] } },
+        where: { ...visibleApplications, status: { in: ["APPLIED", "ACCEPTED"] } },
         include: {
           marshal: { select: { marshalProfile: { select: { fullName: true, paused: true } } } },
         },

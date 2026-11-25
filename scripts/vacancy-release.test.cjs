@@ -224,6 +224,35 @@ test("one scoped vacancy, individual stages and durable brief across a hold", as
   const booking = await db.application.findFirstOrThrow({
     where: { shiftId: shift.id },
   });
+  const {
+    managerApplicationAccess,
+  } = require("../lib/manager-application-access.ts");
+  const applicants = async (where) =>
+    db.application.findMany({ where, select: { id: true } });
+  const staleRead = await managerApplicationAccess(manager.id);
+  assert.equal((await applicants(staleRead)).length, 1);
+  const beforeHold = await release();
+  await act(
+    founder,
+    recordVacancyRelease,
+    shift.id,
+    version,
+    beforeHold.id,
+    form({ decision: "hold" }),
+  );
+  assert.deepEqual(await applicants(staleRead), []);
+  assert.deepEqual(
+    await applicants(await managerApplicationAccess(manager.id)),
+    [],
+  );
+  await act(
+    founder,
+    recordVacancyRelease,
+    shift.id,
+    version,
+    "",
+    form({ ...fields, applicants: marshal.id }),
+  );
   assert.equal(booking.appliedBrief.engagementTerms, data.engagementTerms);
   assert.equal(booking.termsVersion, version);
   assert.equal(booking.noticeVersion, applicationNoticeVersion);
@@ -272,6 +301,17 @@ test("one scoped vacancy, individual stages and durable brief across a hold", as
     /held/,
   );
   assert.equal(await release(), null);
+  assert.match(
+    await act(
+      founder,
+      recordVacancyRelease,
+      second.id,
+      briefVersion(second),
+      "",
+      form(fields),
+    ),
+    /roster/,
+  );
   assert.equal(
     (await db.application.findUniqueOrThrow({ where: { id: booking.id } }))
       .status,
@@ -281,6 +321,10 @@ test("one scoped vacancy, individual stages and durable brief across a hold", as
     await db.vacancyRelease.count({
       where: { shiftId: shift.id, retiredBy: founder.id },
     }),
-    3,
+    4,
+  );
+  assert.equal(
+    (await applicants(await managerApplicationAccess(manager.id))).length,
+    1,
   );
 });

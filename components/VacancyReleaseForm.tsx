@@ -32,6 +32,8 @@ export async function VacancyReleaseForm({
   const occupied = current && current.shiftId !== shift.id;
   const active = occupied ? null : current;
   const messages: Record<string, string> = {
+    roster:
+      "An earlier vacancy still has booked work to support. Settle it before releasing another vacancy.",
     occupied: "Another vacancy has the pilot place.",
     held: "New activity is held.",
     saved: "Clearances recorded.",
