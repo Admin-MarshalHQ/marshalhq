@@ -1,3 +1,5 @@
+import { hasOpenSlot } from "@/lib/capacity";
+import { isStandbyNotice, notificationInboxText } from "@/lib/copy";
 import { pilotDocuments } from "@/lib/pilot-documents";
 import { randomUUID } from "node:crypto";
 import type { Prisma } from "@prisma/client";
@@ -41,8 +43,9 @@ export async function notifyPendingAfterDropout(tx: Prisma.TransactionClient, sh
 
 // Old application messages can contain a name without an application reference.
 // Keep their in-app history but never retry an email we cannot authorise.
-async function canSendApplicationNotice(notice: { kind: string; userId: string; link: string | null }, shiftId: string | null) {
-  if (notice.kind !== "APPLICATION_ACCEPTED" && notice.kind !== "APPLICATION_SUBMITTED") return true;
+async function canSendApplicationNotice(notice: { kind: string; subject: string; userId: string; link: string | null }, shiftId: string | null) {
+  const standby = isStandbyNotice(notice);
+  if (notice.kind !== "APPLICATION_ACCEPTED" && notice.kind !== "APPLICATION_SUBMITTED" && !standby) return true;
   if (!shiftId || !notice.link) return false;
   const applicationId = notice.link.split("/").pop();
   if (!applicationId) return false;
@@ -62,12 +65,15 @@ async function canSendApplicationNotice(notice: { kind: string; userId: string; 
       id: applicationId,
       shiftId,
       status: booking ? "ACCEPTED" : "APPLIED",
+      // The original acceptance email quotes the whole run. An amended
+      // booking has its own notice and must never reissue those dates.
+      ...(booking && { releasedFrom: null }),
       marshalId: managerNotice ? undefined : notice.userId,
       marshal: { ...activeAccount, ...agreement("MARSHAL"), role: "MARSHAL", marshalProfile: { paused: false } },
       shift: {
         managerId: managerNotice ? notice.userId : undefined,
         paused: false,
-        status: { in: booking ? ["OPEN", "FILLED", "RECRUITMENT_STOPPED"] : ["OPEN", "FILLED"] },
+        status: { in: booking ? ["OPEN", "FILLED", "RECRUITMENT_STOPPED"] : standby ? ["OPEN"] : ["OPEN", "FILLED"] },
         manager: { ...activeAccount, ...agreement("MANAGER"), role: "MANAGER" },
       },
     },
@@ -76,6 +82,7 @@ async function canSendApplicationNotice(notice: { kind: string; userId: string; 
       marshal: { select: { email: true } },
       shift: { include: {
         manager: { select: { email: true } },
+        _count: { select: { applications: { where: { status: "ACCEPTED" } } } },
         vacancyReleases: {
           where: { activeSlot: "GB-pilot" },
           select: { activeSlot: true, briefVersion: true, expiresAt: true, viewers: true, applicants: true, bookable: true },
@@ -85,6 +92,7 @@ async function canSendApplicationNotice(notice: { kind: string; userId: string; 
     },
   });
   if (!application || (booking ? hasShiftEnded(application.shift) : !beforeCall(application.shift))) return false;
+  if (standby && !hasOpenSlot(application.shift._count.applications, application.shift.marshalsNeeded)) return false;
   // Holding new introductions preserves service for a still-active, accepted booking.
   if (!booking && !clearedFor(application.shift, application.shift.vacancyReleases[0] ?? null, "apply", application.marshalId)) return false;
   return isPilotParticipant(application.marshal.email, "MARSHAL") &&
@@ -109,9 +117,14 @@ export async function dispatchDelivery(id: string, retryNow = false) {
     return;
   }
   const origin = process.env.APP_BASE_URL || "https://setru.co.uk";
-  const message = notice ? {
-    to: notice.user.email, subject: notice.subject,
-    body: notice.body + (notice.link ? "\n\n" + new URL(notice.link, origin).href : ""),
+  // Use the same event wording in the inbox and the mail. Even a promptly
+  // accepted email can reach the recipient after a later correction.
+  // A current, unamended acceptance still gives the marshal their call details.
+  const copy = notice?.kind === "APPLICATION_ACCEPTED" ? notice : notice && notificationInboxText(notice);
+  const recordLink = notice?.link ?? (notice?.kind === "SHIFT_STATUS_CHANGED" && notice.body.startsWith("Recorded outcome:") ? "/marshal/applications" : null);
+  const message = notice && copy ? {
+    to: notice.user.email, subject: copy.subject,
+    body: copy.body + (recordLink ? "\n\n" + new URL(recordLink, origin).href : ""),
   } : entry ? { to: entry.email, ...waitlistConfirmationEmail(entry.role as "MANAGER" | "MARSHAL" | "OTHER") } : null;
   if (!message) throw new Error("Email job has no recipient");
   const result = await sendEmail({ ...message, idempotencyKey: "setru-" + id });

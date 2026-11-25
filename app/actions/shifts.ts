@@ -364,6 +364,7 @@ async function settleAttendance(id: string, form: FormData, managerId: string | 
       decisions.push({outcome});
       const note: NotifyParams = {
         userId: application.marshalId, kind: "SHIFT_STATUS_CHANGED",
+        link: `/marshal/applications/${application.id}`,
         subject: `Attendance update: ${shift.productionName}`,
         body: `Recorded outcome: ${attendanceLabel(outcome)}. Contact Setru support if this needs review.`,
       };

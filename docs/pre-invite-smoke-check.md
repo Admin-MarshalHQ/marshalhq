@@ -2,7 +2,7 @@
 
 Run this against the live deployment, in a real browser, with real email addresses, immediately before sending the first invite. Do not skip steps. Do not run it on localhost.
 
-The DB-layer invariants are already covered by `npm run db:smoke`. This check is the human-driven flow on the live URL.
+Use only designated synthetic participants and a separately cleared, labelled rehearsal vacancy. Keep public registration, waitlist collection and wider hiring closed. Record the exact scope of any local or preview rehearsal separately.
 
 ## Setup
 
@@ -12,14 +12,14 @@ The DB-layer invariants are already covered by `npm run db:smoke`. This check is
 4. Run the read-only contamination scan. Identify and isolate any fixtures before inviting real users.
 5. The schema drift check passes: `npm run db:drift` reports PASS against the production database. A FAIL here means shipped code queries tables the database doesn't have — stop and see [schema-drift-check.md](schema-drift-check.md) before continuing.
 
-6. Apply the reviewed additive schema change before deploying this version. Configure production `PILOT_PARTICIPANT_EMAILS` as comma-separated invited account addresses. An empty list permits founder access only. Use separate addresses in preview. Test an email-verified outsider against discovery, direct shift links and booking actions. They must see the pilot access page.
-7. Record the live SHA and deployment, database target, test owner, date and outcome for each step. Record receipt and destination hostname for verification, reset, waitlist, cancellation and support emails. Use controlled inboxes.
+6. Confirm the private admission configuration, role-specific inboxes, versioned disclosure pack and staffed UTC cutoff against [the release procedure](privacy-notice-release-gates.md). Use distinct test participants in preview and production. Leave admission paused until these conditions are met.
+7. Record the release SHA, deployed domain, database target, authorised tester and time. Distinguish an in-app event, provider acceptance, inbox receipt and a human reply.
 
-## Step 1 — Signup
+## Step 1 — Private admission
 
-- [ ] Marshal: signup at `/signup` with a real email; verify the account lands in `MARSHAL` role.
-- [ ] Manager: signup at `/signup` (separate browser) with a real email; verify the account lands in `MANAGER` role.
-- [ ] Try signing up with `admin@marshalhq.com`, `founder@marshalhq.com`, `support@marshalhq.com`, or `noreply@marshalhq.com`. Each must be refused. ([lib/access.ts:48-53](../lib/access.ts))
+- [ ] Check that public `/signup` and the waitlist remain paused. Existing accounts can still log in and request support.
+- [ ] During the cleared window, each designated synthetic participant uses `/pilot/join` with their role-specific invited inbox, receives a one-use code, accepts their terms, acknowledges the privacy notice, then obtains a durable copy. An existing invited account with outstanding terms uses `/pilot/agreement`.
+- [ ] Verify the closed-window and uninvited paths without sending mail to an unrelated person. Record the actual receipt time in each controlled inbox.
 
 ## Step 2 — Login
 
@@ -55,7 +55,7 @@ The DB-layer invariants are already covered by `npm run db:smoke`. This check is
 ## Step 6 — Manager creates and publishes a shift
 
 - [ ] Manager: at `/manager/shifts/new`, fill the form with realistic copy, no contact details. Save as `DRAFT`.
-- [ ] Edit the draft, change to `OPEN` (publish). Confirm the shift appears in the marshal browse list.
+- [ ] Use the [vacancy clearance checklist](founder-first-shift-checklist.md) for the exact draft version and designated viewers. Publish the cleared synthetic draft. Confirm it appears only for the cleared audience.
 - [ ] Try saving a shift with a phone number or email in the duties — confirm the schema rejects it.
 
 ## Step 7 — Marshal creates a profile
@@ -67,7 +67,7 @@ The DB-layer invariants are already covered by `npm run db:smoke`. This check is
 ## Step 8 — Marshal applies
 
 - [ ] Marshal: at `/marshal/shifts`, find the shift posted in step 6.
-- [ ] Apply with a clean cover note.
+- [ ] Release named applications for this individual and brief, then apply with a clean cover note.
 - [ ] Confirm the application appears at `/marshal/applications/[id]` with status `APPLIED`.
 - [ ] Confirm the manager's contact is **not** visible.
 
@@ -78,8 +78,8 @@ The DB-layer invariants are already covered by `npm run db:smoke`. This check is
 
 ## Step 10 — Manager accepts
 
-- [ ] Manager accepts the marshal at `/manager/shifts/[id]/booking`.
-- [ ] Shift status flips to `FILLED`.
+- [ ] After clearance for this booking, the manager accepts one person from their applicant detail. Check the booking page.
+- [ ] With places remaining, recruitment stays open. Filling the last place changes the shift to `FILLED`.
 - [ ] Manager now sees the marshal's phone number on the booking page.
 
 ## Step 11 — Sibling applicants stay benched, reject works
@@ -107,10 +107,10 @@ The DB-layer invariants are already covered by `npm run db:smoke`. This check is
 
 - [ ] No contaminated rows remain — re-run `npm run qa:scan` (read-only) and confirm zero hits.
 - [ ] All test accounts created during this smoke run are either deleted, paused, or clearly documented as smoke fixtures.
-- [ ] Record the result in [docs/private-beta-cutover-readiness.md](private-beta-cutover-readiness.md) before sending the first real invite.
+- [ ] Record the result and remaining gaps in the existing [Evidence and gates](https://docs.google.com/spreadsheets/d/1HS_HJuGSoOLr9VWNN8-d77EJU7SMILQEFkdAzUyHHZg/edit#gid=1865313147).
 
 ## Pass / fail rule
 
-- All 14 steps green → smoke pass; proceed to invite.
+- A completed rehearsal supplies technical evidence. Each real pilot invitation and vacancy still requires its operating clearance.
 - Any step red on a contact-release, founder access, or recovery gate → smoke fail; stop and repair before any invite.
 - Any step red on a non-trust gate (e.g. spam placement, broken support link) → caveat; either repair or document explicitly in the cutover report.

@@ -415,6 +415,40 @@ test("logged workflow regressions against disposable PostgreSQL", async t => {
     assert.equal(sent.length, afterAcceptance + 1);
     assert.equal(await db.mailDelivery.findUnique({ where: { id: newJob.id } }), null);
   });
+  await t.test("delayed mail follows the individual booking and current vacancy", async () => {
+    const shift = await makeShift();
+    const booking = await apply(shift, marshal, "ACCEPTED");
+    const standby = await apply(shift, waiting);
+    const link = "/marshal/applications/";
+    async function enqueue(kind, recipient, application, subject, body) {
+      return db.mailDelivery.create({data: {shiftId: shift.id, notification: {create: {
+        kind, userId: recipient.id, link: link + application.id, subject, body,
+      }}}});
+    }
+    await db.application.update({where:{id:booking.id}, data:{releasedFrom:new Date("2099-05-07")}});
+    await db.shift.update({where:{id:shift.id},data:{endDate:new Date("2099-05-08")}});
+    const accepted = await enqueue("APPLICATION_ACCEPTED",marshal,booking,"Booked","Original full run");
+    const firstStandby = await enqueue("SHIFT_STATUS_CHANGED",waiting,standby,"Still under consideration: QA","A place is open again");
+    const before = sent.length;
+    await dispatchDelivery(accepted.id,true);
+    await dispatchDelivery(firstStandby.id,true); // OPEN, but its last place is occupied.
+    assert.equal(sent.length,before);
+    assert.equal(await db.mailDelivery.count({where:{id:{in:[accepted.id,firstStandby.id]}}}),0);
+    await db.shift.update({where:{id:shift.id},data:{marshalsNeeded:2}});
+    const current = await enqueue("SHIFT_STATUS_CHANGED",waiting,standby,"Still under consideration: QA","A place is open again");
+    await dispatchDelivery(current.id,true);
+    assert.match(sent.at(-1).text,/while your application was pending/);
+    assert(sent.at(-1).text.includes(link+standby.id));
+    const closed = await enqueue("SHIFT_STATUS_CHANGED",waiting,standby,"Still under consideration: QA","A place is open again");
+    await db.application.update({where:{id:standby.id},data:{status:"WITHDRAWN"}});
+    await dispatchDelivery(closed.id,true);
+    assert.equal(sent.length,before+1);
+    const oldDecision = await enqueue("SHIFT_STATUS_CHANGED",marshal,booking,"Call release corrected: QA","All calls have been restored.");
+    await dispatchDelivery(oldDecision.id,true);
+    assert(sent.at(-1).text.includes(link+booking.id));
+    assert(!sent.at(-1).text.includes("All calls have been restored"));
+    assert.equal((await db.notification.findUniqueOrThrow({where:{id:oldDecision.notificationId}})).body,"All calls have been restored.");
+  });
   await t.test("review and receipt commit together, including ratings without comments", async () => {
     const shift=await makeShift("COMPLETED");
     const app=await apply(shift,marshal,"ACCEPTED");
