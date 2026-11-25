@@ -3,6 +3,8 @@ import type { Prisma } from "@prisma/client";
 import { isPilotParticipant } from "@/lib/pilot-participant";
 import { prisma } from "@/lib/db";
 import type { NotificationKind } from "@/lib/types";
+import { beforeCall, hasShiftEnded } from "@/lib/state";
+import { clearedFor } from "@/lib/vacancy-brief";
 import { sendEmail } from "@/lib/mail";
 import { waitlistConfirmationEmail } from "@/lib/waitlist-confirmation";
 
@@ -64,11 +66,21 @@ async function canSendApplicationNotice(notice: { kind: string; userId: string; 
       },
     },
     select: {
+      marshalId: true,
       marshal: { select: { email: true } },
-      shift: { select: { manager: { select: { email: true } } } },
+      shift: { include: {
+        manager: { select: { email: true } },
+        vacancyReleases: {
+          where: { activeSlot: "GB-pilot" },
+          select: { activeSlot: true, briefVersion: true, expiresAt: true, viewers: true, applicants: true, bookable: true },
+          take: 1,
+        },
+      } },
     },
   });
-  if (!application) return false;
+  if (!application || (booking ? hasShiftEnded(application.shift) : !beforeCall(application.shift))) return false;
+  // Holding new introductions preserves service for a still-active, accepted booking.
+  if (!booking && !clearedFor(application.shift, application.shift.vacancyReleases[0] ?? null, "apply", application.marshalId)) return false;
   return isPilotParticipant(application.marshal.email, "MARSHAL") &&
     isPilotParticipant(application.shift.manager.email, "MANAGER");
 }
@@ -86,7 +98,7 @@ export async function dispatchDelivery(id: string, retryNow = false) {
   });
   const notice = job.notification;
   const entry = job.waitlist;
-  if (notice && !await canSendApplicationNotice(notice, job.shiftId)) {
+  if (entry?.withdrawnAt || (notice && !await canSendApplicationNotice(notice, job.shiftId))) {
     await prisma.mailDelivery.deleteMany({ where: { id, lease } });
     return;
   }

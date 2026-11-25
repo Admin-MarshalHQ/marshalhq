@@ -14,7 +14,7 @@ export type ReviewActionState = { error?: string } | null;
 /**
  * Submit a review on a COMPLETED shift. Direction is derived server-side from
  * the actor's role and their participation in the shift, never trusted from the
- * client. One review per side per shift is enforced by the DB unique constraint.
+ * client. One review per direction per booked pair is enforced by the DB unique constraint.
  */
 export async function submitReviewAction(
   _prev: ReviewActionState,
@@ -105,7 +105,7 @@ export async function submitReviewAction(
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : "";
     if (msg.includes("Unique constraint")) {
-      return { error: "You’ve already reviewed this shift." };
+      return { error: "You’ve already reviewed this person for this booking." };
     }
     return { error: "Could not submit your review." };
   }

@@ -6,7 +6,8 @@ import type {
 
 export const SHIFT_TRANSITIONS: Record<ShiftStatus, ShiftStatus[]> = {
   DRAFT: ["OPEN", "CLOSED"],
-  OPEN: ["DRAFT", "FILLED", "CLOSED", "COMPLETED"],
+  OPEN: ["DRAFT", "RECRUITMENT_STOPPED", "FILLED", "CLOSED", "COMPLETED"],
+  RECRUITMENT_STOPPED: ["CLOSED", "COMPLETED"],
   FILLED: ["COMPLETED", "OPEN", "CLOSED"],
   CLOSED: [],
   COMPLETED: [],
@@ -70,7 +71,7 @@ export function canCompleteShift(
   shift: CompletableShift,
   now: Date = new Date(),
 ): boolean {
-  if (shift.status !== "FILLED" && !(shift.status === "OPEN" && (shift.bookedCount ?? 0) > 0)) return false;
+  if (shift.status !== "FILLED" && !(["OPEN", "RECRUITMENT_STOPPED"].includes(shift.status) && (shift.bookedCount ?? 0) > 0)) return false;
   return hasShiftEnded(shift, now);
 }
 
@@ -166,6 +167,7 @@ export function isShiftSchedulable(
 export const SHIFT_STATUS_LABEL: Record<ShiftStatus, string> = {
   DRAFT: "Draft",
   OPEN: "Open",
+  RECRUITMENT_STOPPED: "Recruitment stopped",
   FILLED: "Filled",
   CLOSED: "Closed",
   COMPLETED: "Completed",
@@ -245,7 +247,7 @@ export function classifyWithdraw(
   if (shift.status === "COMPLETED" || shift.status === "CLOSED") {
     return "committed";
   }
-  if (!["OPEN", "FILLED"].includes(shift.status)) return "stale";
+  if (!["OPEN", "FILLED", "RECRUITMENT_STOPPED"].includes(shift.status)) return "stale";
   if (!beforeCall(shift, now)) return app.status === "ACCEPTED" ? "committed" : "stale";
   return "allowed";
 }

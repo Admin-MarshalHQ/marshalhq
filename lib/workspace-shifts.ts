@@ -55,7 +55,7 @@ export function currentBookings<T extends { status: string; shift: ScheduledShif
     .map(application => ({...application, shift: bookedSchedule(application)}))
     .filter(({ status, shift }) =>
       status === "ACCEPTED" &&
-      (shift.status === "OPEN" || shift.status === "FILLED") &&
+      (shift.status === "OPEN" || shift.status === "FILLED" || shift.status === "RECRUITMENT_STOPPED") &&
       !hasShiftEnded(shift, now),
     )
     .map((application) => ({

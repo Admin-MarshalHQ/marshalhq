@@ -1,5 +1,6 @@
 "use server";
 
+import { clearedFor } from "@/lib/vacancy-brief";
 import { prisma } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -46,6 +47,7 @@ function parseShiftInput(fd: FormData) {
     rate: fd.get("rate"),
     rateUnit: fd.get("rateUnit"),
     duties: fd.get("duties"),
+    engagementTerms: fd.get("engagementTerms") ?? "",
     parkingTravel: fd.get("parkingTravel") ?? "",
     experienceNotes: fd.get("experienceNotes") ?? "",
   });
@@ -87,6 +89,7 @@ export async function saveDraftShiftAction(
       rate: data.rate,
       rateUnit: data.rateUnit,
       duties: data.duties,
+      engagementTerms: data.engagementTerms || null,
       parkingTravel: data.parkingTravel || null,
       experienceNotes: data.experienceNotes || null,
       status: "DRAFT",
@@ -137,6 +140,7 @@ export async function updateDraftShiftAction(
       rate: d.rate,
       rateUnit: d.rateUnit,
       duties: d.duties,
+      engagementTerms: d.engagementTerms || null,
       parkingTravel: d.parkingTravel || null,
       experienceNotes: d.experienceNotes || null,
     },
@@ -156,6 +160,8 @@ export async function publishShiftAction(id: string, revision: string) {
     if (hasContactLeak(shift.productionName, shift.location, shift.duties, shift.parkingTravel, shift.experienceNotes)) {
       return "?publishBlocked=contact";
     }
+    const release = await tx.vacancyRelease.findUnique({ where: { activeSlot: "GB-pilot" } });
+    if (!clearedFor(shift, release, "advert")) return "?publishBlocked=clearance";
     await tx.shift.update({ where: { id }, data: { status: "OPEN" } });
     return "";
   });
@@ -177,6 +183,33 @@ export async function unpublishShiftAction(id: string) {
   redirect(`/manager/shifts/${id}`);
 }
 
+export async function stopRecruitmentAction(id: string) {
+  const managerId = await requireManagerId();
+  const queue: string[] = [];
+  const changed = await prisma.$transaction(async tx => {
+    await lockShift(tx, id);
+    const shift = await tx.shift.findFirst({ where: { id, managerId, status: "OPEN" } });
+    if (!shift || !await tx.application.count({ where: { shiftId: id, status: "ACCEPTED" } })) return false;
+    const pending = await tx.application.findMany({
+      where: { shiftId: id, status: "APPLIED" }, select: { marshalId: true },
+    });
+    await tx.shift.update({ where: { id }, data: { status: "RECRUITMENT_STOPPED" } });
+    await tx.application.updateMany({
+      where: { shiftId: id, status: "APPLIED" }, data: { status: "REJECTED", decidedAt: new Date() },
+    });
+    for (const applicant of pending) {
+      queue.push(await saveNotice(tx, { userId: applicant.marshalId, kind: "APPLICATION_REJECTED",
+        subject: `Recruitment closed: ${shift.productionName}`,
+        body: "The manager has stopped recruiting. You were not booked for this shift." }, id));
+    }
+    return true;
+  });
+  await flushNotificationEmails(queue);
+  revalidatePath("/marshal/shifts");
+  revalidatePath(`/manager/shifts/${id}`);
+  redirect(`/manager/shifts/${id}${changed ? "" : "?close=stale"}`);
+}
+
 export async function closeShiftAction(id: string, expectedStatus: string, expectedBookings: string[]) {
   const managerId = await requireManagerId();
   const shift = await getOwnedShift(id, managerId);
@@ -187,7 +220,7 @@ export async function closeShiftAction(id: string, expectedStatus: string, expec
   const result = await prisma.$transaction(async (tx) => {
     await lockShift(tx, id);
     const current = await tx.shift.findUniqueOrThrow({ where: { id } });
-    if (current.status !== expectedStatus || !["DRAFT", "OPEN", "FILLED"].includes(current.status)) return "stale";
+    if (current.status !== expectedStatus || !["DRAFT", "OPEN", "FILLED", "RECRUITMENT_STOPPED"].includes(current.status)) return "stale";
     const accepted = await tx.application.findMany({
       where: { shiftId: id, status: "ACCEPTED" },
       select: { id: true, marshalId: true },
@@ -195,7 +228,7 @@ export async function closeShiftAction(id: string, expectedStatus: string, expec
     const confirmed = new Set(expectedBookings);
     if (confirmed.size !== accepted.length || accepted.some(app => !confirmed.has(app.id))) return "stale";
     // A booked shift that has wrapped must settle attendance, not cancel.
-    if (accepted.length > 0 && (hasShiftEnded(current) || ((+current.startDate !== +current.endDate || current.dailyEndTime < current.dailyStartTime) && !beforeCall(current)))) return "attendance";
+    if (accepted.length > 0 && !beforeCall(current)) return "attendance";
     // Auto-reject all APPLIED applications
     const rejected = await tx.application.findMany({
       where: { shiftId: id, status: "APPLIED" },
@@ -276,7 +309,7 @@ async function settleAttendance(id: string, form: FormData, managerId: string | 
     const multi = +shift.startDate !== +shift.endDate;
     if (!wrapped && (!multi || reviewerId)) return false;
     if (managerId) {
-      if (shift.managerId !== managerId || !["OPEN", "FILLED"].includes(shift.status)) return false;
+      if (shift.managerId !== managerId || !["OPEN", "FILLED", "RECRUITMENT_STOPPED"].includes(shift.status)) return false;
     } else if (shift.status !== "COMPLETED") return false;
     const applicationId = form.get("applicationId");
     if (!managerId && typeof applicationId !== "string") return false;
@@ -383,18 +416,22 @@ export async function reopenAfterDropoutAction(id: string, applicationId: string
   const result = await prisma.$transaction(async (tx) => {
     await lockShift(tx, id);
     const shift = await tx.shift.findUnique({ where: { id } });
-    if (!shift || shift.managerId !== managerId || !["OPEN", "FILLED"].includes(shift.status)) return "stale";
+    if (!shift || shift.managerId !== managerId || !["OPEN", "FILLED", "RECRUITMENT_STOPPED"].includes(shift.status)) return "stale";
     if (!beforeCall(shift)) return "started";
     const app = await tx.application.findFirst({ where: { id: applicationId, shiftId: id, status: "ACCEPTED" } });
     if (!app) return "stale";
     await tx.application.update({ where: { id: app.id }, data: { status: "WITHDRAWN", decidedAt: new Date() } });
-    await tx.shift.update({ where: { id }, data: { status: "OPEN" } });
+    const remaining = shift.status === "RECRUITMENT_STOPPED"
+      ? await tx.application.count({ where: { shiftId: id, status: "ACCEPTED" } })
+      : 0;
+    const nextStatus = shift.status === "RECRUITMENT_STOPPED" ? (remaining ? shift.status : "CLOSED") : "OPEN";
+    await tx.shift.update({ where: { id }, data: { status: nextStatus } });
     const note: NotifyParams = { userId: app.marshalId, kind: "SHIFT_STATUS_CHANGED",
       subject: `Booking withdrawn: ${shift.productionName}`,
       body: "The manager recorded your withdrawal. Contact Setru support if this was unexpected." };
     queue.push(await saveNotice(tx, note, id));
     if (shift.status === "FILLED") queue.push(...await notifyPendingAfterDropout(tx, shift));
-    return "saved";
+    return shift.status === "RECRUITMENT_STOPPED" ? "keptClosed" : "saved";
   });
   await flushNotificationEmails(queue);
   revalidatePath(`/manager/shifts/${id}`);
@@ -419,14 +456,16 @@ export async function releaseRemainingCallsAction(id: string, bookingId: string,
   const queue: string[] = [];
   const saved = await prisma.$transaction(async tx => {
     await lockShift(tx, id);
-    const shift = await tx.shift.findFirst({ where: { id, managerId, status: { in: ["OPEN", "FILLED"] } } });
+    const shift = await tx.shift.findFirst({ where: { id, managerId, paused: false, status: { in: ["OPEN", "FILLED", "RECRUITMENT_STOPPED"] } } });
     if (!shift || beforeCall(shift) || !Number.isFinite(+date) || callKey(date) !== raw ||
         date <= shift.startDate || date > shift.endDate || !beforeCall({ ...shift, startDate: date })) return false;
     const booking = await tx.application.findFirst({ where: { id: bookingId, shiftId: id, status: "ACCEPTED", releasedFrom: null } });
     if (!booking) return false;
     await tx.application.update({ where: { id: bookingId }, data: { releasedFrom: date } });
+    await tx.attendanceChange.create({ data: { applicationId: booking.id, reviewerId: managerId,
+      callDate: date, previous: null, outcome: "CALLS_RELEASED", reason: "Manager recorded an agreed release." } });
     queue.push(await saveNotice(tx, { userId: booking.marshalId, kind: "SHIFT_STATUS_CHANGED",
-      subject: `Remaining calls released: ${shift.productionName}`,
+      link: `/marshal/applications/${booking.id}`, subject: `Remaining calls released: ${shift.productionName}`,
       body: `Your manager released you from calls starting ${formatDate(date)} onwards. Earlier calls stay on your booking. Contact support if this was unexpected.` }, id));
     return true;
   });

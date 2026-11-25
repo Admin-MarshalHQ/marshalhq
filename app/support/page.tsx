@@ -18,7 +18,7 @@ export default async function SupportPage() {
       />
       <Card>
         <p className="mb-4 text-sm text-ink-muted">
-          Ask us to check a booking, correct your record, exercise a privacy right or make a complaint. For an attendance dispute, include the shift, the call date, what was recorded and the correction you want. For immediate danger, contact the on-site safety lead or emergency services. Please leave out ID documents and other people’s contact details.
+          Ask us to check a booking, correct your record, exercise a privacy right or make a complaint. For a booking dispute, a shift reference, call date and a short description are enough to open a case. For immediate danger, contact the on-site safety lead or emergency services. Please leave out ID documents and other people’s contact details.
         </p>
         <SupportForm loggedInEmail={loggedInEmail} />
       </Card>

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { marshalApplicationOutcome } from "../lib/application-outcome";
-import { confirmAcceptBody, notificationDisplayBody } from "../lib/copy";
+import { confirmAcceptBody, notificationDisplayBody, notificationInboxText } from "../lib/copy";
 import { sendEmail } from "../lib/mail";
 import { isShiftSchedulable } from "../lib/state";
 import { currentBookings, managerAttention } from "../lib/workspace-shifts";
@@ -124,6 +124,13 @@ test("historic notifications rebrand the platform reference and retain project n
   );
 });
 
+test("unlinked legacy application messages do not expose a name in either inbox field", () => {
+  const message = { kind: "APPLICATION_SUBMITTED", subject: "Legacy alert for QA Person", body: "QA Person applied", link: null };
+  assert.deepEqual(notificationInboxText(message), {
+    subject: "Application submitted", body: "An earlier application was recorded. Check your workspace for its current status.",
+  });
+});
+
 test("transactional email keeps the configured address under the Setru sender name", async (t) => {
   const saved = { apiKey: process.env.RESEND_API_KEY, from: process.env.EMAIL_FROM };
   t.after(() => {
@@ -178,6 +185,7 @@ test("waitlist submissions send matching HTML and plain text after storage with 
       } }),
     },
     waitlistEntry: {
+      count: async () => 0,
       findFirst: async () => null,
       create: async (input: { data: { role: string } }) => {
         storedRole = input.data.role;

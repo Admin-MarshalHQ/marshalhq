@@ -22,7 +22,7 @@ test("privacy draft requires opt-in in a review environment and cannot replace p
   assert.match(review, label);
   assert.match(review, /one update when places open for your role/);
   assert.match(review, /New application alerts direct the manager to sign in/);
-  assert.match(review, /completion does not automatically remove them/);
+  assert.match(review, /contact access ends seven days after the scheduled final wrap/i);
   assert.match(review, /href="\/support"/);
   assert.match(review, /href="https:\/\/ico.org.uk\/make-a-complaint\//);
   assert.doesNotMatch(review, /@setru\.co\.uk|@marshalhq\.com|@gmail\.com/);

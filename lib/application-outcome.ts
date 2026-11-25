@@ -82,6 +82,7 @@ export function marshalApplicationOutcome(
     if (attendance === "WORKED") return outcomes.completed;
     return { label: "Attendance unconfirmed", tone: "neutral", detail: "The shift ended. Individual attendance was not confirmed. This booking has no work-history credit." } as const;
   }
+  if (shift.status === "RECRUITMENT_STOPPED") return status === "ACCEPTED" ? outcomes.booked : outcomes.closed;
   if (shift.status === "OPEN" || shift.status === "FILLED") {
     if (status === "ACCEPTED") return outcomes.booked;
     if (status === "APPLIED") {

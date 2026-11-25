@@ -44,7 +44,7 @@ export default function ReviewForm({
   /** Manager reviews name their subject explicitly; omitted for marshal-side
    *  reviews (the subject is always the shift's manager). */
   marshalId?: string;
-  /** Multi-marshal shifts: the manager picks who the single review is about. */
+  /** Multi-marshal shifts: the manager picks an eligible marshal for this review. */
   subjects?: { id: string; label: string }[];
 }) {
   const [state, action] = useFormState(submitReviewAction, null);
@@ -59,7 +59,7 @@ export default function ReviewForm({
       {hasChoice && (
         <Field
           label="Which marshal is this review about?"
-          hint="One review per shift for now"
+          hint="One review per person for this booking"
         >
           <select name="marshalId" required defaultValue="">
             <option value="" disabled>

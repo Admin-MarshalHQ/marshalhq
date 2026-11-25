@@ -1,3 +1,4 @@
+import { managerApplicationAccess } from "@/lib/manager-application-access";
 import { hiringOpen } from "@/lib/workspace-shifts";
 import { confirmedCount } from "@/lib/attendance";
 import Link from "next/link";
@@ -22,13 +23,15 @@ export default async function ApplicantReviewPage({
   params: { id: string };
 }) {
   const user = await requireRole("MANAGER");
+  const visibleApplications = await managerApplicationAccess(user.id);
   // Contact-release invariant, enforced structurally: this page must never
   // show an applicant's email or phone, so the query never selects them. The
   // profile is narrowed to the fields the cards render (no founderNote).
-  const shift = await prisma.shift.findUnique({
-    where: { id: params.id },
+  const shift = await prisma.shift.findFirst({
+    where: { id: params.id, managerId: user.id },
     include: {
       applications: {
+        where: visibleApplications,
         orderBy: { appliedAt: "asc" },
         select: {
           id: true,

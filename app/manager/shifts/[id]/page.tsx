@@ -1,3 +1,4 @@
+import { managerApplicationAccess } from "@/lib/manager-application-access";
 import { hiringOpen } from "@/lib/workspace-shifts";
 import { ShiftEmailStatus } from "@/components/ShiftEmailStatus";
 import { RunAttendance } from "@/components/RunAttendance";
@@ -23,6 +24,7 @@ import {
 import ConfirmButton from "@/components/ConfirmButton";
 import {
   closeShiftAction,
+  stopRecruitmentAction,
   completeShiftAction,
   publishShiftAction,
   reopenAfterDropoutAction,
@@ -63,12 +65,13 @@ export default async function ManagerShiftDetailPage({
   searchParams: { release?: string; dropout?: string; close?: string; attendance?: string; revertBlocked?: string; publishBlocked?: string };
 }) {
   const user = await requireRole("MANAGER");
-  const shift = await prisma.shift.findUnique({
-    where: { id: params.id },
+  const visibleApplications = await managerApplicationAccess(user.id);
+  const shift = await prisma.shift.findFirst({
+    where: { id: params.id, managerId: user.id },
     include: {
       _count: { select: { applications: true } },
       applications: {
-        where: { status: { in: ["APPLIED", "ACCEPTED"] } },
+        where: { AND: [visibleApplications], status: { in: ["APPLIED", "ACCEPTED"] } },
         include: {
           marshal: { select: { marshalProfile: { select: { fullName: true, paused: true } } } },
         },
@@ -87,7 +90,7 @@ export default async function ManagerShiftDetailPage({
   const bookedCount = acceptedApps.length;
   const hasActiveApplicants = shift._count.applications > 0;
 
-  const active = shift.status === "OPEN" || shift.status === "FILLED";
+  const active = shift.status === "OPEN" || shift.status === "FILLED" || shift.status === "RECRUITMENT_STOPPED";
   const canComplete = active && bookedCount > 0 && hasShiftEnded(shift);
   const canRecordDropout = active && bookedCount > 0 && beforeCall(shift);
 
@@ -120,10 +123,11 @@ export default async function ManagerShiftDetailPage({
       />
 
       <ShiftEmailStatus shiftId={shift.id} />
+      {searchParams.dropout === "keptClosed" && <Alert tone="success">Withdrawal recorded. Recruitment remains closed.</Alert>}
       {searchParams.dropout === "saved" && <Alert tone="success">Withdrawal recorded. The place is open again.</Alert>}
       {searchParams.dropout === "stale" && <Alert tone="warn">The roster changed. Review the current bookings before continuing.</Alert>}
       {searchParams.dropout === "started" && <Alert tone="warn">Call time has passed. Record attendance after wrap or contact support about the booking.</Alert>}
-      {searchParams.close === "attendance" && <Alert tone="warn">The booking has started. Keep its attendance record and release any remaining calls separately.</Alert>}
+      {searchParams.close === "attendance" && <Alert tone="warn">The booking has started. Record attendance after wrap. Contact Support about any remaining calls.</Alert>}
       {searchParams.release === "stale" && <Alert tone="warn">The release was not saved. Choose a future call and check the current booking.</Alert>}
       {searchParams.close === "stale" && <Alert tone="warn">The shift or its bookings changed. Review the current roster before cancelling.</Alert>}
       {searchParams.attendance === "stale" && <Alert tone="warn">The roster changed or an outcome was missing. Review the current bookings.</Alert>}
@@ -145,6 +149,7 @@ export default async function ManagerShiftDetailPage({
         </div>
       )}
 
+      {searchParams.publishBlocked === "clearance" && <Alert tone="warn">Publication is held until Setru checks this version of the brief and the hirer’s authority. Contact Support with the shift reference.</Alert>}
       {searchParams.publishBlocked === "changed" && <Alert tone="warn">This draft changed or already has an application history. Review the current shift or post a new listing.</Alert>}
       {searchParams.publishBlocked === "contact" && (
         <div className="mb-4">
@@ -210,6 +215,7 @@ export default async function ManagerShiftDetailPage({
               <p className="mt-2 text-xs text-ink-soft">{length}</p>
             ) : null;
           })()}
+          {shift.engagementTerms && <section className="mt-4 border-t border-line pt-3"><h2 className="mb-1 font-bold">Engagement terms</h2><p className="whitespace-pre-wrap text-sm">{shift.engagementTerms}</p></section>}
           <div className="mt-4 border-t border-line pt-3">
             <Kicker className="mb-1">Duties</Kicker>
             <p className="whitespace-pre-wrap text-sm text-ink">
@@ -325,7 +331,7 @@ export default async function ManagerShiftDetailPage({
 
             {(shift.status === "DRAFT" ||
               shift.status === "OPEN" ||
-              shift.status === "FILLED") && (
+              shift.status === "FILLED" || shift.status === "RECRUITMENT_STOPPED") && (
               <div className="mt-4 border-t border-line pt-3">
                 <Kicker className="mb-2">If plans change</Kicker>
                 <div className="flex flex-col gap-2">
@@ -349,8 +355,18 @@ export default async function ManagerShiftDetailPage({
                       variant="danger"
                     />
                   )}
+                  {shift.status === "OPEN" && bookedCount > 0 && beforeCall(shift) && (
+                    <ConfirmButton
+                      action={stopRecruitmentAction.bind(null, shift.id)}
+                      triggerLabel="Stop recruitment"
+                      title="Stop taking applications?"
+                      description="Everyone already booked keeps their place. Pending applicants will be told they were not selected."
+                      confirmLabel="Stop recruitment"
+                      variant="secondary"
+                    />
+                  )}
                   {canComplete && <p className="text-sm text-ink-muted">This booked shift has ended. Record attendance above instead of cancelling.</p>}
-                  {active && bookedCount > 0 && !canComplete && !inRun && (shift.dailyEndTime >= shift.dailyStartTime || beforeCall(shift)) && (
+                  {active && bookedCount > 0 && !canComplete && beforeCall(shift) && (
                     <ConfirmButton
                       action={close}
                       triggerLabel="Cancel shift"

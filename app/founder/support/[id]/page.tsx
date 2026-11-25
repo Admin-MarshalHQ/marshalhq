@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { Alert, Card, DL, PageHeader } from "@/components/ui";
 import ConfirmButton from "@/components/ConfirmButton";
-import { setSupportRequestResolvedAction } from "@/app/actions/founder";
+import { setSupportRequestResolvedAction, withdrawWaitlistByRequest } from "@/app/actions/founder";
 import { SUPPORT_CATEGORY_LABEL, type SupportCategory } from "@/lib/types";
 import SupportNoteForm from "./SupportNoteForm";
 
@@ -59,6 +59,8 @@ export default async function FounderSupportDetailPage({
       </div>
 
       {searchParams.triage === "conflict" && <Alert tone="warn">The case changed. Review its current status and note before retrying.</Alert>}
+      {searchParams.triage === "withdrawn" && <Alert tone="success">Waitlist contact stopped for every role at this address. Record your reply in the case.</Alert>}
+      {searchParams.triage === "no-active-entry" && <Alert>No active entry for this address.</Alert>}
       {request.category === "PRIVACY_DELETION" && (
         <Alert tone="warn">
           Deletion requests are handled manually. Do not hard-delete records
@@ -128,6 +130,14 @@ export default async function FounderSupportDetailPage({
         <div className="space-y-3">
           <Card>
             <p className="mb-2 text-sm font-semibold">Triage</p>
+            {!request.resolvedAt && <ConfirmButton
+              action={withdrawWaitlistByRequest.bind(null, request.id, request.revision)}
+              triggerLabel="Withdraw waitlist request"
+              title="Has this person asked to leave the waitlist?"
+              description="Verify control of the request address first. This stops waitlist contact for all roles at that address and cancels pending confirmations."
+              confirmLabel="Confirm verified withdrawal"
+              variant="secondary"
+            />}
             <p className="text-xs text-ink-soft">
               Marking as handled only updates the internal flag. It does not
               email the requester.

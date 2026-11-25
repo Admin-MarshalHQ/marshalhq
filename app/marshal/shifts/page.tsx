@@ -1,3 +1,4 @@
+import { clearedFor } from "@/lib/vacancy-brief";
 import { requireRole } from "@/lib/access";
 import { prisma } from "@/lib/db";
 import {
@@ -20,8 +21,10 @@ export default async function BrowseShiftsPage() {
   // is still OPEN in the database.
   const now = new Date();
   const today = londonCallDate(now);
-  const candidates = await prisma.shift.findMany({
+  const release = await prisma.vacancyRelease.findUnique({ where: { activeSlot: "GB-pilot" } });
+  const candidates = !release ? [] : await prisma.shift.findMany({
     where: {
+      id: release.shiftId,
       status: "OPEN",
       paused: false,
       startDate: { gte: today },
@@ -43,7 +46,7 @@ export default async function BrowseShiftsPage() {
     },
   });
 
-  const shifts = candidates.filter((shift) => isShiftSchedulable(shift, now));
+  const shifts = candidates.filter((shift) => isShiftSchedulable(shift, now) && clearedFor(shift, release, "view", user.id, now));
 
   return (
     <div>

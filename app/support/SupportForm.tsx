@@ -51,9 +51,6 @@ export default function SupportForm({
               placeholder="you@example.com"
             />
           </Field>
-          <Field label="Name (optional)">
-            <input type="text" name="name" autoComplete="name" />
-          </Field>
         </>
       )}
 
@@ -70,12 +67,12 @@ export default function SupportForm({
         </select>
       </Field>
 
-      <Field label="Message" hint="Tell us what&rsquo;s happening.">
+      <Field label="Message" hint="A short request or existing case reference is enough. Leave out documents, private contact details and detailed allegations.">
         <textarea
           name="message"
           required
-          rows={6}
-          minLength={10}
+          rows={3}
+          minLength={1}
           maxLength={4000}
           placeholder="A short description of the issue or request."
         />

@@ -2,7 +2,7 @@ import { Pagination, pageNumber, pageSize } from "@/components/Pagination";
 import type { Metadata } from "next";
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
-import { notificationDisplayBody } from "@/lib/copy";
+import { notificationInboxText } from "@/lib/copy";
 import { prisma } from "@/lib/db";
 import { Card, EmptyState, PageHeader } from "@/components/ui";
 import { markNotificationRead } from "@/app/actions/auth";
@@ -14,11 +14,13 @@ export default async function NotificationsPage({ searchParams }: { searchParams
   if (!session?.user?.id) redirect("/login");
   const total = await prisma.notification.count({ where: { userId: session.user.id } });
   const page = pageNumber(searchParams.page, total);
-  const items = await prisma.notification.findMany({
+  const notices = await prisma.notification.findMany({
     where: { userId: session.user.id },
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     take: pageSize, skip: (page - 1) * pageSize,
   });
+
+  const items = notices.map(n => ({ ...n, ...notificationInboxText(n) }));
 
   return (
     <div className="mx-auto max-w-2xl">
@@ -52,7 +54,7 @@ export default async function NotificationsPage({ searchParams }: { searchParams
                     </p>
                   </div>
                   <p className="mt-1 whitespace-pre-wrap text-sm text-ink-muted">
-                    {notificationDisplayBody(n.kind, n.body)}
+                    {n.body}
                   </p>
                   {n.link && <a href={n.link} className="text-sm underline">Open record</a>}
                   <p className="mt-2 font-mono text-[11px] uppercase tracking-[0.04em] text-ink-soft">
