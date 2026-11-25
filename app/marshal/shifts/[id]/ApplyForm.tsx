@@ -58,7 +58,7 @@ export default function ApplyForm({
           </div>
       )}
       <p className="text-xs text-ink-soft">
-        By applying, you confirm you are available for every advertised call, including the final wrap. The manager sees your named profile and note now and may receive your name by email. If booked, you each receive access to the other’s booking contact details.
+        By applying, you confirm you are available for every advertised call, including the final wrap. The manager sees your named profile and note in Setru when you apply. Their email alert asks them to sign in to review it. If booked, you each receive access to the other’s booking contact details.
       </p>
       <Submit />
     </form>

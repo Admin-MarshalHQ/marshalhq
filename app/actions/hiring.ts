@@ -14,6 +14,7 @@ import {
 } from "@/lib/state";
 import { ApplySchema } from "@/lib/zod";
 import { flushNotificationEmails, saveNotice, notifyPendingAfterDropout, type NotifyParams } from "@/lib/notify";
+import { isPilotParticipant } from "@/lib/pilot-participant";
 import { lockShift } from "@/lib/booking-lock";
 import { formatShiftBlock } from "@/lib/format";
 
@@ -36,7 +37,7 @@ export async function applyToShiftAction(
   try {
     const result = await prisma.$transaction(async (tx) => {
       await lockShift(tx, shiftId);
-      const [actor] = await tx.$queryRaw<{role: string}[]>`SELECT role FROM "User" WHERE id = ${user.id} FOR UPDATE`;
+      const [actor] = await tx.$queryRaw<{role: string}[]>`SELECT role FROM "User" WHERE id = ${user.id} AND "disabledAt" IS NULL FOR UPDATE`;
       if (actor?.role !== "MARSHAL") return { error: "Your account role changed. Sign in again." };
       await tx.$queryRaw`SELECT id FROM "MarshalProfile" WHERE "userId" = ${user.id} FOR UPDATE`;
       const profile = await tx.marshalProfile.findUnique({ where: { userId: user.id } });
@@ -51,7 +52,8 @@ export async function applyToShiftAction(
       if (booked >= shift.marshalsNeeded) return { error: "This shift is already filled." };
       const conflict = await conflictingBooking(tx, user.id, shift);
       if (conflict) return { error: `These dates overlap your booking on ${conflict.shift.productionName}.` };
-      await tx.application.create({
+      const application = await tx.application.create({
+        select: { id: true },
         data: {
           shiftId,
           marshalId: user.id,
@@ -71,16 +73,18 @@ export async function applyToShiftAction(
       const applicantNote: NotifyParams = {
         userId: user.id,
         kind: "APPLICATION_SUBMITTED",
+        link: `/marshal/applications/${application.id}`,
         subject: `Application submitted: ${shift.productionName}`,
         body: `You applied to ${shift.productionName} (${whenStr}, ${shift.location}). You\u2019ll be notified when the manager decides.`,
       };
       const managerNote: NotifyParams = {
         userId: shift.managerId,
         kind: "APPLICATION_SUBMITTED",
+        link: `/manager/shifts/${shift.id}/applicants/${application.id}`,
         subject: `New applicant: ${shift.productionName}`,
-        body: `${profile.fullName} applied to ${shift.productionName} (${whenStr}). You now have ${pendingCount} pending applicant${pendingCount === 1 ? "" : "s"} to review on this shift.`,
+        body: `A marshal applied to ${shift.productionName} (${whenStr}). You now have ${pendingCount} pending applicant${pendingCount === 1 ? "" : "s"} to review on this shift.`,
       };
-      emailQueue.push(await saveNotice(tx, applicantNote), await saveNotice(tx, managerNote));
+      emailQueue.push(await saveNotice(tx, applicantNote, shiftId), await saveNotice(tx, managerNote, shiftId));
       return null;
     });
     if (result) return result;
@@ -198,7 +202,11 @@ export async function acceptApplicationAction(applicationId: string) {
       // against the current DB snapshot, not the stale read above.
       await lockShift(tx, shiftId);
       // A marshal may have pending applications with different managers.
-      await tx.$queryRaw`SELECT id FROM "User" WHERE id = ${app.marshalId} FOR UPDATE`;
+      const [marshal] = await tx.$queryRaw<{ email: string }[]>`
+        SELECT email FROM "User" WHERE id = ${app.marshalId} AND role = 'MARSHAL'
+          AND "disabledAt" IS NULL AND "emailVerifiedAt" IS NOT NULL FOR UPDATE`;
+      if (!marshal || !isPilotParticipant(marshal.email, "MARSHAL")) throw new StaleAcceptStateError();
+      await tx.$queryRaw`SELECT id FROM "MarshalProfile" WHERE "userId" = ${app.marshalId} FOR UPDATE`;
       const freshShift = await tx.shift.findUnique({ where: { id: shiftId } });
       const acceptedBefore = await tx.application.count({
         where: { shiftId, status: "ACCEPTED" },
