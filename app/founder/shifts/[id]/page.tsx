@@ -1,3 +1,6 @@
+import { restoreFutureCallsAction } from "@/app/actions/release-correction";
+import { callKey } from "@/lib/run-attendance";
+import { beforeCall } from "@/lib/state";
 import { requireFounder } from "@/lib/access";
 import { AttendanceForm } from "@/components/AttendanceForm";
 import { resolveAttendanceAction } from "@/app/actions/shifts";
@@ -9,6 +12,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import {
   Alert,
+  Button,
   ApplicationStatusBadge,
   Card,
   DL,
@@ -28,7 +32,7 @@ export default async function FounderShiftDetailPage({
   params, searchParams,
 }: {
   params: { id: string };
-  searchParams: { attendance?: string };
+  searchParams: { attendance?: string; restore?: string };
 }) {
   await requireFounder();
   const shift = await prisma.shift.findUnique({
@@ -43,6 +47,7 @@ export default async function FounderShiftDetailPage({
       applications: {
         orderBy: { appliedAt: "desc" },
         include: {
+          attendanceChanges: { where: { outcome: "CALLS_RELEASED" }, orderBy: [{createdAt: "desc"}, {id: "desc"}], take: 1, select: { id: true } },
           marshal: {
             select: {
               id: true,
@@ -66,8 +71,7 @@ export default async function FounderShiftDetailPage({
   };
 
   const reviewable = shift.applications.filter(app => shift.status === "COMPLETED" && app.status === "ACCEPTED");
-  const acceptedApp = shift.applications.find((a) => a.status === "ACCEPTED");
-  const contactReleased = Boolean(acceptedApp);
+
 
   return (
     <div>
@@ -126,8 +130,8 @@ export default async function FounderShiftDetailPage({
                 ),
               },
               {
-                label: "Contact released",
-                value: contactReleased ? "Yes (to accepted pair)" : "No",
+                label: "Accepted places",
+                value: shift.applications.filter(app => app.status === "ACCEPTED").length,
               },
               {
                 label: "Completion",
@@ -154,8 +158,8 @@ export default async function FounderShiftDetailPage({
             <p className="mb-2 text-sm font-semibold">Moderation</p>
             <p className="text-xs text-ink-soft">
               Pausing hides the shift from marshal browsing and blocks new
-              applications. It does not rewrite shift status and does not
-              affect the accepted marshal&rsquo;s booking view.
+              applications. Booking contact details stay hidden while paused.
+              Existing bookings are preserved.
             </p>
             <div className="mt-3">
               {shift.paused ? (
@@ -195,6 +199,27 @@ export default async function FounderShiftDetailPage({
         </div>
       </div>
 
+      {searchParams.restore && <Alert tone={searchParams.restore === "saved" ? "success" : "warn"}>
+        {searchParams.restore === "saved" ? "Calls restored. Both participants have a booking notice."
+          : searchParams.restore === "conflict" ? "Another accepted booking overlaps. The release is unchanged. Resolve the conflict with both parties."
+          : "The release is unchanged. Check the current dates, agreement and reason. If a released call has started, handle the disputed record through Support."}
+      </Alert>}
+      {shift.applications.filter(app => app.status === "ACCEPTED" && app.releasedFrom).map(app => {
+        const from = app.releasedFrom!;
+        const name = app.marshal.marshalProfile?.fullName ?? "Booked marshal";
+        return <Card key={app.id} className="mt-4">
+          <h2 className="font-semibold">{name} · release from {callKey(from)}</h2>
+          {!shift.paused && ["OPEN", "FILLED", "RECRUITMENT_STOPPED"].includes(shift.status) && beforeCall({ ...shift, startDate: from }) ? (
+            <form className="mt-2 space-y-3" action={restoreFutureCallsAction.bind(null, shift.id, app.id)}>
+              <input type="hidden" name="expectedDate" value={callKey(from)} />
+              <input type="hidden" name="expectedRelease" value={app.attendanceChanges[0]?.id ?? "legacy"} />
+              <label className="block">Private correction reason<textarea name="reason" required maxLength={500} /></label>
+              <label className="block"><input type="checkbox" name="confirmed" value="yes" required /> Both parties agreed to restore these calls. I checked replacement cover with the hirer.</label>
+              <Button variant="secondary">Restore the original future calls</Button>
+            </form>
+          ) : <p className="text-sm">Handle a challenged release through Support. Keep the original dates and hear both parties before changing any work record.</p>}
+        </Card>;
+      })}
       {searchParams.attendance === "stale" && <Alert tone="warn">The record was not changed. Check the current outcome and enter a reason before saving a different outcome.</Alert>}
       {reviewable.map(app => app.attendanceDays ? Object.entries(recordedDays(app.attendanceDays)).sort().map(([day, outcome]) =>
         <AttendanceForm key={app.id + day} resolving callDate={day} roster={[{ ...app, attendance: outcome }]} action={resolveAttendanceAction.bind(null, shift.id)} />)

@@ -419,14 +419,16 @@ export async function releaseRemainingCallsAction(id: string, bookingId: string,
   const queue: string[] = [];
   const saved = await prisma.$transaction(async tx => {
     await lockShift(tx, id);
-    const shift = await tx.shift.findFirst({ where: { id, managerId, status: { in: ["OPEN", "FILLED"] } } });
+    const shift = await tx.shift.findFirst({ where: { id, managerId, paused: false, status: { in: ["OPEN", "FILLED"] } } });
     if (!shift || beforeCall(shift) || !Number.isFinite(+date) || callKey(date) !== raw ||
         date <= shift.startDate || date > shift.endDate || !beforeCall({ ...shift, startDate: date })) return false;
     const booking = await tx.application.findFirst({ where: { id: bookingId, shiftId: id, status: "ACCEPTED", releasedFrom: null } });
     if (!booking) return false;
     await tx.application.update({ where: { id: bookingId }, data: { releasedFrom: date } });
+    await tx.attendanceChange.create({ data: { applicationId: booking.id, reviewerId: managerId,
+      callDate: date, previous: null, outcome: "CALLS_RELEASED", reason: "Manager recorded an agreed release." } });
     queue.push(await saveNotice(tx, { userId: booking.marshalId, kind: "SHIFT_STATUS_CHANGED",
-      subject: `Remaining calls released: ${shift.productionName}`,
+      link: `/marshal/applications/${booking.id}`, subject: `Remaining calls released: ${shift.productionName}`,
       body: `Your manager released you from calls starting ${formatDate(date)} onwards. Earlier calls stay on your booking. Contact support if this was unexpected.` }, id));
     return true;
   });

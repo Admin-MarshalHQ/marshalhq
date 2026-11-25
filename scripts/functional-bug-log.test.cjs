@@ -156,6 +156,78 @@ test("logged workflow regressions against disposable PostgreSQL", async t => {
     const app = await apply(next,marshal);
     assert.match(await redirectTo(manager,hiring.acceptApplicationAction,app.id),/booking/);
   });
+  await t.test("fresh pair lookup enforces both accounts, current roster, releases and wrap expiry", async () => {
+    const { bookedManagerContact, bookedMarshalContacts, bookingContactEndsAt } = require("../lib/booking-contacts.ts");
+    const d = date => new Date(date);
+    const shift = await db.shift.update({ where: { id: (await makeShift()).id }, data: {
+      status: "RECRUITMENT_STOPPED", startDate: d("2027-03-26"), endDate: d("2027-03-29"),
+      dailyStartTime: "20:00", dailyEndTime: "06:00",
+    } });
+    const a = await apply(shift, marshal, "ACCEPTED");
+    const outsiderApp = await apply(shift, waiting);
+    const cutoff = d("2027-04-06T05:00Z");
+    assert.equal(+bookingContactEndsAt(shift, null), +cutoff);
+    const before = new Date(+cutoff-1);
+    const asMarshal = (when=before, booking=a) => bookedManagerContact(marshal.id, shift, booking, when);
+    const asManager = (when=before, booking=a) => bookedMarshalContacts(manager.id, shift, [booking, outsiderApp], when);
+    assert.equal((await asMarshal()).email, manager.email);
+    assert.deepEqual((await asManager()).map(x=>x.id), [marshal.id]);
+    assert.equal(await asMarshal(cutoff), null);
+    assert.deepEqual(await asManager(cutoff), []);
+    assert.equal(await bookedManagerContact(waiting.id, shift, a, before), null);
+    assert.deepEqual(await bookedMarshalContacts(waiting.id, shift, [a], before), []);
+    for (const actor of [manager,marshal]) {
+      await db.user.update({where:{id:actor.id},data:{disabledAt:new Date()}});
+      assert.equal(await asMarshal(), null);
+      assert.deepEqual(await asManager(), []);
+      await db.user.update({where:{id:actor.id},data:{disabledAt:null}});
+    }
+    await db.marshalProfile.update({where:{userId:marshal.id},data:{paused:true}});
+    assert.equal(await asMarshal(), null);
+    assert.deepEqual(await asManager(), []);
+    await db.marshalProfile.update({where:{userId:marshal.id},data:{paused:false}});
+    await db.shift.update({where:{id:shift.id},data:{paused:true}});
+    assert.deepEqual(await asManager(), []);
+    assert.equal(await asMarshal(), null);
+    await db.shift.update({where:{id:shift.id},data:{paused:false}});
+    const released = await db.application.update({where:{id:a.id},data:{releasedFrom:d("2027-03-28")}});
+    const retainedWrap = d("2027-03-28T05:00Z");
+    assert.equal(+bookingContactEndsAt(shift, released.releasedFrom), +retainedWrap);
+    assert.equal(await asMarshal(new Date(+retainedWrap-1)), null);
+    assert.deepEqual(await asManager(new Date(+retainedWrap-1)), []);
+    assert.equal((await asMarshal(new Date(+retainedWrap-1),released)).email,manager.email);
+    assert.equal(await asMarshal(retainedWrap,released),null);
+    assert.deepEqual(await asManager(retainedWrap,released),[]);
+    for (const status of ["WITHDRAWN","PRODUCTION_CANCELLED"]) {
+      await db.application.update({where:{id:a.id},data:{releasedFrom:null,status}});
+      assert.equal(await asMarshal(),null);
+      assert.deepEqual(await asManager(),[]);
+    }
+  });
+  await t.test("a mistaken release requires current agreement and a conflict-free future schedule", async () => {
+    const { restoreFutureCallsAction } = require("../app/actions/release-correction.ts");
+    const { dayAfter, londonCallDate } = require("../lib/state.ts");
+    const { callKey } = require("../lib/run-attendance.ts");
+    const today = londonCallDate(), start = dayAfter(today,-1), from = dayAfter(today,20);
+    const shift = await db.shift.update({where:{id:(await makeShift()).id}, data:{startDate:start,endDate:from}});
+    const booking = await apply(shift,marshal,"ACCEPTED");
+    const release = () => redirectTo(manager,shifts.releaseRemainingCallsAction,shift.id,booking.id,form({releaseDate:callKey(from)}));
+    await release();
+    const releaseId = async () => (await db.attendanceChange.findFirstOrThrow({where:{applicationId:booking.id,outcome:"CALLS_RELEASED"},orderBy:{createdAt:"desc"}})).id;
+    const request = form({expectedDate:callKey(from),expectedRelease:await releaseId(),reason:"Confirmed synthetic recording error",confirmed:"yes"});
+    const restore = () => redirectTo(fresh,restoreFutureCallsAction,shift.id,booking.id,request);
+    const clash = await db.shift.update({where:{id:(await makeShift()).id},data:{startDate:from,endDate:from}});
+    const b = await apply(clash,marshal,"ACCEPTED");
+    assert.match(await restore(),/restore=conflict/);
+    await db.application.update({where:{id:b.id},data:{status:"WITHDRAWN"}});
+    assert.match(await restore(),/restore=saved/);
+    assert.match(await restore(),/restore=stale/);
+    assert.equal((await db.application.findUniqueOrThrow({where:{id:booking.id}})).releasedFrom,null);
+    const notices = await db.notification.findMany({where:{subject:"Call release corrected: "+nonce}});
+    assert.deepEqual(notices.map(n=>n.userId).sort(),[manager.id,marshal.id].sort());
+    await release();
+    assert.match(await restore(),/restore=stale/);
+  });
   await t.test("stale edits, publication and historical terms", async () => {
     const shift = await makeShift("DRAFT");
     const revision = shift.updatedAt.toISOString();
@@ -222,6 +294,13 @@ test("logged workflow regressions against disposable PostgreSQL", async t => {
     failNotice=null;
     await redirectTo(manager,submitReviewAction,null,fields);
     await redirectTo(marshal,submitReviewAction,null,form({shiftId:shift.id,rating:"5"}));
+    const other = await apply(shift,waiting,"ACCEPTED");
+    const otherReview = form({shiftId:shift.id,marshalId:waiting.id,rating:"5"});
+    assert((await run(manager,submitReviewAction,null,otherReview)).error);
+    await db.application.update({where:{id:other.id},data:{attendance:"WORKED"}});
+    await redirectTo(manager,submitReviewAction,null,otherReview);
+    assert.match((await run(manager,submitReviewAction,null,otherReview)).error,/already reviewed/);
+    assert.equal(await db.review.count({where:{shiftId:shift.id,authorId:manager.id}}),2);
     const notes=await db.notification.findMany({where:{kind:"REVIEW_RECEIVED",subject:"New review: "+nonce}});
     for(const review of await db.review.findMany({where:{shiftId:shift.id}})) {
       const base=review.subjectId===manager.id?"/manager/reviews":"/marshal/profile";

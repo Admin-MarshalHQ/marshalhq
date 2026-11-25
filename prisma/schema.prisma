@@ -260,7 +260,7 @@ model WaitlistEntry {
 // Two-way reviews. After a shift reaches COMPLETED, the manager and the booked
 // marshal can each leave one rating (1-5) plus an optional comment. `direction`
 // records which side wrote it. The unique constraint enforces one review per
-// side per shift; aggregate averages are computed on read for now (small data),
+// direction per booked pair; aggregate averages are computed on read for now (small data),
 // with denormalised counts left as a later perf step. Comments are run through
 // the contact-leak guard at the edge like every other public free-text field.
 model Review {
@@ -277,7 +277,7 @@ model Review {
   author  User  @relation("ReviewAuthor", fields: [authorId], references: [id], onDelete: Cascade)
   subject User  @relation("ReviewSubject", fields: [subjectId], references: [id], onDelete: Cascade)
 
-  @@unique([shiftId, authorId, direction])
+  @@unique([shiftId, authorId, subjectId, direction])
   @@index([subjectId])
 }
 

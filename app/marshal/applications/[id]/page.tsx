@@ -1,3 +1,4 @@
+import { bookedManagerContact } from "@/lib/booking-contacts";
 import { classifyWithdraw } from "@/lib/state";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -62,27 +63,8 @@ export default async function MyApplicationDetail({
   // paused marshal profile takes contact down, including on old URLs.
   const shift = app.shift;
   const outcome = marshalApplicationOutcome(app.status, shift, app.attendance);
-  const isAcceptedPair =
-    app.status === "ACCEPTED" &&
-    (shift.status === "OPEN" ||
-      shift.status === "FILLED" ||
-      shift.status === "COMPLETED") &&
-    !shift.paused && app.marshal.marshalProfile?.paused === false;
-
-  const contactManager = isAcceptedPair
-    ? await prisma.user.findFirst({
-        where: { id: shift.managerId, disabledAt: null, shifts: { some: {
-          id: shift.id, paused: false, status: { in: ["OPEN", "FILLED", "COMPLETED"] },
-          applications: { some: { id: params.id, marshalId: user.id, status: "ACCEPTED", marshal: { disabledAt: null, marshalProfile: { paused: false } } } },
-        } } },
-        select: {
-          email: true,
-          phone: true,
-          managerProfile: {
-            select: { companyName: true, displayName: true },
-          },
-        },
-      })
+  const contactManager = app.status === "ACCEPTED"
+    ? await bookedManagerContact(user.id, shift, app)
     : null;
   // Non-sensitive manager display data (used to label the shift card even
   // when contact is hidden) is fetched separately so the contact branch is
@@ -91,7 +73,7 @@ export default async function MyApplicationDetail({
     where: { userId: shift.managerId },
     select: { companyName: true, displayName: true },
   });
-  const showContact = isAcceptedPair && contactManager !== null;
+  const showContact = contactManager !== null;
   const withdrawFlash = searchParams?.withdraw;
 
   const withdraw = async () => {
@@ -109,7 +91,7 @@ export default async function MyApplicationDetail({
     app.status === "APPLIED" && classifyWithdraw(app, shift) === "allowed";
   const isBooked =
     app.status === "ACCEPTED" &&
-    (shift.status === "OPEN" || shift.status === "FILLED");
+    (["OPEN", "FILLED", "RECRUITMENT_STOPPED"].includes(shift.status));
   const canWithdrawAccepted = isBooked && !shiftStarted;
 
   // Two-way reviews: an accepted marshal can review the manager once the shift

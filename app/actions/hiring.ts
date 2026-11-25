@@ -219,8 +219,8 @@ export async function acceptApplicationAction(applicationId: string) {
       if (!freshApp || freshApp.shiftId !== shiftId || freshApp.status !== "APPLIED") {
         throw new StaleAcceptStateError();
       }
-      const freshProfile = await tx.marshalProfile.findUnique({
-        where: { userId: freshApp.marshalId },
+      const freshProfile = await tx.marshalProfile.findFirst({
+        where: { userId: freshApp.marshalId, user: { disabledAt: null } },
       });
       if (!freshProfile || freshProfile.paused || !canMarshalApply(freshProfile.availability)) {
         throw new StaleAcceptStateError();

@@ -1,3 +1,4 @@
+import { bookedMarshalContacts } from "@/lib/booking-contacts";
 import { ShiftEmailStatus } from "@/components/ShiftEmailStatus";
 import { RunAttendance } from "@/components/RunAttendance";
 import { marshalApplicationOutcome } from "@/lib/application-outcome";
@@ -38,6 +39,7 @@ export default async function BookingPage({
   const canSeeContact =
     shift.status === "OPEN" ||
     shift.status === "FILLED" ||
+    shift.status === "RECRUITMENT_STOPPED" ||
     shift.status === "COMPLETED";
 
   if (!canSeeContact) {
@@ -67,39 +69,20 @@ export default async function BookingPage({
       },
     },
   });
-  const contacts = await prisma.user.findMany({
-    where: { disabledAt: null, marshalProfile: { paused: false }, applications: { some: {
-      status: "ACCEPTED", shiftId: shift.id,
-      shift: { managerId: user.id, manager: { disabledAt: null }, paused: false, status: { in: ["OPEN", "FILLED", "COMPLETED"] } },
-    } } },
-    select: { id: true, email: true, phone: true },
-  });
+  const contacts = await bookedMarshalContacts(user.id, shift, accepted);
   const contactByMarshal = new Map(contacts.map(contact => [contact.id, contact]));
   if (accepted.length === 0) notFound();
 
-  // Two-way reviews: once the shift is COMPLETED the manager can leave one
-  // review of a booked marshal. The subject is always named explicitly — on a
-  // multi-marshal shift the manager chooses who the review is about (one
-  // review per shift until the schema allows one per marshal).
   const isCompleted = shift.status === "COMPLETED";
-  const existingReview = isCompleted
-    ? await prisma.review.findFirst({
-        where: {
-          shiftId: shift.id,
-          authorId: user.id,
-          direction: "MANAGER_ON_MARSHAL",
-        },
+  const eligible = accepted.filter(app => app.attendance === "WORKED");
+  const existingReviews = isCompleted && eligible.length
+    ? await prisma.review.findMany({
+        where: { shiftId: shift.id, authorId: user.id, direction: "MANAGER_ON_MARSHAL",
+          subjectId: { in: eligible.map(app => app.marshalId) } },
       })
-    : null;
-  const reviewSubjects = accepted.filter(a => a.attendance === "WORKED").map((a) => ({
-    id: a.marshalId,
-    label: a.marshal.marshalProfile?.fullName ?? "Marshal",
-  }));
-  const firstMarshalName = reviewSubjects[0]?.label ?? "the marshal";
-  const existingReviewSubjectName = existingReview
-    ? reviewSubjects.find((s) => s.id === existingReview.subjectId)?.label ??
-      "a booked marshal"
-    : null;
+    : [];
+  const reviewSubjects = eligible.filter(app => !existingReviews.some(review => review.subjectId === app.marshalId))
+    .map(app => ({ id: app.marshalId, label: app.marshal.marshalProfile?.fullName ?? "Marshal" }));
 
   return (
     <div>
@@ -121,7 +104,7 @@ export default async function BookingPage({
         {accepted.map((app) => {
           const p = app.marshal.marshalProfile;
           const contact = contactByMarshal.get(app.marshalId);
-          if (!contact) return <Alert key={app.id} tone="warn">{isCompleted && <p>{marshalApplicationOutcome(app.status, shift, app.attendance).label}</p>}Contact details for {p?.fullName ?? "this marshal"} are unavailable. <a href="/support">Contact Setru support about this booking.</a></Alert>;
+          if (!contact) return <Alert key={app.id} tone="warn">{isCompleted && <p>{marshalApplicationOutcome(app.status, shift, app.attendance).label}</p>}<RunAttendance days={app.attendanceDays} releasedFrom={app.releasedFrom} />Contact details for {p?.fullName ?? "this marshal"} are unavailable. <a href="/support">Contact Setru support about this booking.</a></Alert>;
           return (
             <ContactCard
               key={app.id}
@@ -151,46 +134,20 @@ export default async function BookingPage({
         })}
       </div>
 
-      {isCompleted && reviewSubjects.length > 0 && (
+      {isCompleted && eligible.length > 0 && (
         <div className="mt-6 max-w-xl">
           <Card>
-            <Kicker className="mb-1">Review the marshal</Kicker>
-            {searchParams?.reviewed === "1" && !existingReview && (
-              <div className="mt-2">
-                <Alert tone="success">Thanks — your review has been saved.</Alert>
+            <Kicker className="mb-1">Booking reviews</Kicker>
+            {searchParams.reviewed === "1" && <Alert tone="success">Your review has been saved.</Alert>}
+            {existingReviews.map(review => (
+              <div key={review.id} className="mt-3 space-y-1">
+                <p className="font-semibold">{eligible.find(app => app.marshalId === review.subjectId)?.marshal.marshalProfile?.fullName ?? "Booked marshal"}</p>
+                <StarRatingDisplay summary={ratingSummary([review])} />
+                {review.comment && <p className="whitespace-pre-wrap text-sm text-ink">{review.comment}</p>}
               </div>
-            )}
-            {existingReview && !reviewSubjects.some(s => s.id === existingReview.subjectId) ? (
-              <p>The earlier review is withheld.</p>
-            ) : existingReview ? (
-              <div className="mt-2 space-y-2">
-                <StarRatingDisplay
-                  summary={ratingSummary([{ rating: existingReview.rating }])}
-                />
-                {existingReview.comment && (
-                  <p className="whitespace-pre-wrap text-sm text-ink">
-                    {existingReview.comment}
-                  </p>
-                )}
-                <p className="text-xs text-ink-soft">
-                  You’ve reviewed {existingReviewSubjectName} for this booking.
-                </p>
-              </div>
-            ) : (
-              <>
-                <p className="mt-1 text-xs text-ink-soft">
-                  {reviewSubjects.length > 1
-                    ? "Your rating builds the chosen marshal’s reliability record on Setru."
-                    : `Your rating builds ${firstMarshalName}’s reliability record on Setru.`}
-                </p>
-                <ReviewForm
-                  shiftId={shift.id}
-                  subjectLabel={firstMarshalName}
-                  marshalId={reviewSubjects[0]?.id}
-                  subjects={reviewSubjects}
-                />
-              </>
-            )}
+            ))}
+            {reviewSubjects.length > 0 && <ReviewForm shiftId={shift.id} subjectLabel={reviewSubjects[0].label}
+              marshalId={reviewSubjects[0].id} subjects={reviewSubjects} />}
           </Card>
         </div>
       )}
