@@ -37,7 +37,6 @@ export async function saveMarshalProfileAction(
     hasTransport: formData.get("hasTransport") ?? "",
     hasDriversLicence: formData.get("hasDriversLicence") ?? "",
     training: formData.get("training") ?? "",
-    photoUrl: formData.get("photoUrl") ?? "",
   });
   if (!parsed.success) {
     return {
@@ -64,7 +63,6 @@ export async function saveMarshalProfileAction(
       hasTransport: parseBool(d.hasTransport),
       hasDriversLicence: parseBool(d.hasDriversLicence),
       training: d.training || null,
-      photoUrl: d.photoUrl || null,
     },
     update: {
       fullName: d.fullName,
@@ -75,7 +73,6 @@ export async function saveMarshalProfileAction(
       hasTransport: parseBool(d.hasTransport),
       hasDriversLicence: parseBool(d.hasDriversLicence),
       training: d.training || null,
-      photoUrl: d.photoUrl || null,
     },
   });
   revalidatePath("/marshal/profile");

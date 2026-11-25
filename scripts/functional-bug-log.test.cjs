@@ -450,6 +450,47 @@ test("logged workflow regressions against disposable PostgreSQL", async t => {
     await run(fresh,setSupportRequestResolvedAction,ticket.id,true,1);
     assert((await db.supportRequest.findUniqueOrThrow({where:{id:ticket.id}})).resolvedAt);
   });
+  await t.test("participant editors pass only editable fields and preserve old photo links privately", async () => {
+    const React = require("react");
+    globalThis.React = React;
+    const profilePage = require("../app/marshal/profile/edit/page.tsx").default;
+    const shiftPage = require("../app/manager/shifts/[id]/edit/page.tsx").default;
+    const profileForm = require("../app/marshal/profile/edit/MarshalProfileForm.tsx").default;
+    const shiftForm = require("../components/ShiftForm.tsx").default;
+    function propsOf(element, component) {
+      if (!React.isValidElement(element)) return;
+      if (element.type === component) return element.props;
+      return React.Children.toArray(element.props.children)
+        .map(child => propsOf(child, component)).find(Boolean);
+    }
+
+    const savedPhoto = "https://fixture.invalid/legacy-image";
+    const privateNote = "QA operator-only note";
+    await db.marshalProfile.update({ where: { userId: marshal.id }, data: { photoUrl: savedPhoto, founderNote: privateNote } });
+    const profileFields = propsOf(await run(marshal, profilePage), profileForm).profile;
+    assert.deepEqual(Object.keys(profileFields).sort(), [
+      "fullName", "baseLocation", "travelRadiusMiles", "experienceSummary", "availability",
+      "hasTransport", "hasDriversLicence", "training",
+    ].sort());
+    assert.equal(profileFields.fullName, "marshal");
+    const fields = form({ fullName: "Marshal", baseLocation: "London", travelRadiusMiles: "15",
+      experienceSummary: "Synthetic location work", availability: "OPEN_TO_WORK",
+      photoUrl: "https://fixture.invalid/stale-edit" });
+    await redirectTo(marshal, saveMarshalProfileAction, null, fields);
+    const stored = await db.marshalProfile.findUniqueOrThrow({ where: { userId: marshal.id } });
+    assert.equal(stored.photoUrl, savedPhoto);
+    assert.equal(stored.founderNote, privateNote);
+    assert.equal(stored.experienceSummary, "Synthetic location work");
+
+    const shift = await makeShift("DRAFT");
+    await db.shift.update({ where: { id: shift.id }, data: { founderNote: privateNote } });
+    const shiftFields = propsOf(await run(manager, shiftPage, { params: { id: shift.id } }), shiftForm).shift;
+    assert.deepEqual(Object.keys(shiftFields).sort(), [
+      "productionName", "location", "startDate", "endDate", "dailyStartTime", "dailyEndTime",
+      "marshalsNeeded", "rate", "rateUnit", "duties", "engagementTerms", "parkingTravel", "experienceNotes",
+    ].sort());
+    assert.equal(shiftFields.productionName, shift.productionName);
+  });
   await t.test("profile edits preserve booking phones and role correction stops at hiring activity",async subtest=>{
     const initialManagers = process.env.PILOT_MANAGER_EMAILS;
     subtest.after(() => { process.env.PILOT_MANAGER_EMAILS = initialManagers; });

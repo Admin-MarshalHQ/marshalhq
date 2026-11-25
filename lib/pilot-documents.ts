@@ -40,7 +40,7 @@ We may pause access or a vacancy to address unsafe or misleading work, contact m
 
 Controller: ${operator}
 
-Before registration we use the email you enter to check for an invitation for that address and role and send a short-lived code. We use account, verification, password hash, eligibility and session records to provide and secure the service. Managers provide their name and company; marshals provide their name, base, experience, travel and availability information. Phone, training and transport details are optional. Leave external photo links empty during the pilot.
+Before registration we use the email you enter to check for an invitation for that address and role and send a short-lived code. We use account, verification, password hash, eligibility and session records to provide and secure the service. Managers provide their name and company; marshals provide their name, base, experience, travel and availability information. Phone, training and transport details are optional. Profiles use text only.
 
 Read the named hirer and dated brief before applying. Applying makes your named profile and any note available to that hirer. Application and booking notices go to the relevant participants. Only the posting manager and each accepted marshal receive access to that pair’s booking email and any provided phone. Other marshals cannot see them. The hirer is responsible for its own recruitment and engagement records.
 
