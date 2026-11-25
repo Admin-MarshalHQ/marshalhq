@@ -106,6 +106,28 @@ test("logged workflow regressions against disposable PostgreSQL", async t => {
   const makeShift = async (status="OPEN") => db.shift.create({data:{ ...terms, startDate:new Date(terms.startDate),
     endDate:new Date(terms.endDate),marshalsNeeded:1,rate:20,status,managerId:manager.id }});
   const apply = (shift, person, status="APPLIED") => db.application.create({data:{shiftId:shift.id,marshalId:person.id,status,termsVersion:"synthetic-brief"}});
+  await t.test("private history includes missing and challenged outcomes without adding completion credit", async () => {
+    globalThis.React = require("react");
+    const historyPage = require("../app/marshal/history/page.tsx").default;
+    const { renderToStaticMarkup } = require("react-dom/server");
+    async function record(name, person, attendance) {
+      const shift = await makeShift("COMPLETED");
+      await db.shift.update({ where: { id: shift.id }, data: { productionName: name } });
+      const booking = await apply(shift, person, "ACCEPTED");
+      await db.application.update({ where: { id: booking.id }, data: { attendance } });
+    }
+    await record("Legacy blank call", marshal, null);
+    await record("Unsettled call", marshal, "UNRESOLVED");
+    await record("Missed call", marshal, "NOT_WORKED");
+    await record("Other marshal only", waiting, "WORKED");
+    const page = renderToStaticMarkup(await run(marshal, historyPage));
+    for (const label of ["Legacy blank call", "Individual attendance unconfirmed", "Unsettled call",
+      "Awaiting founder review", "Missed call", "Did not work", "Ask for an attendance correction"]) {
+      assert.ok(page.includes(label), label);
+    }
+    assert.doesNotMatch(page, /Other marshal only/);
+    assert.match(page, /Shifts recorded as worked<[^>]+><p[^>]*>0<\/p>/);
+  });
   await t.test("publish and book a run of nights, then record and correct individual calls", async () => {
     const fields = {...terms, startDate:"2098-05-01", endDate:"2098-05-03", dailyStartTime:"20:00", dailyEndTime:"06:00"};
     const path = await redirectTo(manager, shifts.saveDraftShiftAction, null, form(fields));
