@@ -1,3 +1,5 @@
+import { redirect } from "next/navigation";
+import { intakeHeld } from "@/lib/intake";
 import type { Metadata } from "next";
 import { WAITLIST_NEXT_STEP } from "@/lib/copy";
 import { Icon } from "@/components/Icon";
@@ -9,6 +11,7 @@ export const metadata: Metadata = {
 };
 
 export default function EarlyAccessThanksPage() {
+  if (intakeHeld()) redirect("/#waitlist");
   return (
     <div className="mx-auto max-w-lg">
       <PageHeader title="You’re on the waitlist" />

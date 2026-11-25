@@ -97,6 +97,9 @@ export default function SignupForm({ initialRole }: { initialRole: "MANAGER" | "
           autoComplete="new-password"
         />
       </Field>
+      <p className="text-sm text-ink-muted">
+        Read the <a className="underline" href="/terms">terms of use</a>, <a className="underline" href="/rules">platform rules</a> and <a className="underline" href="/privacy">privacy notice</a> before creating an account.
+      </p>
       <Submit role={role} />
     </form>
   );

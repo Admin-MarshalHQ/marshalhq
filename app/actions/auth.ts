@@ -1,5 +1,7 @@
 "use server";
 
+import { intakeHeld } from "@/lib/intake";
+
 import { invitedRole } from "@/lib/pilot-participant";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db";
@@ -18,6 +20,7 @@ export async function signupAction(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
+  if (intakeHeld()) return { error: "New registrations are paused." };
   const parsed = SignupSchema.safeParse({
     email: formData.get("email"),
     password: formData.get("password"),

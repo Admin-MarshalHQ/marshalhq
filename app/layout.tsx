@@ -95,7 +95,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               ) : (
                 <>
                   <Link href="/login" className="shell-link">Log in</Link>
-                  <Link href="/#waitlist" className="shell-link text-coral-ink">Waitlist</Link>
+                  <Link href="/#waitlist" className="shell-link text-coral-ink">Beta access</Link>
                 </>
               )}
             </nav>

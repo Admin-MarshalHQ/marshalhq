@@ -81,6 +81,11 @@ export default function SupportForm({
         />
       </Field>
 
+      <p className="text-sm text-ink-muted">
+        Setru records your email, category and message to handle your request. If you are signed in,
+        it is linked to your account. You can also use this form while signed out.
+        {" "}<a className="underline" href="/privacy#support">How Setru handles support information</a>
+      </p>
       <Submit />
     </form>
   );
