@@ -1,3 +1,4 @@
+import { bookedSchedule } from "@/lib/availability";
 import { bookedManagerContact } from "@/lib/booking-contacts";
 import { AppliedBriefDownload } from "@/components/AppliedBriefDownload";
 import { classifyWithdraw } from "@/lib/state";
@@ -63,6 +64,7 @@ export default async function MyApplicationDetail({
   // A booking may be on an open, filled or completed shift. Closure or a
   // paused marshal profile takes contact down, including on old URLs.
   const shift = app.shift;
+  const schedule = bookedSchedule(app);
   const outcome = marshalApplicationOutcome(app.status, shift, app.attendance);
   const contactManager = app.status === "ACCEPTED"
     ? await bookedManagerContact(user.id, shift, app)
@@ -119,11 +121,11 @@ export default async function MyApplicationDetail({
           label: "Back to my applications",
         }}
         title={shift.productionName}
-        subtitle={`${shift.location} \u00b7 ${formatShiftBlock(
-          shift.startDate,
-          shift.endDate,
-          shift.dailyStartTime,
-          shift.dailyEndTime,
+        subtitle={`${app.releasedFrom ? "Calls before release · " : ""}${shift.location} \u00b7 ${formatShiftBlock(
+          schedule.startDate,
+          schedule.endDate,
+          schedule.dailyStartTime,
+          schedule.dailyEndTime,
         )}`}
         action={
           <div className="flex flex-wrap items-center gap-2">
@@ -135,7 +137,7 @@ export default async function MyApplicationDetail({
         }
       />
       {(() => {
-        const length = shiftBlockLengthLabel(shift.startDate, shift.endDate);
+        const length = shiftBlockLengthLabel(schedule.startDate, schedule.endDate);
         return length ? (
           <p className="-mt-3 mb-3 text-xs text-ink-soft">{length}</p>
         ) : null;

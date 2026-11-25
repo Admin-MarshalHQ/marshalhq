@@ -134,9 +134,23 @@ export const APPLY_UNAVAILABLE_DATES_REMINDER =
 export const WAITLIST_NEXT_STEP =
   "We’ll send one update when private beta places open for your role.";
 
+export function isStandbyNotice(notice: { kind: string; subject: string }) {
+  return notice.kind === "SHIFT_STATUS_CHANGED" && notice.subject.startsWith("Still under consideration:");
+}
+
 export function notificationInboxText(notice: { kind: string; subject: string; body: string; link: string | null }) {
   if (notice.kind === "SHIFT_STATUS_CHANGED" && notice.subject.startsWith("Remaining calls released:")) {
     return { subject: "Call release recorded", body: "A release was recorded for this booking. Open its current record for the dates and any subsequent correction or dispute." };
+  }
+  if (notice.kind === "SHIFT_STATUS_CHANGED" &&
+      (notice.subject.startsWith("Call release corrected:") || notice.subject.startsWith("Call release review:"))) {
+    return { subject: "Call release update", body: "A release decision was recorded. Open the booking for the current call dates and any dispute. If a call is imminent, confirm the arrangements with the other party or Support." };
+  }
+  if (isStandbyNotice(notice)) {
+    return { subject: "Application update", body: "A place reopened while your application was pending. Open your application for its current status." };
+  }
+  if (notice.kind === "APPLICATION_ACCEPTED") {
+    return { subject: "Booking accepted", body: "Your application was accepted. Open the booking for your current call dates, status and contact options." };
   }
   if (notice.kind === "APPLICATION_SUBMITTED" && !notice.link) {
     return { subject: "Application submitted", body: "An earlier application was recorded. Check your workspace for its current status." };

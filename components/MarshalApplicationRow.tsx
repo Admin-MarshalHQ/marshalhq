@@ -1,3 +1,4 @@
+import { bookedSchedule } from "@/lib/availability";
 import { disputedRelease } from "@/lib/attendance";
 import Link from "next/link";
 import type { Application, Shift } from "@prisma/client";
@@ -9,6 +10,7 @@ export function MarshalApplicationRow({ application }: {
   application: Pick<Application, "id" | "status" | "attendance" | "releasedFrom"> & { shift: Shift };
 }) {
   const { id, status, shift } = application;
+  const schedule = bookedSchedule(application);
   const outcome = marshalApplicationOutcome(status, shift, application.attendance);
 
   return (
@@ -23,11 +25,11 @@ export function MarshalApplicationRow({ application }: {
             <StatusBadge label={outcome.label} tone={outcome.tone} />
           </div>
           <p className="mt-0.5 text-sm text-ink-muted">
-            {shift.location} · {formatShiftBlock(
-              shift.startDate,
-              shift.endDate,
-              shift.dailyStartTime,
-              shift.dailyEndTime,
+            {application.releasedFrom && "Calls before release · "}{shift.location} · {formatShiftBlock(
+              schedule.startDate,
+              schedule.endDate,
+              schedule.dailyStartTime,
+              schedule.dailyEndTime,
             )}
           </p>
           {application.releasedFrom && <p>{application.attendance === disputedRelease ? "Release under review for calls from" : "Released from calls starting"} {formatDate(application.releasedFrom)}.</p>}

@@ -1,3 +1,4 @@
+import { bookedSchedule } from "@/lib/availability";
 import { recordedReviews } from "@/lib/recorded-reviews";
 import { RunAttendance } from "@/components/RunAttendance";
 import { disputedRelease, worked } from "@/lib/attendance";
@@ -74,7 +75,7 @@ export default async function CompletionHistoryPage() {
                     ·{" "}
                     {formatShiftBlock(
                       a.shift.startDate,
-                      a.shift.endDate,
+                      bookedSchedule(a).endDate,
                       a.shift.dailyStartTime,
                       a.shift.dailyEndTime,
                     )}
