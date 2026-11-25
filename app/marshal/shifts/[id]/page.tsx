@@ -1,3 +1,4 @@
+import { applicationNoticeVersion, briefVersion, clearedFor } from "@/lib/vacancy-brief";
 import { validShiftWindow } from "@/lib/state";
 import { marshalApplicationOutcome } from "@/lib/application-outcome";
 import { recordedReviews } from "@/lib/recorded-reviews";
@@ -62,6 +63,8 @@ export default async function MarshalShiftDetailPage({
   if (!shift || shift.status === "DRAFT" || shift.paused) notFound();
 
   const yourApp = shift.applications[0];
+  const release = await prisma.vacancyRelease.findUnique({ where: { activeSlot: "GB-pilot" } });
+  if (!yourApp && !clearedFor(shift, release, "view", user.id)) notFound();
   const outcome = yourApp && marshalApplicationOutcome(yourApp.status, shift, yourApp.attendance);
   const acceptedCount = shift._count.applications;
   const started = shiftStartDateTime(shift.startDate, shift.dailyStartTime).getTime() <= Date.now();
@@ -142,6 +145,7 @@ export default async function MarshalShiftDetailPage({
               <p className="mt-2 text-xs text-ink-soft">{length}</p>
             ) : null;
           })()}
+          {shift.engagementTerms && <section className="mt-4 border-t border-line pt-3"><h2 className="mb-1 font-bold">Engagement terms</h2><p className="whitespace-pre-wrap text-sm">{shift.engagementTerms}</p></section>}
           <div className="mt-4 border-t border-line pt-3">
             <h2 className="mb-2 font-bold">Duties</h2>
             <p className="whitespace-pre-wrap text-sm text-ink">
@@ -229,6 +233,8 @@ export default async function MarshalShiftDetailPage({
                   Update availability
                 </ButtonLink>
               </div>
+            ) : !clearedFor(shift, release, "apply", user.id) ? (
+              <Alert tone="warn">Named applications are held until Setru has checked your introduction to this hirer.</Alert>
             ) : conflict === "booked" ? (
               <div className="mt-2 space-y-2">
                 <Alert tone="warn">
@@ -249,6 +255,7 @@ export default async function MarshalShiftDetailPage({
               </div>
             ) : (
               <ApplyForm
+                briefVersion={briefVersion(shift)} noticeVersion={applicationNoticeVersion}
                 shiftId={shift.id}
                 limitedAvailability={isLimitedAvailability(profile.availability)}
                 unavailableDatesConflict={conflict === "marked-unavailable"}

@@ -10,6 +10,10 @@ test("real booking actions serialise decisions and credit each worker once", asy
   assert.match(new URL(process.env.DATABASE_URL).pathname, /^\/setru_qa$/);
   const db = new PrismaClient();
   globalThis.__prisma = db;
+  // This suite races different vacancies concurrently. Their release permissions
+  // are exercised independently against PostgreSQL in vacancy-release.test.cjs.
+  const clearance = require("../lib/vacancy-brief.ts");
+  require.cache[require.resolve("../lib/vacancy-brief.ts")].exports = { ...clearance, clearedFor: () => true };
   const actor = new AsyncLocalStorage();
   const authModule = require.resolve("../lib/auth.ts");
   require.cache[authModule] = { exports: { auth: async () => ({ user: actor.getStore() }) } };
@@ -40,7 +44,7 @@ test("real booking actions serialise decisions and credit each worker once", asy
       managerId: manager.id, productionName: tag, location: "QA", duties: "QA", startDate: day,
       endDate: day, dailyStartTime:"07:00",dailyEndTime:"18:00",rate:20,status:"OPEN",marshalsNeeded:places,
     } });
-    const apps = await Promise.all(people.map(p => db.application.create({data:{shiftId:s.id,marshalId:p.id}})));
+    const apps = await Promise.all(people.map(p => db.application.create({data:{shiftId:s.id,marshalId:p.id,termsVersion:clearance.briefVersion(s)}})));
     return {id:s.id,apps};
   }
   async function invoke(user, fn, ...args) {

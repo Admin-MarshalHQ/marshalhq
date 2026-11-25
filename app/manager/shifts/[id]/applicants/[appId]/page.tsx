@@ -1,3 +1,4 @@
+import { AppliedBriefDownload } from "@/components/AppliedBriefDownload";
 import { confirmedCount } from "@/lib/attendance";
 import { recordedReviews } from "@/lib/recorded-reviews";
 import { notFound } from "next/navigation";
@@ -60,6 +61,9 @@ export default async function ApplicantDetailPage({
       marshalId: true,
       status: true,
       coverNote: true,
+      appliedBrief: true,
+      termsVersion: true,
+      appliedAt: true,
       marshal: {
         select: {
           _count: confirmedCount,
@@ -165,6 +169,7 @@ export default async function ApplicantDetailPage({
               {p.experienceSummary}
             </p>
           </Card>
+          <AppliedBriefDownload snapshot={app.appliedBrief} version={app.termsVersion} appliedAt={app.appliedAt} />
           {app.coverNote && (
             <Card>
               <Kicker className="mb-1">Cover note</Kicker>

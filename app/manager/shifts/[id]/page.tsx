@@ -145,6 +145,7 @@ export default async function ManagerShiftDetailPage({
         </div>
       )}
 
+      {searchParams.publishBlocked === "clearance" && <Alert tone="warn">Publication is held until Setru checks this version of the brief and the hirer’s authority. Contact Support with the shift reference.</Alert>}
       {searchParams.publishBlocked === "changed" && <Alert tone="warn">This draft changed or already has an application history. Review the current shift or post a new listing.</Alert>}
       {searchParams.publishBlocked === "contact" && (
         <div className="mb-4">
@@ -210,6 +211,7 @@ export default async function ManagerShiftDetailPage({
               <p className="mt-2 text-xs text-ink-soft">{length}</p>
             ) : null;
           })()}
+          {shift.engagementTerms && <section className="mt-4 border-t border-line pt-3"><h2 className="mb-1 font-bold">Engagement terms</h2><p className="whitespace-pre-wrap text-sm">{shift.engagementTerms}</p></section>}
           <div className="mt-4 border-t border-line pt-3">
             <Kicker className="mb-1">Duties</Kicker>
             <p className="whitespace-pre-wrap text-sm text-ink">

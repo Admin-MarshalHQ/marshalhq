@@ -79,6 +79,7 @@ export const ShiftDraftSchema = z
     duties: noContactLeak(
       z.string().trim().min(1, "Describe the duties").max(2000),
     ),
+    engagementTerms: optionalNoContactLeak(z.string().trim().max(3000)),
     parkingTravel: optionalNoContactLeak(z.string().trim().max(500)),
     experienceNotes: optionalNoContactLeak(z.string().trim().max(500)),
   })

@@ -1,3 +1,4 @@
+import { VacancyReleaseForm } from "@/components/VacancyReleaseForm";
 import { requireFounder } from "@/lib/access";
 import { AttendanceForm } from "@/components/AttendanceForm";
 import { resolveAttendanceAction } from "@/app/actions/shifts";
@@ -28,7 +29,7 @@ export default async function FounderShiftDetailPage({
   params, searchParams,
 }: {
   params: { id: string };
-  searchParams: { attendance?: string };
+  searchParams: { attendance?: string; vacancyRelease?: string };
 }) {
   await requireFounder();
   const shift = await prisma.shift.findUnique({
@@ -139,6 +140,7 @@ export default async function FounderShiftDetailPage({
               },
             ]}
           />
+          {shift.engagementTerms && <section className="mt-4 border-t border-line pt-3"><h2 className="mb-1 font-bold">Engagement terms</h2><p className="whitespace-pre-wrap text-sm">{shift.engagementTerms}</p></section>}
           <div className="mt-4">
             <p className="mb-1 text-xs uppercase tracking-wide text-ink-soft">
               Duties
@@ -195,6 +197,7 @@ export default async function FounderShiftDetailPage({
         </div>
       </div>
 
+      <VacancyReleaseForm shift={shift} result={searchParams.vacancyRelease} />
       {searchParams.attendance === "stale" && <Alert tone="warn">The record was not changed. Check the current outcome and enter a reason before saving a different outcome.</Alert>}
       {reviewable.map(app => app.attendanceDays ? Object.entries(recordedDays(app.attendanceDays)).sort().map(([day, outcome]) =>
         <AttendanceForm key={app.id + day} resolving callDate={day} roster={[{ ...app, attendance: outcome }]} action={resolveAttendanceAction.bind(null, shift.id)} />)

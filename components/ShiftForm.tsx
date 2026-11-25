@@ -53,6 +53,7 @@ export default function ShiftForm({
     | "rate"
     | "rateUnit"
     | "duties"
+    | "engagementTerms"
     | "parkingTravel"
     | "experienceNotes"
   >;
@@ -188,6 +189,12 @@ export default function ShiftForm({
         </div>
       </FormSection>
 
+      <FormSection title="Engagement terms" description="Required before a vacancy can be advertised. These terms are shown to marshals.">
+        <Field label="Hirer, pay, safety and cancellation" hint="Give the contracting hirer and type of engagement, hours covered, breaks, overtime, expenses, when and how pay is made, notice or cancellation terms, who supervises, safety risks and precautions. Record any required training or equipment. Keep personal contact details out." error={state?.fieldErrors?.engagementTerms}>
+          <textarea name="engagementTerms" maxLength={3000} rows={7} defaultValue={shift?.engagementTerms ?? ""} />
+        </Field>
+      </FormSection>
+
       <FormSection
         title="The work"
         description="What a marshal needs to decide whether this shift is right for them."
@@ -203,7 +210,7 @@ export default function ShiftForm({
             maxLength={2000}
             defaultValue={shift?.duties ?? ""}
             onChange={(e) => setDutiesLen(e.target.value.length)}
-            placeholder="Holding traffic at unit base and maintaining a clear path for cast and crew."
+            placeholder="Guiding arrivals to unit base and keeping pedestrian routes clear."
           />
         </Field>
           <div className="mt-1 text-right">
@@ -231,7 +238,7 @@ export default function ShiftForm({
             maxLength={500}
             defaultValue={shift?.experienceNotes ?? ""}
             onChange={(e) => setNotesLen(e.target.value.length)}
-            placeholder="Prior traffic management ticket preferred"
+            placeholder="Outdoor location work experience preferred"
           />
         </Field>
           <div className="mt-1 text-right">

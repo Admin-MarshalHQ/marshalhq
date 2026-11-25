@@ -1,5 +1,6 @@
 "use server";
 
+import { clearedFor } from "@/lib/vacancy-brief";
 import { prisma } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -46,6 +47,7 @@ function parseShiftInput(fd: FormData) {
     rate: fd.get("rate"),
     rateUnit: fd.get("rateUnit"),
     duties: fd.get("duties"),
+    engagementTerms: fd.get("engagementTerms") ?? "",
     parkingTravel: fd.get("parkingTravel") ?? "",
     experienceNotes: fd.get("experienceNotes") ?? "",
   });
@@ -87,6 +89,7 @@ export async function saveDraftShiftAction(
       rate: data.rate,
       rateUnit: data.rateUnit,
       duties: data.duties,
+      engagementTerms: data.engagementTerms || null,
       parkingTravel: data.parkingTravel || null,
       experienceNotes: data.experienceNotes || null,
       status: "DRAFT",
@@ -137,6 +140,7 @@ export async function updateDraftShiftAction(
       rate: d.rate,
       rateUnit: d.rateUnit,
       duties: d.duties,
+      engagementTerms: d.engagementTerms || null,
       parkingTravel: d.parkingTravel || null,
       experienceNotes: d.experienceNotes || null,
     },
@@ -156,6 +160,8 @@ export async function publishShiftAction(id: string, revision: string) {
     if (hasContactLeak(shift.productionName, shift.location, shift.duties, shift.parkingTravel, shift.experienceNotes)) {
       return "?publishBlocked=contact";
     }
+    const release = await tx.vacancyRelease.findUnique({ where: { activeSlot: "GB-pilot" } });
+    if (!clearedFor(shift, release, "advert")) return "?publishBlocked=clearance";
     await tx.shift.update({ where: { id }, data: { status: "OPEN" } });
     return "";
   });

@@ -1,6 +1,7 @@
 "use server";
 
 import { conflictingBooking } from "@/lib/booking-conflict";
+import { applicationNoticeVersion, briefVersion, clearedFor, vacancyBrief } from "@/lib/vacancy-brief";
 import { prisma } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -47,6 +48,12 @@ export async function applyToShiftAction(
       if (!shift || shift.paused || shift.status !== "OPEN" || !isShiftSchedulable(shift)) {
         return { error: "This shift is no longer open for applications." };
       }
+      const release = await tx.vacancyRelease.findUnique({ where: { activeSlot: "GB-pilot" } });
+      if (!clearedFor(shift, release, "apply", user.id)) return { error: "A named application to this hirer has not been cleared. No application was shared." };
+      const version = briefVersion(shift);
+      if (formData.get("briefVersion") !== version || formData.get("noticeVersion") !== applicationNoticeVersion) {
+        return { error: "Review the current brief and application notice before applying." };
+      }
       const booked = await tx.application.count({ where: { shiftId, status: "ACCEPTED" } });
       if (booked >= shift.marshalsNeeded) return { error: "This shift is already filled." };
       const conflict = await conflictingBooking(tx, user.id, shift);
@@ -55,6 +62,7 @@ export async function applyToShiftAction(
         data: {
           shiftId,
           marshalId: user.id,
+          termsVersion: version, appliedBrief: vacancyBrief(shift), noticeVersion: applicationNoticeVersion,
           coverNote: coverNote || null,
           status: "APPLIED",
         },
@@ -219,6 +227,8 @@ export async function acceptApplicationAction(applicationId: string) {
       if (!freshApp || freshApp.shiftId !== shiftId || freshApp.status !== "APPLIED") {
         throw new StaleAcceptStateError();
       }
+      const release = await tx.vacancyRelease.findUnique({ where: { activeSlot: "GB-pilot" } });
+      if (!clearedFor(freshShift, release, "book", freshApp.marshalId) || freshApp.termsVersion !== briefVersion(freshShift)) throw new StaleAcceptStateError();
       const freshProfile = await tx.marshalProfile.findUnique({
         where: { userId: freshApp.marshalId },
       });

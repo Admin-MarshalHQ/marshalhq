@@ -54,6 +54,10 @@ test("logged workflow regressions against disposable PostgreSQL", async t => {
   assert.equal(dbUrl.pathname, "/setru_qa");
   process.env.SETRU_FIXTURE_INTAKE = "1";
   const { PrismaClient } = require("@prisma/client");
+  // These scheduling regressions move fixture dates directly. Isolate vacancy
+  // clearance; its actual authorisation and stale-brief behaviour have a separate DB suite.
+  const clearance = require("../lib/vacancy-brief.ts");
+  require.cache[require.resolve("../lib/vacancy-brief.ts")].exports = { ...clearance, clearedFor: () => true, briefVersion: () => "synthetic-brief" };
   const actor = new AsyncLocalStorage();
   let failNotice;
   const db = new PrismaClient().$extends({ query: { mailDelivery: { async create({ args, query }) {
@@ -100,19 +104,19 @@ test("logged workflow regressions against disposable PostgreSQL", async t => {
     dailyStartTime:"07:00",dailyEndTime:"18:00",marshalsNeeded:"1",rate:"20",rateUnit:"HOUR",duties:"Unit base" };
   const makeShift = async (status="OPEN") => db.shift.create({data:{ ...terms, startDate:new Date(terms.startDate),
     endDate:new Date(terms.endDate),marshalsNeeded:1,rate:20,status,managerId:manager.id }});
-  const apply = (shift, person, status="APPLIED") => db.application.create({data:{shiftId:shift.id,marshalId:person.id,status}});
+  const apply = (shift, person, status="APPLIED") => db.application.create({data:{shiftId:shift.id,marshalId:person.id,status,termsVersion:"synthetic-brief"}});
   await t.test("publish and book a run of nights, then record and correct individual calls", async () => {
     const fields = {...terms, startDate:"2098-05-01", endDate:"2098-05-03", dailyStartTime:"20:00", dailyEndTime:"06:00"};
     const path = await redirectTo(manager, shifts.saveDraftShiftAction, null, form(fields));
     const runId = path.split("/").at(-1);
     const draft = await db.shift.findUniqueOrThrow({where:{id:runId}});
     await redirectTo(manager,shifts.publishShiftAction,runId,draft.updatedAt.toISOString());
-    await redirectTo(marshal,hiring.applyToShiftAction,null,form({shiftId:runId}));
+    await redirectTo(marshal,hiring.applyToShiftAction,null,form({shiftId:runId,briefVersion:"synthetic-brief",noticeVersion:clearance.applicationNoticeVersion}));
     const booking = await db.application.findFirstOrThrow({where:{shiftId:runId,marshalId:marshal.id}});
     await redirectTo(manager,hiring.acceptApplicationAction,booking.id);
     const morning = await makeShift();
     await db.shift.update({where:{id:morning.id},data:{startDate:new Date("2098-05-04"),endDate:new Date("2098-05-04"),dailyStartTime:"05:59",dailyEndTime:"09:00"}});
-    assert.match((await run(marshal,hiring.applyToShiftAction,null,form({shiftId:morning.id}))).error,/overlap/);
+    assert.match((await run(marshal,hiring.applyToShiftAction,null,form({shiftId:morning.id,briefVersion:"synthetic-brief",noticeVersion:clearance.applicationNoticeVersion}))).error,/overlap/);
     const candidate = await apply(morning,marshal);
     assert.match(await redirectTo(manager,hiring.acceptApplicationAction,candidate.id),/conflict/);
     await db.shift.update({where:{id:morning.id},data:{dailyStartTime:"06:00"}});

@@ -19,11 +19,11 @@ function Submit() {
 }
 
 export default function ApplyForm({
-  shiftId,
+  shiftId, briefVersion, noticeVersion,
   limitedAvailability,
   unavailableDatesConflict,
 }: {
-  shiftId: string;
+  shiftId: string; briefVersion: string; noticeVersion: string;
   limitedAvailability?: boolean;
   unavailableDatesConflict?: boolean;
 }) {
@@ -38,6 +38,8 @@ export default function ApplyForm({
       {unavailableDatesConflict && (
         <Alert tone="warn">{APPLY_UNAVAILABLE_DATES_REMINDER}</Alert>
       )}
+      <input type="hidden" name="briefVersion" value={briefVersion} />
+      <input type="hidden" name="noticeVersion" value={noticeVersion} />
       <input type="hidden" name="shiftId" value={shiftId} />
       <Field
         label="Short note (optional)"

@@ -1,3 +1,4 @@
+import { AppliedBriefDownload } from "@/components/AppliedBriefDownload";
 import { classifyWithdraw } from "@/lib/state";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -200,12 +201,14 @@ export default async function MyApplicationDetail({
               },
             ]}
           />
+          {shift.engagementTerms && <section className="mt-4 border-t border-line pt-3"><h2 className="mb-1 font-bold">Engagement terms</h2><p className="whitespace-pre-wrap text-sm">{shift.engagementTerms}</p></section>}
           <div className="mt-4 border-t border-line pt-3">
             <Kicker className="mb-1">Duties</Kicker>
             <p className="whitespace-pre-wrap text-sm text-ink">
               {shift.duties}
             </p>
           </div>
+          <AppliedBriefDownload snapshot={app.appliedBrief} version={app.termsVersion} appliedAt={app.appliedAt} />
           {app.coverNote && (
             <div className="mt-4 border-t border-line pt-3">
               <Kicker className="mb-1">Your cover note</Kicker>
