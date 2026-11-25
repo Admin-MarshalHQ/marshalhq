@@ -135,6 +135,9 @@ export const WAITLIST_NEXT_STEP =
   "We’ll send one update when private beta places open for your role.";
 
 export function notificationInboxText(notice: { kind: string; subject: string; body: string; link: string | null }) {
+  if (notice.kind === "SHIFT_STATUS_CHANGED" && notice.subject.startsWith("Remaining calls released:")) {
+    return { subject: "Call release recorded", body: "A release was recorded for this booking. Open its current record for the dates and any subsequent correction or dispute." };
+  }
   if (notice.kind === "APPLICATION_SUBMITTED" && !notice.link) {
     return { subject: "Application submitted", body: "An earlier application was recorded. Check your workspace for its current status." };
   }

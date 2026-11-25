@@ -20,6 +20,7 @@ model User {
   sessionVersion Int @default(0)
   disabledAt DateTime?
   founderSessions FounderSession[]
+  pilotAgreements PilotAgreement[]
   role           String   @default("UNSET") // Role: MANAGER | MARSHAL | UNSET
   phone          String?
   emailVerifiedAt DateTime?
@@ -356,4 +357,27 @@ model RequestBudget {
   hits      Int
   expiresAt DateTime
   @@index([expiresAt])
+}
+
+model PilotJoinCode {
+  tokenHash String @id
+  email String
+  role String
+  expiresAt DateTime
+
+  @@index([expiresAt])
+}
+
+model PilotAgreement {
+  id String @id @default(cuid())
+  userId String
+  role String
+  termsVersion String
+  noticeVersion String
+  terms String
+  notice String
+  acceptedAt DateTime @default(now())
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@unique([userId, role, termsVersion, noticeVersion])
 }

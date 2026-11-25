@@ -1,3 +1,4 @@
+import { disputedRelease } from "@/lib/attendance";
 import { Pagination, pageNumber, pageSize } from "@/components/Pagination";
 import { requireFounder } from "@/lib/access";
 import Link from "next/link";
@@ -8,7 +9,7 @@ import { formatRate, formatShiftBlock } from "@/lib/format";
 export default async function FounderShiftsPage({ searchParams }: { searchParams: { page?: string; filter?: string } }) {
   await requireFounder();
   const disputes = searchParams.filter === "disputes";
-  const where = disputes ? { applications: { some: { status: "ACCEPTED", attendance: { in: ["UNRESOLVED", "WORKED_FLAGGED", "PARTIAL_FLAGGED"] } } } } : {};
+  const where = disputes ? { applications: { some: { status: "ACCEPTED", attendance: { in: ["UNRESOLVED", "WORKED_FLAGGED", "PARTIAL_FLAGGED", disputedRelease] } } } } : {};
   const total = await prisma.shift.count({ where: where });
   const page = pageNumber(searchParams.page, total);
   const shifts = await prisma.shift.findMany({

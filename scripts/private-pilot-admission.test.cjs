@@ -1,0 +1,91 @@
+const test = require("node:test");
+const assert = require("node:assert/strict");
+const { randomUUID } = require("node:crypto");
+const { AsyncLocalStorage } = require("node:async_hooks");
+
+test("private admissions require the invited inbox, current role and affirmative versioned documents", async t => {
+  const url = new URL(process.env.DATABASE_URL);
+  assert.equal(url.hostname,"127.0.0.1"); assert.equal(url.pathname,"/setru_qa");
+  const db = new (require("@prisma/client").PrismaClient)();
+  globalThis.__prisma = db;
+  t.after(()=>db.$disconnect());
+  const actor = new AsyncLocalStorage();
+  require.cache[require.resolve("../lib/auth.ts")] = {exports:{auth:async()=>({user:actor.getStore()})}};
+  const {requestJoinCode,registerPilotAccount,acknowledgePilotDocuments} = require("../app/actions/pilot-admission.ts");
+  const {requireAgreedRole,requireRole} = require("../lib/access.ts");
+  const {GET:download} = require("../app/pilot/agreement/[id]/download/route.ts");
+  const {digest,pilotDocuments} = require("../lib/pilot-documents.ts");
+  const nonce=randomUUID(), email=nonce+"@example.invalid", generic="legacy-"+email, other="other-"+email;
+  process.env.AUTH_SECRET=nonce;
+  process.env.PILOT_MARSHAL_EMAILS=email;
+  process.env.PILOT_MANAGER_EMAILS=other;
+  process.env.PILOT_PARTICIPANT_EMAILS=generic;
+  process.env.RESEND_API_KEY="synthetic-only";
+  let fail=false;
+  const sent=[];
+  t.mock.method(globalThis,"fetch",async(url,options)=>{
+    assert.equal(url,"https://api.resend.com/emails");
+    sent.push(JSON.parse(options.body));
+    return new Response(null,{status:fail?503:200});
+  });
+  const form=data=>{const f=new FormData();for(const [k,v] of Object.entries(data))f.set(k,v);return f;};
+  const unreadable={get:()=>{throw Error("Closed admission read submitted data")}};
+  delete process.env.SETRU_PRIVATE_PILOT_ADMISSION;
+  assert.match((await requestJoinCode(null,unreadable)).message,/paused/);
+  assert.match((await registerPilotAccount(null,unreadable)).message,/paused/);
+  process.env.SETRU_PRIVATE_PILOT_ADMISSION="1";
+  delete process.env.SETRU_PILOT_DISCLOSURES;
+  assert.match((await requestJoinCode(null,unreadable)).message,/paused/);
+  const facts={businessAddress:"Synthetic only",contactEmail:"support@example.invalid",providersAndTransfers:"Synthetic service details",retention:"Synthetic retention"};
+  process.env.SETRU_PILOT_DISCLOSURES=JSON.stringify(facts);
+  for (const end of ["", "invalid", new Date(Date.now()-60000).toISOString()]) {
+    process.env.SETRU_PRIVATE_PILOT_COVER_UNTIL=end;
+    assert.match((await requestJoinCode(null,unreadable)).message,/paused/);
+    assert.match((await registerPilotAccount(null,unreadable)).message,/paused/);
+  }
+  process.env.SETRU_PRIVATE_PILOT_COVER_UNTIL=new Date(Date.now()+3600000).toISOString();
+  const docs=pilotDocuments();
+  const versions={termsVersion:docs.termsVersion,noticeVersion:docs.noticeVersion,agreeTerms:"yes",receiveNotice:"yes"};
+  const result=await requestJoinCode(null,form({email:generic}));
+  assert.equal(sent.length,0);assert.equal(await db.pilotJoinCode.count({where:{email:generic}}),0);
+  assert.deepEqual(await requestJoinCode(null,form({email})),result);
+  const code=sent[0].text.match(/[a-f0-9]{32}/)[0];
+  assert.equal((await db.pilotJoinCode.findUniqueOrThrow({where:{tokenHash:digest(code)}})).role,"MARSHAL");
+  const fields={email,code,password:"test-password",role:"MARSHAL",...versions};
+  for(const variant of [{email:generic},{code:"a".repeat(32)},{role:"MANAGER",displayName:"Test",companyName:"Test"},
+    {termsVersion:"outdated"},{agreeTerms:""},{receiveNotice:""}]){
+    assert((await registerPilotAccount(null,form({...fields,...variant}))).message);
+    assert.equal(await db.user.count({where:{email:{in:[email,generic]}}}),0);
+  }
+  const loginRedirect=e=>e.digest?.startsWith("NEXT_REDIRECT;");
+  await assert.rejects(registerPilotAccount(null,form(fields)),loginRedirect);
+  const user=await db.user.findUniqueOrThrow({where:{email},include:{pilotAgreements:true}});
+  assert(user.emailVerifiedAt);assert.equal(user.pilotAgreements.length,1);
+  const receipt=user.pilotAgreements[0];assert.equal(receipt.terms,docs.terms);assert.equal(receipt.notice,docs.notice);
+  assert(sent.some(m=>m.to===email && m.text.includes(docs.notice) && m.text.includes(docs.terms)));
+  assert.match((await registerPilotAccount(null,form(fields))).message,/code/);
+  assert.equal(await db.pilotJoinCode.count({where:{email}}),0);
+  const older=await db.user.create({data:{email:other,passwordHash:"fixture",role:"MANAGER",emailVerifiedAt:new Date()}});
+  const paths=(fn,who)=>actor.run(who,fn);
+  assert.equal((await paths(()=>requireRole("MANAGER"),older)).id,older.id);
+  await assert.rejects(paths(()=>requireAgreedRole("MANAGER"),older),e=>e.digest?.includes("/pilot/agreement"));
+  const res=await paths(()=>download(new Request("http://localhost"),{params:{id:receipt.id}}),older);
+  assert.equal(res.status,404);
+  assert.match((await paths(()=>acknowledgePilotDocuments(null,form({...versions,receiveNotice:""})),older)).message,/confirm/);
+  assert.equal(await db.pilotAgreement.count({where:{userId:older.id}}),0);
+  for(let i=0;i<2;i++) await assert.rejects(paths(()=>acknowledgePilotDocuments(null,form(versions)),older),loginRedirect);
+  assert.equal(await db.pilotAgreement.count({where:{userId:older.id}}),1);
+  assert.equal(sent.filter(m=>m.to===other && m.text.includes(docs.terms)).length,1);
+  assert.equal((await paths(()=>requireAgreedRole("MANAGER"),older)).id,older.id);
+  process.env.SETRU_PILOT_DISCLOSURES=JSON.stringify({...facts,retention:"Revised synthetic retention"});
+  await assert.rejects(paths(()=>requireAgreedRole("MANAGER"),older),e=>e.digest?.includes("/pilot/agreement"));
+  delete process.env.SETRU_PRIVATE_PILOT_ADMISSION;
+  delete process.env.PILOT_MARSHAL_EMAILS;
+  const archived=await paths(()=>download(new Request("http://localhost"),{params:{id:receipt.id}}),user);
+  assert.equal(archived.status,200);assert((await archived.text()).includes(docs.notice));
+  assert.equal(archived.headers.get("cache-control"),"private, no-store");
+  process.env.SETRU_PRIVATE_PILOT_ADMISSION="1";
+  process.env.PILOT_MARSHAL_EMAILS=generic;
+  fail=true;await requestJoinCode(null,form({email:generic}));
+  assert.equal(await db.pilotJoinCode.count({where:{email:generic}}),0);
+});

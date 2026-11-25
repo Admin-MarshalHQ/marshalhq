@@ -1,5 +1,5 @@
 import { clearedFor } from "@/lib/vacancy-brief";
-import { requireRole } from "@/lib/access";
+import { requireAgreedRole } from "@/lib/access";
 import { prisma } from "@/lib/db";
 import {
   ButtonLink,
@@ -10,7 +10,7 @@ import { ShiftListing } from "@/components/ShiftListing";
 import { isShiftSchedulable, londonCallDate } from "@/lib/state";
 
 export default async function BrowseShiftsPage() {
-  const user = await requireRole("MARSHAL");
+  const user = await requireAgreedRole("MARSHAL");
   const profile = await prisma.marshalProfile.findUnique({
     where: { userId: user.id },
     select: { id: true },

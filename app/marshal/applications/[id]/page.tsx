@@ -142,7 +142,7 @@ export default async function MyApplicationDetail({
       })()}
 
       <p className="mb-4 text-sm text-ink-muted">{outcome.detail}</p>
-      <RunAttendance days={app.attendanceDays} releasedFrom={app.releasedFrom} />
+      <RunAttendance attendance={app.attendance} days={app.attendanceDays} releasedFrom={app.releasedFrom} />
 
       {withdrawFlash === "committed" && (
         <div className="mb-4">

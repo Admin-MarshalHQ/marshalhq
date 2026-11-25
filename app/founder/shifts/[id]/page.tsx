@@ -1,4 +1,4 @@
-import { restoreFutureCallsAction } from "@/app/actions/release-correction";
+import { reviewElapsedReleaseAction, restoreFutureCallsAction } from "@/app/actions/release-correction";
 import { callKey } from "@/lib/run-attendance";
 import { beforeCall } from "@/lib/state";
 import { VacancyReleaseForm } from "@/components/VacancyReleaseForm";
@@ -7,7 +7,7 @@ import { AttendanceForm } from "@/components/AttendanceForm";
 import { resolveAttendanceAction } from "@/app/actions/shifts";
 import { RunAttendance } from "@/components/RunAttendance";
 import { recordedDays } from "@/lib/run-attendance";
-import { attendanceLabel } from "@/lib/attendance";
+import { attendanceLabel, disputedRelease } from "@/lib/attendance";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
@@ -33,7 +33,7 @@ export default async function FounderShiftDetailPage({
   params, searchParams,
 }: {
   params: { id: string };
-  searchParams: { attendance?: string; restore?: string; vacancyRelease?: string };
+  searchParams: { attendance?: string; restore?: string; releaseReview?: string; vacancyRelease?: string };
 }) {
   await requireFounder();
   const shift = await prisma.shift.findUnique({
@@ -48,7 +48,7 @@ export default async function FounderShiftDetailPage({
       applications: {
         orderBy: { appliedAt: "desc" },
         include: {
-          attendanceChanges: { where: { outcome: "CALLS_RELEASED" }, orderBy: [{createdAt: "desc"}, {id: "desc"}], take: 1, select: { id: true } },
+          attendanceChanges: { where: { outcome: { in: ["CALLS_RELEASED", disputedRelease, "RELEASE_CONFIRMED"] } }, orderBy: [{createdAt: "desc"}, {id: "desc"}], take: 1, select: { id: true } },
           marshal: {
             select: {
               id: true,
@@ -206,6 +206,9 @@ export default async function FounderShiftDetailPage({
           : searchParams.restore === "conflict" ? "Another accepted booking overlaps. The release is unchanged. Resolve the conflict with both parties."
           : "The release is unchanged. Check the current dates, agreement and reason. If a released call has started, handle the disputed record through Support."}
       </Alert>}
+      {searchParams.releaseReview && <Alert tone="warn">{searchParams.releaseReview === "held" ? "Disputed release held. Both participants have a notice."
+        : searchParams.releaseReview === "confirmed" ? "Original release confirmed. Both participants have a notice."
+        : "No change saved. Check the current release and your evidence."}</Alert>}
       {shift.applications.filter(app => app.status === "ACCEPTED" && app.releasedFrom).map(app => {
         const from = app.releasedFrom!;
         const name = app.marshal.marshalProfile?.fullName ?? "Booked marshal";
@@ -217,9 +220,18 @@ export default async function FounderShiftDetailPage({
               <input type="hidden" name="expectedRelease" value={app.attendanceChanges[0]?.id ?? "legacy"} />
               <label className="block">Private correction reason<textarea name="reason" required maxLength={500} /></label>
               <label className="block"><input type="checkbox" name="confirmed" value="yes" required /> Both parties agreed to restore these calls. I checked replacement cover with the hirer.</label>
-              <Button variant="secondary">Restore the original future calls</Button>
+              <Button type="submit" variant="secondary">Restore the original future calls</Button>
             </form>
-          ) : <p className="text-sm">Handle a challenged release through Support. Keep the original dates and hear both parties before changing any work record.</p>}
+          ) : !beforeCall({ ...shift, startDate: from }) ? (
+            <form className="mt-2 space-y-3" action={reviewElapsedReleaseAction.bind(null, shift.id, app.id)}>
+              <p>{app.attendance === disputedRelease ? "The disputed release remains held. Confirm the original date only if the evidence supports it. Otherwise keep the hold and use the restricted case to establish the affected calls." : "Hold a disputed release to restrict the affected dates, completion credit and reviews. Earlier dated records and other bookings are preserved."}</p>
+              <input type="hidden" name="expectedDate" value={callKey(from)} />
+              <input type="hidden" name="expectedChange" value={app.attendanceChanges[0]?.id ?? "legacy"} />
+              <label className="block">Private reason or case reference<textarea name="reason" required maxLength={500} /></label>
+              {app.attendance === disputedRelease && <label className="block"><input type="checkbox" name="confirmed" value="yes" required /> I checked both accounts and the evidence confirms the original release date.</label>}
+              <Button type="submit" variant="secondary" name="decision" value={app.attendance === disputedRelease ? "confirm" : "hold"}>{app.attendance === disputedRelease ? "Confirm original release" : "Hold disputed release"}</Button>
+            </form>
+          ) : <p className="text-sm">The booking is paused. Review the case before restoring future calls.</p>}
         </Card>;
       })}
       <VacancyReleaseForm shift={shift} result={searchParams.vacancyRelease} />
@@ -259,7 +271,7 @@ export default async function FounderShiftDetailPage({
                     </span>
                   )}
                   {a.attendance && <span>{attendanceLabel(a.attendance)}</span>}
-                  <RunAttendance days={a.attendanceDays} releasedFrom={a.releasedFrom} />
+                  <RunAttendance attendance={a.attendance} days={a.attendanceDays} releasedFrom={a.releasedFrom} />
                   <ApplicationStatusBadge status={a.status} />
                 </div>
               </li>

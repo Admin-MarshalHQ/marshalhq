@@ -64,6 +64,7 @@ test("one scoped vacancy, individual stages and durable brief across a hold", as
     user("MARSHAL", "other"),
     user("MANAGER", "operator"),
   ]);
+  await require("./pilot-agreement-fixture.cjs").seedAgreements(db, manager, [marshal, other]);
   process.env.FOUNDER_EMAILS = operator.email;
   process.env.PILOT_MANAGER_EMAILS = manager.email;
   process.env.PILOT_MARSHAL_EMAILS = [marshal.email, other.email].join(",");
@@ -93,6 +94,7 @@ test("one scoped vacancy, individual stages and durable brief across a hold", as
   ]);
   t.after(async () => {
     await db.shift.deleteMany({ where: { id: { in: [shift.id, second.id] } } });
+    await db.pilotAgreement.deleteMany({ where: {userId: {in: [manager.id, marshal.id, other.id]}} });
     await db.user.deleteMany({
       where: { id: { in: [manager.id, marshal.id, other.id, operator.id] } },
     });
