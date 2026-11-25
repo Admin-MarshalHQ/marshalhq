@@ -21,7 +21,7 @@ test("privacy draft requires opt-in in a review environment and cannot replace p
   const review = render({NODE_ENV: "production", VERCEL_ENV: "preview", SETRU_PRIVACY_REVIEW: "1"});
   assert.match(review, label);
   assert.match(review, /one update when places open for your role/);
-  assert.match(review, /application notification can include your name/);
+  assert.match(review, /New application alerts direct the manager to sign in/);
   assert.match(review, /completion does not automatically remove them/);
   assert.match(review, /href="\/support"/);
   assert.match(review, /href="https:\/\/ico.org.uk\/make-a-complaint\//);

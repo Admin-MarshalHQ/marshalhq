@@ -211,6 +211,63 @@ test("logged workflow regressions against disposable PostgreSQL", async t => {
     await db.shift.update({where:{id:second.id},data:{startDate:new Date("2020-01-01"),endDate:new Date("2020-01-01")}});
     assert.match(await redirectTo(manager,shifts.reopenAfterDropoutAction,second.id,secondBooking.id),/dropout=started/);
   });
+  await t.test("only currently eligible parties receive application and booking mail", async () => {
+    const shift = await makeShift();
+    const runDate = new Date("2096-09-01");
+    await db.shift.update({ where: { id: shift.id }, data: { startDate: runDate, endDate: runDate } });
+    mailOK = false;
+    await redirectTo(waiting, hiring.applyToShiftAction, null, form({ shiftId: shift.id }));
+    const app = await db.application.findFirstOrThrow({ where: { shiftId: shift.id, marshalId: waiting.id } });
+    const managerJob = await db.mailDelivery.findFirstOrThrow({ where: {
+      shiftId: shift.id, notification: { userId: manager.id, kind: "APPLICATION_SUBMITTED" },
+    } });
+    const managerEmail = sent.find(message => message.key === "setru-" + managerJob.id);
+    assert.ok(managerEmail.text.includes("/applicants/" + app.id));
+    assert.ok(!managerEmail.text.includes("waiting"));
+    mailOK = true;
+    await db.user.update({ where: { id: manager.id }, data: { disabledAt: new Date() } });
+    const attemptsBeforeRetry = sent.length;
+    await dispatchDelivery(managerJob.id, true);
+    assert.equal(sent.length, attemptsBeforeRetry);
+    assert.equal(await db.mailDelivery.findUnique({ where: { id: managerJob.id } }), null);
+    await db.user.update({ where: { id: manager.id }, data: { disabledAt: null } });
+
+    // An open application alone is insufficient to book a disabled person.
+    await db.user.update({ where: { id: waiting.id }, data: { disabledAt: new Date() } });
+    assert.match(await redirectTo(manager, hiring.acceptApplicationAction, app.id), /stale/);
+    assert.equal((await db.application.findUniqueOrThrow({ where: { id: app.id } })).status, "APPLIED");
+    await db.user.update({ where: { id: waiting.id }, data: { disabledAt: null } });
+
+    mailOK = false;
+    await redirectTo(manager, hiring.acceptApplicationAction, app.id);
+    const acceptedJob = await db.mailDelivery.findFirstOrThrow({ where: {
+      shiftId: shift.id, notification: { userId: waiting.id, kind: "APPLICATION_ACCEPTED" },
+    } });
+    await db.shift.update({ where: { id: shift.id }, data: { paused: true } });
+    mailOK = true;
+    const afterAcceptance = sent.length;
+    await dispatchDelivery(acceptedJob.id, true);
+    assert.equal(sent.length, afterAcceptance);
+    assert.equal(await db.mailDelivery.findUnique({ where: { id: acceptedJob.id } }), null);
+
+    // A pre-upgrade retry lacks a dependable application reference.
+    const legacyJob = await db.mailDelivery.create({ data: { notification: { create: {
+      userId: manager.id, kind: "APPLICATION_SUBMITTED", subject: "Legacy alert", body: "Synthetic named applicant",
+    } } } });
+    await dispatchDelivery(legacyJob.id, true);
+    assert.equal(sent.length, afterAcceptance);
+    assert.equal(await db.mailDelivery.findUnique({ where: { id: legacyJob.id } }), null);
+
+    // Stopping applications leaves valid, accepted bookings intact.
+    await db.shift.update({ where: { id: shift.id }, data: { paused: false, status: "RECRUITMENT_STOPPED" } });
+    const newJob = await db.mailDelivery.create({ data: { shiftId: shift.id, notification: { create: {
+      userId: waiting.id, kind: "APPLICATION_ACCEPTED", subject: "QA booking", body: "Synthetic confirmation",
+      link: "/marshal/applications/" + app.id,
+    } } } });
+    await dispatchDelivery(newJob.id, true);
+    assert.ok((await db.mailDelivery.findUniqueOrThrow({ where: { id: newJob.id } })).sentAt);
+    assert.equal(sent.length, afterAcceptance + 1);
+  });
   await t.test("review and receipt commit together, including ratings without comments", async () => {
     const shift=await makeShift("COMPLETED");
     const app=await apply(shift,marshal,"ACCEPTED");

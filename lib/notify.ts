@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { Prisma } from "@prisma/client";
+import { isPilotParticipant } from "@/lib/pilot-participant";
 import { prisma } from "@/lib/db";
 import type { NotificationKind } from "@/lib/types";
 import { sendEmail } from "@/lib/mail";
@@ -35,6 +36,43 @@ export async function notifyPendingAfterDropout(tx: Prisma.TransactionClient, sh
   return queue;
 }
 
+// Old application messages can contain a name without an application reference.
+// Keep their in-app history but never retry an email we cannot authorise.
+async function canSendApplicationNotice(notice: { kind: string; userId: string; link: string | null }, shiftId: string | null) {
+  if (notice.kind !== "APPLICATION_ACCEPTED" && notice.kind !== "APPLICATION_SUBMITTED") return true;
+  if (!shiftId || !notice.link) return false;
+  const applicationId = notice.link.split("/").pop();
+  if (!applicationId) return false;
+  const managerNotice = notice.kind === "APPLICATION_SUBMITTED" &&
+    notice.link === `/manager/shifts/${shiftId}/applicants/${applicationId}`;
+  if (!managerNotice && notice.link !== `/marshal/applications/${applicationId}`) return false;
+
+  const booking = notice.kind === "APPLICATION_ACCEPTED";
+  const activeAccount = { disabledAt: null, emailVerifiedAt: { not: null } };
+  const application = await prisma.application.findFirst({
+    where: {
+      id: applicationId,
+      shiftId,
+      status: booking ? "ACCEPTED" : "APPLIED",
+      marshalId: managerNotice ? undefined : notice.userId,
+      marshal: { ...activeAccount, role: "MARSHAL", marshalProfile: { paused: false } },
+      shift: {
+        managerId: managerNotice ? notice.userId : undefined,
+        paused: false,
+        status: { in: booking ? ["OPEN", "FILLED", "RECRUITMENT_STOPPED"] : ["OPEN", "FILLED"] },
+        manager: { ...activeAccount, role: "MANAGER" },
+      },
+    },
+    select: {
+      marshal: { select: { email: true } },
+      shift: { select: { manager: { select: { email: true } } } },
+    },
+  });
+  if (!application) return false;
+  return isPilotParticipant(application.marshal.email, "MARSHAL") &&
+    isPilotParticipant(application.shift.manager.email, "MANAGER");
+}
+
 export async function dispatchDelivery(id: string, retryNow = false) {
   const lease = randomUUID();
   const now = new Date();
@@ -48,17 +86,9 @@ export async function dispatchDelivery(id: string, retryNow = false) {
   });
   const notice = job.notification;
   const entry = job.waitlist;
-  if (notice?.kind === "APPLICATION_ACCEPTED" && notice.link?.startsWith("/marshal/applications/")) {
-    const application = await prisma.application.findFirst({
-      where: { id: notice.link.slice("/marshal/applications/".length), marshalId: notice.userId, status: "ACCEPTED",
-        shift: { status: { in: ["OPEN", "FILLED"] } } }, select: { id: true },
-    });
-    if (!application) {
-      // The booking has since closed. Its inbox history remains, while an
-      // obsolete confirmation must never be dispatched after cancellation.
-      await prisma.mailDelivery.deleteMany({ where: { id, lease } });
-      return;
-    }
+  if (notice && !await canSendApplicationNotice(notice, job.shiftId)) {
+    await prisma.mailDelivery.deleteMany({ where: { id, lease } });
+    return;
   }
   const origin = process.env.APP_BASE_URL || "https://setru.co.uk";
   const message = notice ? {
