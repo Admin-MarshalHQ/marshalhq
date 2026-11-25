@@ -3,7 +3,7 @@
 import { prisma } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { requireRole, requireFounder } from "@/lib/access";
+import { requireAgreedRole, requireRole, requireFounder } from "@/lib/access";
 import { ShiftDraftSchema } from "@/lib/zod";
 import {
   beforeCall,
@@ -147,7 +147,7 @@ export async function updateDraftShiftAction(
 }
 
 export async function publishShiftAction(id: string, revision: string) {
-  const managerId = await requireManagerId();
+  const { id: managerId } = await requireAgreedRole("MANAGER");
   const result = await prisma.$transaction(async tx => {
     await lockShift(tx, id);
     const shift = await tx.shift.findFirst({ where: { id, managerId, status: "DRAFT", paused: false } });

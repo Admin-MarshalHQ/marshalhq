@@ -20,6 +20,7 @@ export type ApplicationStatus =
   | "WITHDRAWN"
   | "PRODUCTION_CANCELLED";
 export type NotificationKind =
+  | "PILOT_AGREEMENT"
   | "APPLICATION_SUBMITTED"
   | "APPLICATION_ACCEPTED"
   | "APPLICATION_REJECTED"

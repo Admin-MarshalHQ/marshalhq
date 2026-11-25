@@ -32,6 +32,7 @@ test("real booking actions serialise decisions and credit each worker once", asy
   const [a,b,c] = await Promise.all(["a","b","c"].map(name => person("MARSHAL",name)));
   const outsider = await person("MANAGER","outside");
   process.env.PILOT_PARTICIPANT_EMAILS = [manager,a,b,c].map(x => x.email).join(",");
+  await require("./pilot-agreement-fixture.cjs").seedAgreements(db, manager, [a,b,c]);
   const founder = { ...await person("MANAGER","founder"), founderPasscode: true, founderIssuedAt: Date.now() };
   process.env.FOUNDER_EMAILS = founder.email;
   const future = new Date("2099-04-01"); const past = new Date("2020-04-01");

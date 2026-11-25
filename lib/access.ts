@@ -1,3 +1,4 @@
+import { hasPilotAgreement } from "@/lib/pilot-agreement";
 import { founderFreshness } from "@/lib/session-policy";
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
@@ -24,6 +25,14 @@ export async function requirePilotUser() {
 export async function requireRole(role: Role) {
   const user = await requirePilotUser();
   if (user.role !== role) redirect("/");
+  return user;
+}
+
+// New hiring needs affirmative current terms. Existing account service,
+// withdrawal, settlement and historical records use the ordinary role guard.
+export async function requireAgreedRole(role: "MANAGER" | "MARSHAL") {
+  const user = await requireRole(role);
+  if (!await hasPilotAgreement(user.id, role)) redirect("/pilot/agreement");
   return user;
 }
 

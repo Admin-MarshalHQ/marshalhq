@@ -89,6 +89,7 @@ test("logged workflow regressions against disposable PostgreSQL", async t => {
   const [manager, marshal, waiting, founder] = await Promise.all([user("manager","MANAGER"),user("marshal","MARSHAL"),user("waiting","MARSHAL"),user("founder","MANAGER")]);
   process.env.FOUNDER_EMAILS = founder.email;
   process.env.PILOT_PARTICIPANT_EMAILS = [manager, marshal, waiting].map(u=>u.email).join(",");
+  await require("./pilot-agreement-fixture.cjs").seedAgreements(db, manager, [marshal,waiting]);
   const fresh = {...founder,founderPasscode:true,founderIssuedAt:Date.now()};
   const run = (u, fn, ...args) => actor.run(u, () => fn(...args));
   const redirectTo = async (u, fn, ...args) => {
