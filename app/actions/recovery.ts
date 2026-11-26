@@ -247,11 +247,12 @@ export async function submitSupportRequestAction(
   });
 
   const notifyTo = (process.env.SUPPORT_NOTIFY_EMAIL ?? "").trim();
+  const origin = (process.env.APP_BASE_URL || "https://setru.co.uk").replace(/\/+$/, "");
   const founderNotify = notifyTo
     ? sendEmail({
         to: notifyTo,
         subject: "New Setru support request",
-        body: "A new request is ready to review in the founder support dashboard.",
+        body: `A new request is ready to review in the founder support dashboard.\n\n${origin}/founder/support`,
       }).then((r) => {
         if (!r.ok) {
           console.error("[support] founder notification failed", {
