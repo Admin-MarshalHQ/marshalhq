@@ -1,16 +1,18 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { countDemoAction } from "./analytics";
 import { BrandLogo } from "@/components/BrandLogo";
 import { Icon } from "@/components/Icon";
 import { Applicant, ManagerDashboard, ManagerShift, Marketplace, MarshalDashboard, MarshalShift } from "./Screens";
 import { initialApplications, makeShifts, transition, viewerMarshal, type Action, type Application } from "./model";
 
-export default function DemoWorkspace({ firstDay }: { firstDay: string }) {
+export default function DemoWorkspace({ firstDay, analyticsAvailable }: { firstDay: string; analyticsAvailable: boolean }) {
   const [path, setPath] = useState("");
   const [moves, setMoves] = useState<Action[]>([]);
   const [ready, setReady] = useState(false);
   const [notice, setNotice] = useState("");
+  const [shareDemoActions, setShareDemoActions] = useState(false);
   const screen = useRef<HTMLDivElement>(null);
   const storageKey = `setru-demo-v1:${firstDay.slice(0, 10)}`;
   const shifts = makeShifts(firstDay);
@@ -40,6 +42,8 @@ export default function DemoWorkspace({ firstDay }: { firstDay: string }) {
   }, [moves, ready, storageKey]);
 
   function act(move: Action) {
+    if (transition(applications, move) === applications) return;
+    if (shareDemoActions) void countDemoAction(move.type).catch(() => {});
     setMoves(previous => {
       const current = previous.reduce<Application[]>(transition, initialApplications);
       return transition(current, move) === current ? previous : [...previous, move];
@@ -100,5 +104,9 @@ export default function DemoWorkspace({ firstDay }: { firstDay: string }) {
           : dashboard ? <MarshalDashboard {...listProps} /> : <Marketplace {...listProps} />}
       </div>
     </div>
+    {analyticsAvailable && <label className="demo-width flex items-center gap-2 pb-6 text-sm">
+      <input type="checkbox" checked={shareDemoActions} onChange={event => setShareDemoActions(event.target.checked)} />
+      Share anonymous counts of my demo applications and bookings with Setru via PostHog.
+    </label>}
   </div>;
 }
