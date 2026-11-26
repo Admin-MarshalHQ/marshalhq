@@ -17,6 +17,7 @@ export default function Privacy() {
         <h2>Public demo and browser storage</h2>
         <p>The <Link href="/demo">demo</Link> uses sample people and shifts. It saves your choices in this browser tab’s session storage so you can move between screens. Use Reset demo to start again. You can explore without an account.</p>
         <p>Setru uses first-party cookies to protect sign-in requests, remember the page to return to and keep you signed in. The security and return-page cookies last for the browser session. Clearing cookies can sign you out.</p>
+        <p>If you enable demo analytics, our server sends PostHog a count each time you apply or book in the demo. Untick the box to stop sharing. When waitlist intake is open, we also count newly created entries. Each event uses a fresh random identifier. These counts exclude your contact details, IP address and form answers.</p>
         <h2>Existing waitlist entries</h2>
         <p>The waitlist form asked for your name, email and role, plus optional information such as your production, region or a note. The latest form offered a receipt and one update when places open for your role. To leave or ask what information we hold, use <Link href="/support">Support</Link>.</p>
         <h2>Accounts and booking records</h2>

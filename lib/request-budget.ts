@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import { prisma } from "@/lib/db";
 
 const limits = {
+  demoAnalytics: [100, 1000, 1000],
   password: [40, 10, 1000],
   founderIssue: [10, 6, 100],
   founderVerify: [30, 15, 200],

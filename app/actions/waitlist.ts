@@ -1,5 +1,6 @@
 "use server";
 
+import { countEvent } from "@/lib/product-analytics";
 import { intakeHeld } from "@/lib/intake";
 
 import { redirect } from "next/navigation";
@@ -123,7 +124,7 @@ export async function submitWaitlistEntryAction(
       })
     : Promise.resolve();
 
-  await Promise.allSettled([founderNotify]);
+  await Promise.allSettled([founderNotify, countEvent("waitlist_entry_created")]);
 
   redirect("/early-access/thanks");
 }

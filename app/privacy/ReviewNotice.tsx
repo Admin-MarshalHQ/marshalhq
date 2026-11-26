@@ -25,6 +25,8 @@ export default function ReviewNotice() {
       <h2 id="service-providers">Who helps operate the service</h2>
       <p>Setru uses Vercel for website hosting, Supabase for database hosting and Resend for transactional email. Access to a person’s information depends on the service and its purpose. Signing in uses session cookies. The public demo uses sample people and saves demo actions in browser session storage; it does not make real bookings.</p>
 
+      <p>PostHog counts new waitlist entries and, if you enable sharing in the demo, sample applications and bookings. Our server sends a fresh random identifier for each event and excludes your IP address and form details. Untick the demo checkbox to stop sharing.</p>
+
       <h2 id="your-rights">Your choices and rights</h2>
       <p>You can ask for access to or correction of information about you, or ask for erasure, restriction, portability or to object where those rights apply. Where we rely on consent, you can withdraw it. Use the privacy or account deletion category on <Link href="/support">Support</Link>. Requests are reviewed individually. Deletion is not automatic and may not apply to all records. You can also <a href="https://ico.org.uk/make-a-complaint/">complain to the Information Commissioner’s Office (ICO)</a>.</p>
     </div>

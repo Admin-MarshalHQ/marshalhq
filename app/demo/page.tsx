@@ -1,3 +1,4 @@
+import { analyticsConfigured } from "@/lib/product-analytics";
 import type { Metadata } from "next";
 import DemoWorkspace from "./DemoWorkspace";
 import "./demo.css";
@@ -20,5 +21,5 @@ export default function DemoPage() {
   const firstDay = new Date();
   firstDay.setUTCHours(12, 0, 0, 0);
   firstDay.setUTCDate(firstDay.getUTCDate() + ((8 - firstDay.getUTCDay()) % 7 || 7));
-  return <DemoWorkspace firstDay={firstDay.toISOString()} />;
+  return <DemoWorkspace analyticsAvailable={analyticsConfigured()} firstDay={firstDay.toISOString()} />;
 }
