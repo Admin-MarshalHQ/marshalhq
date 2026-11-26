@@ -2,13 +2,15 @@
 
 Run this against the live deployment, in a real browser, with real email addresses, immediately before sending the first invite. Do not skip steps. Do not run it on localhost.
 
+For a repeatable isolated test beforehand, use the [private-pilot browser rehearsal](private-pilot-browser-rehearsal.md). Complete this production checklist separately.
+
 Use only designated synthetic participants and a separately cleared, labelled rehearsal vacancy. Keep public registration, waitlist collection and wider hiring closed. Record the exact scope of any local or preview rehearsal separately.
 
 ## Setup
 
 1. Live URL: https://setru.co.uk — every step below uses this URL.
 2. Three distinct test emails the founder controls (e.g. one inbox + one alias). Do **not** use Accenture work email.
-3. Two browser profiles (or one normal + one incognito) so the manager and marshal sessions stay separate.
+3. Separate browser profiles for the founder, manager and each marshal so their sessions stay independent. Use a phone viewport for the two participant roles.
 4. Run the read-only contamination scan. Identify and isolate any fixtures before inviting real users.
 5. The schema drift check passes: `npm run db:drift` reports PASS against the production database. A FAIL here means shipped code queries tables the database doesn't have — stop and see [schema-drift-check.md](schema-drift-check.md) before continuing.
 
@@ -100,7 +102,7 @@ Use only designated synthetic participants and a separately cleared, labelled re
 - [ ] Use a short controlled rehearsal shift and wait for its scheduled wrap.
 - [ ] When the end time has passed, manager records an attendance outcome per booking on the shift detail page.
 - [ ] Marshal's profile `completedCount` increments by 1.
-- [ ] Only worked outcomes earn completion credit. Only work confirmed reliable earns reliability credit. An unresolved outcome stays pending until founder review.
+- [ ] Only confirmed full work earns completion credit. A partial, unresolved, blank or unworked record earns no full-run credit. Reviews require an eligible worked outcome.
 - [ ] Shift appears in the marshal's history.
 
 ## Step 14 — Wrap-up

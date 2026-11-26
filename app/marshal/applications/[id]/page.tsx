@@ -241,7 +241,7 @@ export default async function MyApplicationDetail({
               <p className="text-xs text-ink-soft">
                 {app.status === "APPLIED"
                   ? "Pull your application if you can no longer do this shift."
-                  : "If your plans change, tell the manager early. The shift will reopen."}
+                  : "If your plans change, tell the manager early so they can plan cover."}
               </p>
               <div className="mt-3">
                 <ConfirmButton
@@ -257,7 +257,9 @@ export default async function MyApplicationDetail({
                   description={
                     app.status === "APPLIED"
                       ? CONFIRM_WITHDRAW_BODY
-                      : CONFIRM_DROPOUT_BODY
+                      : shift.status === "RECRUITMENT_STOPPED"
+                        ? "You’ll give up your place and the manager will be notified. Recruitment will stay closed."
+                        : CONFIRM_DROPOUT_BODY
                   }
                   confirmLabel={
                     app.status === "APPLIED"
