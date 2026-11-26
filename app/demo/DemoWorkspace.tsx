@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { countDemoAction } from "./analytics";
 import { BrandLogo } from "@/components/BrandLogo";
 import { Icon } from "@/components/Icon";
 import { Applicant, ManagerDashboard, ManagerShift, Marketplace, MarshalDashboard, MarshalShift } from "./Screens";
@@ -43,7 +42,14 @@ export default function DemoWorkspace({ firstDay, analyticsAvailable }: { firstD
 
   function act(move: Action) {
     if (transition(applications, move) === applications) return;
-    if (shareDemoActions) void countDemoAction(move.type).catch(() => {});
+    if (shareDemoActions) {
+      void fetch(`/api/demo-analytics?action=${move.type}`, {
+        method: "POST",
+        credentials: "omit",
+        keepalive: true,
+        headers: { "X-Setru-Demo": "1" },
+      }).catch(() => {});
+    }
     setMoves(previous => {
       const current = previous.reduce<Application[]>(transition, initialApplications);
       return transition(current, move) === current ? previous : [...previous, move];
